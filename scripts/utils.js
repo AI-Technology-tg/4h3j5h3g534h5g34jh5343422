@@ -1121,11 +1121,11 @@ window.reminkoMessagesLink = reminkoMessagesLink;
 /** Значки ролей команды (Fons/* znak.png) — как у Создателя в профиле. */
 const REMINKO_TEAM_ROLE_BADGES = {
     creator: 'Fons/creator znak.png',
-    moderator: 'Fons/moderator znak.png',
-    admin: 'Fons/admin znak.png',
+    moderator: 'Fons/moderator znak.jpg',
+    admin: 'Fons/admin znak.jpg',
     sponsor: 'Fons/sponsor znak.png',
-    promoter: 'Fons/promoter znak.png',
-    support: 'Fons/support znak.png'
+    promoter: 'Fons/piar_znak.png',
+    support: 'Fons/support znak.jpg'
 };
 
 const REMINKO_TEAM_ROLE_LABELS = {
