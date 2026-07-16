@@ -127,9 +127,11 @@
         const item = document.createElement('article');
         item.className = 'calendar-item';
         item.innerHTML = `
-            <div class="calendar-item__time">${timeStr}</div>
-            <div class="calendar-item__poster">
-                <img src="${poster}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+            <div class="calendar-item__media">
+                <div class="calendar-item__poster">
+                    <img src="${poster}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+                </div>
+                <span class="calendar-item__time">${timeStr}</span>
             </div>
             <div class="calendar-item__body">
                 <div class="calendar-item__badges">

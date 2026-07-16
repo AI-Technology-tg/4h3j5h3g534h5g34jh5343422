@@ -407,6 +407,20 @@ body.theme-dark .anime-poster-countdown {
     box-shadow: 0 0 12px rgba(255, 45, 85, 0.2);
 }
 
+body.theme-dark .calendar-item__media {
+    background: rgba(8, 6, 17, 0.5) !important;
+}
+
+body.theme-dark .calendar-item__time {
+    background: rgba(8, 6, 17, 0.88) !important;
+    border-color: rgba(157, 77, 255, 0.35) !important;
+    color: #ffb347 !important;
+}
+
+body.theme-dark .calendar-day__title {
+    border-bottom-color: rgba(157, 77, 255, 0.28) !important;
+}
+
 body.theme-dark .calendar-main,
 body.theme-dark .calendar-item,
 body.theme-dark .calendar-day__title {
