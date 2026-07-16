@@ -407,6 +407,12 @@ body.theme-dark .anime-poster-countdown {
     box-shadow: 0 0 12px rgba(255, 45, 85, 0.2);
 }
 
+body.theme-dark .calendar-item__poster {
+    background:
+        linear-gradient(145deg, rgba(255, 45, 85, 0.22), rgba(18, 8, 31, 0.92)),
+        rgba(8, 6, 17, 0.65) !important;
+}
+
 body.theme-dark .calendar-item__media {
     background: rgba(8, 6, 17, 0.5) !important;
 }

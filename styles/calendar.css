@@ -118,6 +118,9 @@
 .calendar-item__poster {
     width: 100%;
     height: 100%;
+    background:
+        linear-gradient(145deg, rgba(124, 58, 237, 0.35), rgba(15, 23, 42, 0.92)),
+        rgba(255, 255, 255, 0.06);
 }
 
 .calendar-item__poster img {
@@ -125,6 +128,10 @@
     height: 100%;
     object-fit: cover;
     display: block;
+}
+
+.calendar-item__poster img.is-poster-missing {
+    opacity: 0;
 }
 
 .calendar-item__time {

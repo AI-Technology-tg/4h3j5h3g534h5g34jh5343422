@@ -331,6 +331,78 @@
         return jpg.large_image_url || jpg.image_url || jpg.small_image_url || '';
     }
 
+    function isShikimoriPlaceholderPoster(url) {
+        const s = String(url || '').toLowerCase();
+        if (!s) return true;
+        return s.includes('missing_') || s.includes('/assets/globals/missing');
+    }
+
+    function shikimoriPosterUrlFromPath(path) {
+        const p = String(path || '').trim();
+        if (!p || isShikimoriPlaceholderPoster(p)) return '';
+        if (/^https?:\/\//i.test(p)) return p;
+        return `https://shikimori.one${p.startsWith('/') ? p : `/${p}`}`;
+    }
+
+    function isShikimoriDirectMalPoster(url) {
+        return /shikimori\.(one|me)\/system\/animes\/\d+\/original\.jpg/i.test(String(url || ''));
+    }
+
+    const POSTER_MAL_CACHE_KEY = 'reminko_poster_mal_v2';
+    const POSTER_MAL_CACHE_TTL = 30 * 86400000;
+    const _posterMalMem = new Map();
+
+    function readMalPosterCache(malId) {
+        const mal = parseInt(malId, 10);
+        if (!Number.isFinite(mal) || mal <= 0) return '';
+        if (_posterMalMem.has(mal)) return _posterMalMem.get(mal);
+        try {
+            const raw = localStorage.getItem(POSTER_MAL_CACHE_KEY);
+            if (!raw) return '';
+            const o = JSON.parse(raw);
+            const e = o[String(mal)];
+            if (e?.url && Date.now() - (e.ts || 0) < POSTER_MAL_CACHE_TTL) {
+                _posterMalMem.set(mal, e.url);
+                return e.url;
+            }
+        } catch (_) {
+            /* ignore */
+        }
+        return '';
+    }
+
+    function writeMalPosterCache(malId, url) {
+        const mal = parseInt(malId, 10);
+        if (!Number.isFinite(mal) || mal <= 0 || !url || isShikimoriPlaceholderPoster(url)) return;
+        _posterMalMem.set(mal, url);
+        try {
+            const raw = localStorage.getItem(POSTER_MAL_CACHE_KEY);
+            const o = raw ? JSON.parse(raw) : {};
+            o[String(mal)] = { url, ts: Date.now() };
+            localStorage.setItem(POSTER_MAL_CACHE_KEY, JSON.stringify(o));
+        } catch (_) {
+            /* ignore */
+        }
+    }
+
+    function pickKnownPosterUrl(anime) {
+        if (!anime) return '';
+        const candidates = [
+            jikanPosterFromAnime(anime._jikan),
+            jikanPosterFromAnime(anime._jikanRaw),
+            jikanPosterFromAnime(anime),
+            anime.posterUrl,
+            shikimoriPosterUrlFromPath(anime.image?.original)
+        ];
+        for (const url of candidates) {
+            if (url && !isShikimoriPlaceholderPoster(url) && !isShikimoriDirectMalPoster(url)) {
+                return url;
+            }
+            if (url && !isShikimoriPlaceholderPoster(url)) return url;
+        }
+        return '';
+    }
+
     function russianTitleFromCatalogMal(malId) {
         const mal = parseInt(malId, 10);
         if (!Number.isFinite(mal) || mal <= 0) return '';
@@ -415,53 +487,34 @@
         global.location.href = `${base}?id=${encodeURIComponent(String(virtualId))}&mal_id=${encodeURIComponent(String(mal))}`;
     }
 
-    function jikanPosterFromAnime(anime) {
-        if (!anime) return '';
-        const jpg = anime.images?.jpg || anime.images?.webp;
-        if (!jpg) return '';
-        return jpg.large_image_url || jpg.image_url || jpg.small_image_url || '';
-    }
-
-    function isShikimoriPlaceholderPoster(url) {
-        const s = String(url || '').toLowerCase();
-        if (!s) return true;
-        return s.includes('missing_') || s.includes('/assets/globals/missing');
-    }
-
-    function shikimoriPosterUrlFromPath(path) {
-        const p = String(path || '').trim();
-        if (!p || isShikimoriPlaceholderPoster(p)) return '';
-        if (/^https?:\/\//i.test(p)) return p;
-        return `https://shikimori.one${p.startsWith('/') ? p : `/${p}`}`;
-    }
-
     async function fetchPosterUrlForMal(malId, anime) {
         const mal = parseInt(malId, 10);
         if (!Number.isFinite(mal) || mal <= 0) return '';
 
-        const candidates = [];
-        const fromJikan = jikanPosterFromAnime(anime);
-        if (fromJikan) candidates.push(fromJikan);
-        if (anime?.posterUrl) candidates.push(anime.posterUrl);
-        if (anime?.image?.original) candidates.push(shikimoriPosterUrlFromPath(anime.image.original));
-        if (anime?._jikanRaw) {
-            const j2 = jikanPosterFromAnime(anime._jikanRaw);
-            if (j2) candidates.push(j2);
-        }
+        const cached = readMalPosterCache(mal);
+        if (cached) return cached;
 
-        for (const url of candidates) {
-            if (url && !isShikimoriPlaceholderPoster(url)) return url;
+        const known = pickKnownPosterUrl(anime);
+        if (known) {
+            writeMalPosterCache(mal, known);
+            return known;
         }
 
         try {
             if (typeof global.jikanFetchPosterByMalId === 'function') {
                 const u = await global.jikanFetchPosterByMalId(mal);
-                if (u && !isShikimoriPlaceholderPoster(u)) return u;
+                if (u && !isShikimoriPlaceholderPoster(u)) {
+                    writeMalPosterCache(mal, u);
+                    return u;
+                }
             }
             if (typeof global.jikanFetchAnimeFullByMalId === 'function') {
                 const full = await global.jikanFetchAnimeFullByMalId(mal);
                 const u = jikanPosterFromAnime(full);
-                if (u && !isShikimoriPlaceholderPoster(u)) return u;
+                if (u && !isShikimoriPlaceholderPoster(u)) {
+                    writeMalPosterCache(mal, u);
+                    return u;
+                }
             }
         } catch (_) {
             /* ignore */
@@ -470,10 +523,30 @@
         if (global.shikimoriApi?.readCachedByMalId) {
             const sh = global.shikimoriApi.readCachedByMalId(mal);
             const u = shikimoriPosterUrlFromPath(sh?.image?.original);
-            if (u) return u;
+            if (u) {
+                writeMalPosterCache(mal, u);
+                return u;
+            }
         }
 
-        return `https://shikimori.one/system/animes/${mal}/original.jpg`;
+        const title =
+            (anime && (anime.title_ru || anime.title || anime.titleAlt)) ||
+            russianTitleFromCatalogMal(mal) ||
+            '';
+        if (title && typeof global.getPosterFast === 'function') {
+            try {
+                const u = await global.getPosterFast(title, 'anime');
+                const ph = global.POSTER_PLACEHOLDER || '';
+                if (u && u !== ph && !isShikimoriPlaceholderPoster(u)) {
+                    writeMalPosterCache(mal, u);
+                    return u;
+                }
+            } catch (_) {
+                /* ignore */
+            }
+        }
+
+        return '';
     }
 
     function attachJikanPosterFallback(img, malId, anime) {
@@ -486,40 +559,63 @@
         img.referrerPolicy = 'no-referrer';
         img.decoding = 'async';
 
-        let resolved = false;
-        const applyUrl = (url) => {
-            if (!url || !img.isConnected || resolved) return;
-            img.src = url;
-        };
-
-        const hideBroken = () => {
-            if (img.isConnected) img.style.display = 'none';
-        };
-
-        img.onerror = hideBroken;
-
-        img.onload = function onPosterLoad() {
-            if (resolved) return;
-            if (isShikimoriPlaceholderPoster(this.src)) {
-                this.onload = null;
-                void resolvePoster();
-            }
-        };
-
-        async function resolvePoster() {
-            if (resolved) return;
-            const url = await fetchPosterUrlForMal(mal, anime);
-            if (!url || !img.isConnected) return;
-            if (isShikimoriPlaceholderPoster(url)) {
-                hideBroken();
-                return;
-            }
-            resolved = true;
-            img.onerror = hideBroken;
-            applyUrl(url);
+        const cached = readMalPosterCache(mal);
+        if (cached) {
+            img.classList.remove('is-poster-missing');
+            img.src = cached;
+            return;
         }
 
-        void resolvePoster();
+        const initial = String(img.getAttribute('src') || img.src || '');
+        if (
+            !initial ||
+            initial.startsWith('data:') ||
+            isShikimoriPlaceholderPoster(initial) ||
+            isShikimoriDirectMalPoster(initial)
+        ) {
+            img.src =
+                'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        }
+
+        img.onerror = () => {
+            if (img.isConnected) img.classList.add('is-poster-missing');
+        };
+
+        void (async () => {
+            const url = await fetchPosterUrlForMal(mal, anime);
+            if (!url || !img.isConnected) {
+                if (img.isConnected) img.classList.add('is-poster-missing');
+                return;
+            }
+            img.classList.remove('is-poster-missing');
+            img.src = url;
+        })();
+    }
+
+    async function prefetchPosterUrlsForMals(entries, opts) {
+        const concurrency = Math.max(1, Math.min(6, parseInt(opts?.concurrency, 10) || 4));
+        const delayMs = Math.max(0, parseInt(opts?.delayMs, 10) || 320);
+        const list = Array.isArray(entries) ? entries : [];
+        const queue = [];
+        const seen = new Set();
+        for (const item of list) {
+            const mal = parseInt(item?.mal_id ?? item?.malId, 10);
+            if (!Number.isFinite(mal) || mal <= 0 || seen.has(mal)) continue;
+            if (readMalPosterCache(mal)) continue;
+            seen.add(mal);
+            queue.push({ mal, anime: item?.anime || item?.meta || item });
+        }
+        for (let i = 0; i < queue.length; i += concurrency) {
+            const batch = queue.slice(i, i + concurrency);
+            await Promise.all(
+                batch.map(({ mal, anime }) =>
+                    fetchPosterUrlForMal(mal, anime).catch(() => '')
+                )
+            );
+            if (i + concurrency < queue.length && delayMs > 0) {
+                await new Promise((r) => setTimeout(r, delayMs));
+            }
+        }
     }
 
     global.fetchJikanAnnouncedList = fetchJikanAnnouncedList;
@@ -530,8 +626,13 @@
     global.jikanAnnouncedToCalendarRows = jikanAnnouncedToCalendarRows;
     global.jikanPosterFromAnime = jikanPosterFromAnime;
     global.isShikimoriPlaceholderPoster = isShikimoriPlaceholderPoster;
+    global.isShikimoriDirectMalPoster = isShikimoriDirectMalPoster;
+    global.readMalPosterCache = readMalPosterCache;
+    global.writeMalPosterCache = writeMalPosterCache;
+    global.pickKnownPosterUrl = pickKnownPosterUrl;
     global.fetchPosterUrlForMal = fetchPosterUrlForMal;
     global.attachJikanPosterFallback = attachJikanPosterFallback;
+    global.prefetchPosterUrlsForMals = prefetchPosterUrlsForMals;
     global.navigateToJikanAnnouncedAnime = navigateToJikanAnnouncedAnime;
     global.jikanVirtualAnimeId = jikanVirtualAnimeId;
 })(typeof window !== 'undefined' ? window : globalThis);

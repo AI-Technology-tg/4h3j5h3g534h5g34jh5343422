@@ -8,10 +8,77 @@
     let _activeTab = 'all';
     let _allRows = [];
 
-    function malPosterUrl(malId) {
-        const mal = parseInt(malId, 10);
-        if (!Number.isFinite(mal) || mal <= 0) return '';
-        return `https://shikimori.one/system/animes/${mal}/original.jpg`;
+    const POSTER_PLACEHOLDER_SRC =
+        'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+    function posterMetaForRow(row, catalogAnime) {
+        if (catalogAnime) return catalogAnime;
+        return {
+            mal_id: row.mal_id,
+            title: row.title_ru,
+            title_ru: row.title_ru,
+            posterUrl: row.posterUrl || '',
+            _jikan: row._jikan,
+            _jikanRaw: row._jikanRaw
+        };
+    }
+
+    function pickInitialPoster(row, catalogAnime) {
+        const mal = parseInt(row.mal_id, 10);
+        if (Number.isFinite(mal) && mal > 0 && typeof global.readMalPosterCache === 'function') {
+            const cached = global.readMalPosterCache(mal);
+            if (cached) return cached;
+        }
+        const meta = posterMetaForRow(row, catalogAnime);
+        if (typeof global.pickKnownPosterUrl === 'function') {
+            const known = global.pickKnownPosterUrl(meta);
+            if (known) return known;
+        }
+        const candidates = [row.posterUrl, catalogAnime && catalogAnime.posterUrl];
+        for (const url of candidates) {
+            if (!url) continue;
+            if (
+                typeof global.isShikimoriPlaceholderPoster === 'function' &&
+                global.isShikimoriPlaceholderPoster(url)
+            ) {
+                continue;
+            }
+            if (
+                typeof global.isShikimoriDirectMalPoster === 'function' &&
+                global.isShikimoriDirectMalPoster(url)
+            ) {
+                continue;
+            }
+            return url;
+        }
+        return POSTER_PLACEHOLDER_SRC;
+    }
+
+    function hydrateCalendarPosters(container) {
+        if (!container) return;
+        container.querySelectorAll('.calendar-item__poster img[data-mal-id]').forEach((img) => {
+            const mal = parseInt(img.dataset.malId, 10);
+            if (!Number.isFinite(mal) || mal <= 0) return;
+            if (typeof global.attachJikanPosterFallback !== 'function') return;
+            const rowId = img.dataset.rowMal;
+            const row = _allRows.find((r) => String(r.mal_id) === String(rowId));
+            const catalogAnime = _catalogByMal.get(mal) || null;
+            global.attachJikanPosterFallback(img, mal, posterMetaForRow(row || { mal_id: mal }, catalogAnime));
+        });
+    }
+
+    async function prefetchVisiblePosters(rows) {
+        if (typeof global.prefetchPosterUrlsForMals !== 'function') return;
+        const payload = (rows || []).map((row) => {
+            const mal = parseInt(row.mal_id, 10);
+            const catalogAnime = Number.isFinite(mal) ? _catalogByMal.get(mal) : null;
+            return { mal_id: mal, anime: posterMetaForRow(row, catalogAnime) };
+        });
+        try {
+            await global.prefetchPosterUrlsForMals(payload, { concurrency: 4, delayMs: 300 });
+        } catch (_) {
+            /* ignore */
+        }
     }
 
     function buildCatalogMap() {
@@ -119,9 +186,7 @@
             hour: '2-digit',
             minute: '2-digit'
         });
-        const poster =
-            (catalogAnime && catalogAnime.posterUrl) ||
-            (Number.isFinite(mal) && mal > 0 ? malPosterUrl(mal) : '');
+        const poster = pickInitialPoster(row, catalogAnime);
         const inCatalog = !!catalogAnime;
 
         const item = document.createElement('article');
@@ -129,7 +194,7 @@
         item.innerHTML = `
             <div class="calendar-item__media">
                 <div class="calendar-item__poster">
-                    <img src="${poster}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+                    <img src="${String(poster).replace(/"/g, '&quot;')}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-mal-id="${mal}" data-row-mal="${mal}">
                 </div>
                 <span class="calendar-item__time">${timeStr}</span>
             </div>
@@ -150,7 +215,11 @@
         item.addEventListener('click', () => navigateToAnime(row));
         const posterImg = item.querySelector('.calendar-item__poster img');
         if (posterImg && Number.isFinite(mal) && mal > 0 && typeof global.attachJikanPosterFallback === 'function') {
-            global.attachJikanPosterFallback(posterImg, mal, catalogAnime || row);
+            global.attachJikanPosterFallback(
+                posterImg,
+                mal,
+                posterMetaForRow(row, catalogAnime)
+            );
         }
         return item;
     }
@@ -216,6 +285,9 @@
                 });
             });
         }
+
+        hydrateCalendarPosters(container);
+        void prefetchVisiblePosters(visible).then(() => hydrateCalendarPosters(container));
     }
 
     function bindTabs() {
