@@ -435,6 +435,9 @@
             parseInt(entry.next_episode, 10) ||
             (Number.isFinite(epAired) && epAired >= 0 ? epAired + 1 : 1);
 
+        const shikiStatus = String(a.status || '').toLowerCase();
+        if (shikiStatus === 'released' && (!iso || Date.parse(iso) <= Date.now())) return null;
+
         let posterUrl = '';
         const imgPath = a.image && a.image.original ? String(a.image.original) : '';
         if (imgPath && !imgPath.toLowerCase().includes('missing_')) {
@@ -543,6 +546,82 @@
         return [...merged.values()].sort(
             (a, b) => reminkoCalendarRowTime(a) - reminkoCalendarRowTime(b)
         );
+    }
+
+    /** Долгие / ежедневные сериалы: last === total не означает «завершён». */
+    const REMINKO_LONG_RUNNING_MAL = new Set([
+        21, 235, 966, 1960, 2406, 6149, 8687, 53876, 56566, 32353, 50418, 60534, 50250, 18941,
+        63356, 62933, 63383, 63150, 63403, 64357, 63641, 62683, 62856, 63042, 63352, 37096, 42295
+    ]);
+
+    function reminkoIsLongRunningAnime(anime) {
+        const mal = parseInt(anime && anime.mal_id, 10);
+        if (Number.isFinite(mal) && mal > 0 && REMINKO_LONG_RUNNING_MAL.has(mal)) return true;
+        if (Number.isFinite(mal) && mal > 0 && REMINKO_KIDS_CARTOON_MAL.has(mal)) return true;
+        const title = String((anime && (anime.title || anime.titleAlt)) || '').toLowerCase();
+        if (!title) return false;
+        return /ван-пис|one piece|детектив конан|detective conan|дораэмон|doraemon|покемон|pokemon|син-тян|коротышка марuko|maruko|тикава|shimajirou|шимаджиро/.test(
+            title
+        );
+    }
+
+    function reminkoCalendarRowPromisesNewEpisode(row, lastEpisode) {
+        if (!row) return false;
+        const t = Date.parse(row.next_at || row.nextAt);
+        const nextEp = parseInt(row.next_episode, 10);
+        if (!Number.isFinite(t) || t <= Date.now()) return false;
+        if (!Number.isFinite(nextEp)) return false;
+        if (!Number.isFinite(lastEpisode)) return nextEp >= 1;
+        return nextEp > lastEpisode;
+    }
+
+    /**
+     * Kodik часто ставит «Онгоинг» всем тайтлам с ≥1 серией.
+     * Завершён = все серии вышли, нет новой в календаре, давно не обновлялся в Kodik.
+     */
+    function reminkoIsAnimeCatalogFinished(anime) {
+        if (!anime) return false;
+        const st = String(anime.status || '');
+        if (st === 'Завершён' || st === 'Вышел') return true;
+        if (st !== 'Онгоинг') return false;
+        if (reminkoIsLongRunningAnime(anime)) return false;
+
+        const last = parseInt(anime._kodik && anime._kodik.lastEpisode, 10);
+        const total = parseInt(anime.totalEpisodes, 10);
+        if (!Number.isFinite(last) || !Number.isFinite(total) || total <= 0 || last < total) {
+            return false;
+        }
+
+        const mal = parseInt(anime.mal_id, 10);
+        let calRow = null;
+        if (Number.isFinite(mal) && mal > 0 && typeof reminkoCalendarRowForMal === 'function') {
+            calRow = reminkoCalendarRowForMal(mal);
+        }
+        if (reminkoCalendarRowPromisesNewEpisode(calRow, last)) return false;
+
+        const updated = Date.parse((anime._kodik && anime._kodik.updatedAt) || '');
+        const RECENT_MS = 60 * 86400000;
+        if (Number.isFinite(updated) && Date.now() - updated < RECENT_MS) return false;
+
+        return true;
+    }
+
+    function reminkoEffectiveAnimeStatus(anime) {
+        if (!anime) return '';
+        if (reminkoIsAnimeCatalogFinished(anime)) return 'Завершён';
+        return anime.status || '';
+    }
+
+    function reminkoIsTrueAiringAnime(anime) {
+        if (!anime) return false;
+        return reminkoEffectiveAnimeStatus(anime) === 'Онгоинг';
+    }
+
+    function reminkoIsCalendarRowFinished(row, meta) {
+        if (meta && reminkoIsAnimeCatalogFinished(meta)) return true;
+        const st = String((row && row.status) || '').toLowerCase();
+        if (st === 'released' || st === 'finished') return true;
+        return false;
     }
 
     /** Детские / ежедневные мультсериалы — не показываем в анонсах календаря. */
@@ -660,6 +739,7 @@
                 }
                 announced.push(row);
             } else {
+                if (reminkoIsCalendarRowFinished(row, meta)) continue;
                 if (Number.isFinite(mal) && mal > 0) {
                     if (seenAiringMal.has(mal)) continue;
                     seenAiringMal.add(mal);
@@ -686,7 +766,8 @@
 
     function reminkoAnimeNeedsEpisodeCountdown(anime) {
         if (!anime || anime.type === 'Фильм') return false;
-        return anime.status === 'Онгоинг' || anime.status === 'Анонс';
+        if (anime.status === 'Анонс') return true;
+        return reminkoIsTrueAiringAnime(anime);
     }
 
     function reminkoResolveAnimeCountdownIso(anime, shiki) {
@@ -716,6 +797,9 @@
         });
     }
 
+    global.reminkoIsAnimeCatalogFinished = reminkoIsAnimeCatalogFinished;
+    global.reminkoEffectiveAnimeStatus = reminkoEffectiveAnimeStatus;
+    global.reminkoIsTrueAiringAnime = reminkoIsTrueAiringAnime;
     global.reminkoAnimeNeedsEpisodeCountdown = reminkoAnimeNeedsEpisodeCountdown;
     global.reminkoResolveAnimeCountdownIso = reminkoResolveAnimeCountdownIso;
     global.reminkoApplyCompactCountdown = reminkoApplyCompactCountdown;

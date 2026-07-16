@@ -1010,8 +1010,12 @@ function filterAnime(filters) {
             if (sel === 'Вышел' && (animeSt === 'Завершён' || animeSt === 'Вышел')) return true;
             return animeSt === sel;
         };
+        const effectiveStatus =
+            typeof window.reminkoEffectiveAnimeStatus === 'function'
+                ? (anime) => window.reminkoEffectiveAnimeStatus(anime)
+                : (anime) => anime.status;
         results = results.filter((anime) =>
-            filters.status.some((s) => statusAliases(s, anime.status))
+            filters.status.some((s) => statusAliases(s, effectiveStatus(anime)))
         );
     }
     

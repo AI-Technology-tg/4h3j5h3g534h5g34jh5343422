@@ -108,12 +108,18 @@ function mapStatus(row) {
     const md = row.material_data || {};
     const st = String(md.anime_status || md.all_status || '').toLowerCase();
     const released = releasedEpisodeCount(row);
+    const total =
+        parseInt(md.episodes_total, 10) ||
+        parseInt(row.episodes_count, 10) ||
+        0;
+
     if (st === 'released' || st === 'finished') return 'Завершён';
     if (st === 'anons' || st === 'announcement') return 'Анонс';
+    if (total > 0 && released >= total) return 'Завершён';
+    if (st === 'ongoing' || st === 'currently airing') return 'Онгоинг';
     if (released > 0) return 'Онгоинг';
     if (row.last_episode != null && parseInt(row.last_episode, 10) === 0) return 'Анонс';
-    if (st === 'ongoing' || st === 'currently airing') return 'Онгоинг';
-    return 'Онгоинг';
+    return 'Анонс';
 }
 
 function pickRating(row) {

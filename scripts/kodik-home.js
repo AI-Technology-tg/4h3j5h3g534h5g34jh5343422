@@ -123,10 +123,14 @@
         return released === 0;
     }
 
-    /** Выходит: онгоинг и уже есть ≥1 серия; не анонс. */
+    /** Выходит: онгоинг и уже есть ≥1 серия; не анонс; не завершённый тайтл с ошибочным статусом. */
     function isKodikHomeAiring(anime) {
         if (!anime || isKodikHomeAnnounced(anime)) return false;
-        if (anime.status !== 'Онгоинг') return false;
+        const effective =
+            typeof global.reminkoIsTrueAiringAnime === 'function'
+                ? global.reminkoIsTrueAiringAnime(anime)
+                : anime.status === 'Онгоинг';
+        if (!effective) return false;
         if (anime.type === 'Фильм') return true;
         return kodikReleasedEpisodes(anime) >= 1;
     }
