@@ -90,26 +90,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Попытка загрузить Jikan аниме (из главной — Новинки/Скоро выходит/В эфире)
     if (!animeId && malId) {
         try {
-            let jikanData = null;
-            const stored = sessionStorage.getItem('jikanAnimeData');
-            if (stored) {
-                jikanData = JSON.parse(stored);
-                sessionStorage.removeItem('jikanAnimeData');
-            }
             const malNorm =
                 typeof reminkoNormalizeMalId === 'function' ? reminkoNormalizeMalId(malId) : parseInt(malId, 10);
-            if (!jikanData || String(jikanData.mal_id) !== String(malNorm)) {
-                if (typeof reminkoJikanFetch === 'function' && Number.isFinite(malNorm) && malNorm > 0) {
-                    try {
-                        const json = await reminkoJikanFetch(`https://api.jikan.moe/v4/anime/${malNorm}`);
-                        if (json && json.data) jikanData = json.data;
-                    } catch (_) {
-                        /* fallback ниже */
-                    }
-                }
-                if (!jikanData && Number.isFinite(malNorm) && malNorm > 0) {
-                    const res = await fetch(`https://api.jikan.moe/v4/anime/${malNorm}`);
-                    if (res.ok) jikanData = (await res.json()).data;
+            let jikanData = null;
+            if (Number.isFinite(malNorm) && malNorm > 0) {
+                jikanData = await fetchJikanAnimeByMalId(malNorm);
+                if (!jikanData) {
+                    const calRow =
+                        typeof reminkoShikimoriCalendarRowForMal === 'function'
+                            ? reminkoShikimoriCalendarRowForMal(malNorm)
+                            : null;
+                    jikanData = buildMinimalJikanStubFromMal(malNorm, calRow);
                 }
             }
             if (jikanData) {
@@ -274,13 +265,109 @@ async function resolveVirtualJikanView(animeId, malIdParam) {
     }
 
     const jikanData = await fetchJikanAnimeByMalId(mal);
-    if (!jikanData) return null;
-    if (typeof registerJikanHomeList === 'function') registerJikanHomeList([jikanData]);
-    virtualAnime = getAnimeById(animeId);
-    return {
-        jikan: jikanData,
-        mergedCard: virtualAnime && virtualAnime.isJikanVirtual ? virtualAnime : null
+    if (jikanData) {
+        if (typeof registerJikanHomeList === 'function') registerJikanHomeList([jikanData]);
+        virtualAnime = getAnimeById(animeId);
+        return {
+            jikan: jikanData,
+            mergedCard: virtualAnime && virtualAnime.isJikanVirtual ? virtualAnime : null
+        };
+    }
+
+    if (typeof getJikanAnnouncedCachedSync === 'function') {
+        const fromAnnounced = getJikanAnnouncedCachedSync().find(
+            (a) => a && parseInt(a.mal_id, 10) === mal
+        );
+        if (fromAnnounced) {
+            if (typeof registerJikanHomeList === 'function') registerJikanHomeList([fromAnnounced]);
+            virtualAnime = getAnimeById(animeId);
+            return {
+                jikan: fromAnnounced,
+                mergedCard: virtualAnime && virtualAnime.isJikanVirtual ? virtualAnime : null
+            };
+        }
+    }
+
+    const calRow =
+        typeof reminkoShikimoriCalendarRowForMal === 'function'
+            ? reminkoShikimoriCalendarRowForMal(mal)
+            : null;
+    const stub = buildMinimalJikanStubFromMal(mal, calRow);
+    if (stub) {
+        if (typeof registerJikanHomeList === 'function') registerJikanHomeList([stub]);
+        virtualAnime = getAnimeById(animeId);
+        return {
+            jikan: stub,
+            mergedCard: virtualAnime && virtualAnime.isJikanVirtual ? virtualAnime : null
+        };
+    }
+
+    return null;
+}
+
+function buildMinimalJikanStubFromMal(mal, calRow) {
+    const malNum = parseInt(mal, 10);
+    if (!Number.isFinite(malNum) || malNum <= 0) return null;
+    let catalogTitle = '';
+    if (typeof window.KodikCatalogStore?.getAll === 'function') {
+        const hit = window.KodikCatalogStore.getAll().find(
+            (a) => a && parseInt(a.mal_id, 10) === malNum
+        );
+        if (hit?.title && String(hit.title).trim()) catalogTitle = String(hit.title).trim();
+    }
+    const title =
+        (calRow && calRow.title_ru && String(calRow.title_ru).trim()) ||
+        catalogTitle ||
+        `Аниме #${malNum}`;
+    const poster =
+        (calRow && calRow.posterUrl && String(calRow.posterUrl).trim()) ||
+        (typeof readMalPosterCache === 'function' ? readMalPosterCache(malNum) : '') ||
+        '';
+    const stub = {
+        mal_id: malNum,
+        title,
+        title_english: title,
+        status: 'Not yet aired',
+        type: 'TV',
+        synopsis: 'Описание появится позже.'
     };
+    if (poster) {
+        stub.images = { jpg: { image_url: poster, large_image_url: poster } };
+    }
+    return stub;
+}
+
+function resolveJikanDetailPosterUrl(data, shiki) {
+    if (!data) return '';
+    const fromJikan =
+        typeof jikanPosterFromAnime === 'function' ? jikanPosterFromAnime(data) : '';
+    if (fromJikan) return fromJikan;
+    const cached =
+        typeof readMalPosterCache === 'function' ? readMalPosterCache(data.mal_id) : '';
+    if (cached) return cached;
+    if (shiki?.image?.original && typeof shikimoriPosterUrlFromPath === 'function') {
+        const shikiPoster = shikimoriPosterUrlFromPath(shiki.image.original);
+        if (shikiPoster) return shikiPoster;
+    }
+    if (typeof pickKnownPosterUrl === 'function') {
+        const known = pickKnownPosterUrl(data);
+        if (known) return known;
+    }
+    return data.images?.jpg?.large_image_url || data.images?.jpg?.image_url || '';
+}
+
+function hydrateJikanDetailPoster(data) {
+    if (!data?.mal_id || typeof fetchPosterUrlForMal !== 'function') return;
+    const el = document.querySelector('.anime-detail-poster');
+    if (!el) return;
+    const bg = el.style.backgroundImage || '';
+    if (bg && !/linear-gradient/i.test(bg)) return;
+    void fetchPosterUrlForMal(data.mal_id, data).then((url) => {
+        if (!url || !el.isConnected) return;
+        el.style.backgroundImage = `url('${String(url).replace(/'/g, '%27')}')`;
+        el.style.backgroundSize = 'cover';
+        el.style.backgroundPosition = 'center';
+    });
 }
 
 /** Jikan: embed_url, youtube_id или внешняя ссылка на ролик */
@@ -1234,15 +1321,8 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
 
     let synopsis = '';
     let shiki = null;
-    if (window.shikimoriApi) {
-        try {
-            shiki = await window.shikimoriApi.enqueueFetchShikimoriByMalId(
-                data.mal_id,
-                data.title_english || data.title || ''
-            );
-        } catch (_) {
-            /* ignore */
-        }
+    if (window.shikimoriApi?.readCachedByMalId) {
+        shiki = window.shikimoriApi.readCachedByMalId(data.mal_id);
     }
     if (typeof patchJikanVirtualShiki === 'function') {
         patchJikanVirtualShiki(data.mal_id, shiki);
@@ -1278,7 +1358,7 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
         synopsis = jikanSynopsis || 'Описание появится позже.';
     }
 
-    const posterUrl = data.images?.jpg?.large_image_url || data.images?.jpg?.image_url || '';
+    const posterUrl = resolveJikanDetailPosterUrl(data, shiki);
     const titleEn = data.title_english || data.title || '';
     const titleJp = data.title_japanese || '';
     let epLine = '';
@@ -1402,6 +1482,7 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
     wireAnimePlayerTabs();
     refreshAnimeViewCountdown(virtualAnime, data, shiki);
     void hydrateAnimeViewCountdownSchedule(virtualAnime);
+    hydrateJikanDetailPoster(data);
     queueMicrotask(() => {
         if (typeof window.reminkoApplySidebarMaintenanceLocks === 'function') {
             window.reminkoApplySidebarMaintenanceLocks();
@@ -1458,6 +1539,21 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
                     }
                 }
                 refreshAnimeViewCountdown(window.__jikanVirtualPlayerAnime, data, shLate);
+                const posterEl = document.querySelector('.anime-detail-poster');
+                if (posterEl && shLate?.image?.original) {
+                    const bg = posterEl.style.backgroundImage || '';
+                    if (!bg || /linear-gradient/i.test(bg)) {
+                        const latePoster =
+                            typeof shikimoriPosterUrlFromPath === 'function'
+                                ? shikimoriPosterUrlFromPath(shLate.image.original)
+                                : '';
+                        if (latePoster) {
+                            posterEl.style.backgroundImage = `url('${String(latePoster).replace(/'/g, '%27')}')`;
+                            posterEl.style.backgroundSize = 'cover';
+                            posterEl.style.backgroundPosition = 'center';
+                        }
+                    }
+                }
             });
     }
 }
@@ -2115,10 +2211,19 @@ async function fetchJikanAnimeByMalId(malId) {
                       reminkoFetchWithTimeout(url).then((r) => (r.ok ? r.json() : null)),
                       14000
                   );
-        return json && json.data ? json.data : null;
+        if (json && json.data) return json.data;
     } catch (_) {
-        return null;
+        /* fallback ниже */
     }
+
+    if (typeof getJikanAnnouncedCachedSync === 'function') {
+        const fromAnnounced = getJikanAnnouncedCachedSync().find(
+            (a) => a && parseInt(a.mal_id, 10) === mal
+        );
+        if (fromAnnounced) return fromAnnounced;
+    }
+
+    return null;
 }
 
 function generateInlineKodikSection(anime, opts = {}) {

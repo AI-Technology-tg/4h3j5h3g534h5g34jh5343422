@@ -326,9 +326,11 @@
 
     function jikanPosterFromAnime(anime) {
         if (!anime) return '';
-        const jpg = anime.images?.jpg || anime.images?.webp;
-        if (!jpg) return '';
-        return jpg.large_image_url || jpg.image_url || jpg.small_image_url || '';
+        const jpg = anime.images?.jpg;
+        const webp = anime.images?.webp;
+        if (jpg) return jpg.large_image_url || jpg.image_url || jpg.small_image_url || '';
+        if (webp) return webp.large_image_url || webp.image_url || webp.small_image_url || '';
+        return '';
     }
 
     function isShikimoriPlaceholderPoster(url) {

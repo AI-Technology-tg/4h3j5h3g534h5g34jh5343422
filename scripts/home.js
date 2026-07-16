@@ -615,11 +615,17 @@ function createJikanCard(anime) {
     card.className = 'jikan-card';
     card.dataset.malId = String(anime.mal_id);
 
+    const cachedPoster =
+        typeof readMalPosterCache === 'function' ? readMalPosterCache(anime.mal_id) : '';
     const imgUrl =
         (typeof jikanPosterFromAnime === 'function' ? jikanPosterFromAnime(anime) : '') ||
+        cachedPoster ||
         anime.images?.jpg?.large_image_url ||
         anime.images?.jpg?.image_url ||
         '';
+    const imgSrc =
+        imgUrl ||
+        'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
     const score = anime.score ? anime.score.toFixed(1) : '—';
     const titleEn = anime.title_english || anime.title || anime.title_japanese || '—';
     const cachedShiki =
@@ -652,7 +658,7 @@ function createJikanCard(anime) {
 
     card.innerHTML = `
         <div class="jikan-card-poster">
-            <img src="${imgUrl}" alt="" decoding="async" loading="lazy" referrerpolicy="no-referrer" data-jikan-poster="1">
+            <img src="${imgSrc}" alt="" decoding="async" loading="lazy" referrerpolicy="no-referrer" data-jikan-poster="1">
             <div class="jikan-card-poster-hover" aria-hidden="true">
                 <button type="button" class="jikan-card-go-btn">Перейти</button>
             </div>
@@ -834,6 +840,24 @@ function renderJikanCards(containerId, animeList) {
         enhanceHomeHorizontalScroll(container);
         applyShikimoriToStrip(container, displayList);
     });
+
+    if (typeof prefetchPosterUrlsForMals === 'function') {
+        void prefetchPosterUrlsForMals(displayList.slice(0, 24), { concurrency: 3, delayMs: 400 }).then(
+            () => {
+                if (typeof readMalPosterCache !== 'function') return;
+                container.querySelectorAll('img[data-jikan-poster]').forEach((img) => {
+                    const card = img.closest('.jikan-card');
+                    const mal = parseInt(card?.dataset?.malId, 10);
+                    if (!Number.isFinite(mal) || mal <= 0) return;
+                    const url = readMalPosterCache(mal);
+                    if (url && img.src !== url) {
+                        img.src = url;
+                        img.classList.remove('is-poster-missing');
+                    }
+                });
+            }
+        );
+    }
 }
 
 function appendJikanCards(containerId, animeList, excludeMalIds) {

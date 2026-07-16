@@ -144,7 +144,39 @@
     function malPosterUrl(malId) {
         const mal = parseInt(malId, 10);
         if (Number.isNaN(mal) || mal <= 0) return '';
-        return `https://shikimori.one/system/animes/${mal}/original.jpg`;
+        if (typeof global.readMalPosterCache === 'function') {
+            const cached = global.readMalPosterCache(mal);
+            if (cached) return cached;
+        }
+        return '';
+    }
+
+    function jikanRawFromKodikHomeAnime(anime) {
+        if (anime._jikanRaw) return anime._jikanRaw;
+        const mal = parseInt(anime.mal_id, 10);
+        if (!Number.isFinite(mal) || mal <= 0) return null;
+        const row = anime._calendarRow;
+        let poster = (anime.posterUrl && String(anime.posterUrl).trim()) || '';
+        if (
+            poster &&
+            typeof global.isShikimoriDirectMalPoster === 'function' &&
+            global.isShikimoriDirectMalPoster(poster)
+        ) {
+            poster = '';
+        }
+        if (!poster && row?.posterUrl) poster = String(row.posterUrl).trim();
+        const titleEn = anime.titleAlt || row?.title_ru || anime.title || '';
+        const stub = {
+            mal_id: mal,
+            title: titleEn,
+            title_english: anime.titleAlt || titleEn,
+            status: 'Not yet aired',
+            type: anime.type === 'Фильм' ? 'Movie' : 'TV',
+            score: anime.rating || 0,
+            synopsis: 'Описание появится позже.'
+        };
+        if (poster) stub.images = { jpg: { image_url: poster, large_image_url: poster } };
+        return stub;
     }
 
     function filterAdult(list) {
@@ -576,8 +608,17 @@
         try {
             global.sessionStorage.setItem('previousUrl', global.location.href);
             if (anime.isCalendarAnnounced && anime.mal_id != null) {
-                global.location.href = `anime/view.html?mal_id=${encodeURIComponent(String(anime.mal_id))}`;
-                return;
+                const mal = parseInt(anime.mal_id, 10);
+                if (Number.isFinite(mal) && mal > 0) {
+                    const raw = jikanRawFromKodikHomeAnime(anime);
+                    const virtualId = 10_000_000 + mal;
+                    if (raw) {
+                        global.sessionStorage.setItem('jikanAnimeData', JSON.stringify(raw));
+                    }
+                    global.sessionStorage.setItem('viewAnimeId', String(virtualId));
+                    global.location.href = `anime/view.html?id=${encodeURIComponent(String(virtualId))}&mal_id=${encodeURIComponent(String(mal))}`;
+                    return;
+                }
             }
             global.sessionStorage.setItem('viewAnimeId', String(anime.id));
         } catch (_) {
