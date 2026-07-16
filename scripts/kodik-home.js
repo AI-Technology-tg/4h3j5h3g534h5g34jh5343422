@@ -21,8 +21,14 @@
             sectionEl: 'kodikHomeAiring',
             gridId: 'kodikAiringGrid',
             pick: pickAiring,
-            moreHref: (media) =>
-                `catalog/anime.html?status=Онгоинг&type=${media === 'film' ? 'Фильм' : 'Сериал'}`,
+            moreHref: (media) => {
+                if (media === 'film') {
+                    const now = new Date();
+                    const y = now.getFullYear();
+                    return `catalog/anime.html?type=Фильм&status=Завершён&yearFrom=${y}&yearTo=${y}&sort=year-desc`;
+                }
+                return 'catalog/anime.html?status=Онгоинг&type=Сериал';
+            },
         },
         {
             id: 'popular',
@@ -158,7 +164,53 @@
         return anime && anime.type === 'Сериал';
     }
 
+    function currentYearMonth() {
+        const now = new Date();
+        return { year: now.getFullYear(), month: now.getMonth() };
+    }
+
+    /** Дата выхода фильма: календарь Shikimori или дата обновления в Kodik. */
+    function parseFilmReleaseDate(anime) {
+        if (!anime) return null;
+        const cal = mergedCalendarRowForMal(anime.mal_id);
+        if (cal && isCalendarRowFilm(cal)) {
+            const t = Date.parse(cal.next_at || cal.nextAt);
+            if (Number.isFinite(t)) return new Date(t);
+        }
+        if (anime._kodik && anime._kodik.updatedAt) {
+            const t = Date.parse(anime._kodik.updatedAt);
+            if (Number.isFinite(t)) return new Date(t);
+        }
+        return null;
+    }
+
+    /** Фильм уже вышел в текущем календарном месяце. */
+    function isFilmReleasedThisMonth(anime) {
+        if (!anime || anime.type !== 'Фильм') return false;
+        if (isKodikHomeAnnounced(anime)) return false;
+        const d = parseFilmReleaseDate(anime);
+        if (!d || d.getTime() > Date.now()) return false;
+        const { year, month } = currentYearMonth();
+        return d.getFullYear() === year && d.getMonth() === month;
+    }
+
+    function pickAiringFilmsThisMonth(all) {
+        const list = all.filter((a) => isFilmReleasedThisMonth(a));
+        list.sort((a, b) => {
+            const da = parseFilmReleaseDate(a);
+            const db = parseFilmReleaseDate(b);
+            const ta = da ? da.getTime() : 0;
+            const tb = db ? db.getTime() : 0;
+            if (tb !== ta) return tb - ta;
+            return (b.rating || 0) - (a.rating || 0);
+        });
+        return list.slice(0, KODIK_HOME_LIMIT);
+    }
+
     function pickAiring(all, mediaType) {
+        if (normalizeMediaType(mediaType) === 'film') {
+            return pickAiringFilmsThisMonth(all);
+        }
         const list = all.filter((a) => matchMedia(a, mediaType) && isKodikHomeAiring(a));
         list.sort((a, b) => {
             const ac = mergedCalendarRowForMal(a.mal_id) || a._calendar;
@@ -423,6 +475,7 @@
 
     function statusLabel(anime) {
         if (!anime) return '';
+        if (anime.type === 'Фильм' && isFilmReleasedThisMonth(anime)) return 'Вышел';
         if (isKodikHomeAnnounced(anime)) return 'Анонс';
         if (anime.status === 'Онгоинг') return 'Выходит';
         if (anime.status === 'Завершён') return 'Завершён';
@@ -430,7 +483,19 @@
     }
 
     function epLine(anime) {
-        if (!anime || anime.type === 'Фильм') return '';
+        if (!anime) return '';
+        if (anime.type === 'Фильм') {
+            const d = parseFilmReleaseDate(anime);
+            if (d && !Number.isNaN(d.getTime())) {
+                return d.toLocaleDateString('ru-RU', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            }
+            const y = parseInt(anime.year, 10);
+            return Number.isFinite(y) && y > 0 ? String(y) : '';
+        }
         const cal =
             mergedCalendarRowForMal(anime.mal_id) ||
             anime._calendar ||
