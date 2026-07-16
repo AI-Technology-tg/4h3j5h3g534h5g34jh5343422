@@ -59,6 +59,20 @@ async function editProfile() {
             }
             return;
         }
+        const allowStaff =
+            typeof window.reminkoIsUserSiteCreator === 'function' && (await window.reminkoIsUserSiteCreator());
+        if (typeof reminkoValidatePublicUsername === 'function') {
+            const nameCheck = reminkoValidatePublicUsername(username, { allowStaff });
+            if (!nameCheck.ok) {
+                if (errEl) {
+                    errEl.textContent = nameCheck.message || 'Недопустимое имя';
+                    errEl.style.display = 'block';
+                } else if (typeof showError === 'function') {
+                    showError(nameCheck.message || 'Недопустимое имя');
+                }
+                return;
+            }
+        }
         if (errEl) errEl.style.display = 'none';
 
         try {
@@ -124,6 +138,20 @@ async function saveProfileChanges() {
             alert('Имя пользователя должно содержать минимум 3 символа');
         }
         return;
+    }
+
+    const allowStaff =
+        typeof window.reminkoIsUserSiteCreator === 'function' && (await window.reminkoIsUserSiteCreator());
+    if (typeof reminkoValidatePublicUsername === 'function') {
+        const nameCheck = reminkoValidatePublicUsername(username, { allowStaff });
+        if (!nameCheck.ok) {
+            if (typeof showError === 'function') {
+                showError(nameCheck.message || 'Недопустимое имя');
+            } else {
+                alert(nameCheck.message || 'Недопустимое имя');
+            }
+            return;
+        }
     }
     
     const userId = user.id;

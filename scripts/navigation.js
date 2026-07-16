@@ -1283,10 +1283,7 @@ class NavigationManager {
                 });
             });
             panel.querySelector('#notificationsClearAllBtn')?.addEventListener('click', () => {
-                if (
-                    window.notificationService &&
-                    window.confirm('Удалить все уведомления? Отменить это действие нельзя.')
-                ) {
+                if (window.notificationService) {
                     void window.notificationService.deleteAllNotifications();
                 }
             });

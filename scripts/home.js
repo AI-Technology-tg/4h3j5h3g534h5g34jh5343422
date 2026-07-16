@@ -1110,20 +1110,22 @@ function loadHeroWatchHistory() {
         }
         posterWrap.appendChild(posterImg);
 
+        const meta = document.createElement('span');
+        meta.className = 'home-hero-watch-meta';
+        meta.innerHTML = `
+            <span class="home-hero-watch-title">${a.title || 'Аниме'}</span>
+            <span class="home-hero-watch-ep-row">
+                <span class="home-hero-watch-ep">Серия ${row.episodeNumber}</span>
+            </span>
+        `;
+
         if (needsCountdown) {
             const countdownEl = document.createElement('span');
             countdownEl.className = 'home-hero-watch-countdown jikan-card-countdown';
             countdownEl.hidden = true;
             countdownEl.setAttribute('aria-live', 'polite');
-            posterWrap.appendChild(countdownEl);
+            meta.querySelector('.home-hero-watch-ep-row')?.appendChild(countdownEl);
         }
-
-        const meta = document.createElement('span');
-        meta.className = 'home-hero-watch-meta';
-        meta.innerHTML = `
-            <span class="home-hero-watch-title">${a.title || 'Аниме'}</span>
-            <span class="home-hero-watch-ep">Серия ${row.episodeNumber}</span>
-        `;
 
         item.appendChild(posterWrap);
         item.appendChild(meta);

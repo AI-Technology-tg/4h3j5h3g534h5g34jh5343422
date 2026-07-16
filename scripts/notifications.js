@@ -184,7 +184,10 @@ class NotificationService {
                         );
                         this._maybeBrowserPush(name, row.message || 'Новое сообщение', {
                             type: 'dm',
-                            link: `messages.html?user=${encodeURIComponent(String(row.sender_id))}`,
+                            link:
+                                typeof reminkoMessagesLink === 'function'
+                                    ? reminkoMessagesLink(row.sender_id)
+                                    : `messages.html?user=${encodeURIComponent(String(row.sender_id))}`,
                             tag: 'reminko-dm-' + String(row.sender_id)
                         });
                         if (typeof window.reminkoUpdateDmBadge === 'function') {
@@ -687,11 +690,15 @@ class NotificationService {
     }
 
     showDmNotification(senderName, message, senderId, avatarUrl) {
+        const dmLink =
+            typeof reminkoMessagesLink === 'function'
+                ? reminkoMessagesLink(senderId)
+                : `messages.html?user=${encodeURIComponent(String(senderId || ''))}`;
         if (!this._siteToastsEnabled('dm')) {
             this._playNotificationSound();
             this._maybeBrowserPush(senderName, message, {
                 type: 'dm',
-                link: `messages.html?user=${encodeURIComponent(String(senderId || ''))}`,
+                link: dmLink,
                 tag: 'reminko-dm-' + String(senderId || '')
             });
             return;
@@ -703,7 +710,7 @@ class NotificationService {
 
         const el = document.createElement('div');
         el.className = 'notification notification-dm notification--has-link';
-        el.dataset.notifLink = `messages.html?user=${encodeURIComponent(sid)}`;
+        el.dataset.notifLink = dmLink;
         try {
             if (window.matchMedia && window.matchMedia('(hover: none)').matches) {
                 el.classList.add('notification-dm--touch');
@@ -791,7 +798,7 @@ class NotificationService {
         this._syncToastToolbar();
 
         const goChat = () => {
-            window.location.href = `messages.html?user=${encodeURIComponent(sid)}`;
+            window.location.href = dmLink;
         };
 
         el.addEventListener('click', (e) => {
@@ -814,7 +821,7 @@ class NotificationService {
 
         this._maybeBrowserPush(senderName || 'Сообщение', String(message || ''), {
             type: 'dm',
-            link: `messages.html?user=${encodeURIComponent(sid)}`,
+            link: dmLink,
             tag: 'reminko-dm-' + sid
         });
 
@@ -859,7 +866,7 @@ class NotificationService {
 
         if (typeof DirectMessagesService !== 'undefined') {
             const result = await DirectMessagesService.sendMessage(receiverId, text);
-            if (result) {
+            if (result && result.ok && result.data) {
                 const el = btn.closest('.notification');
                 if (el) {
                     el.classList.add('hiding');
@@ -869,6 +876,8 @@ class NotificationService {
                     window.reminkoUpdateDmBadge();
                 }
                 this.showNotification('Ответ отправлен', 'success');
+            } else if (result && result.error) {
+                this.showNotification(result.error, 'error');
             }
         }
     }

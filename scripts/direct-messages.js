@@ -5,15 +5,43 @@ const DirectMessagesService = {
     _cachedUserId: null,
     _cachedAccessToken: null,
 
-    async getCurrentUserId() {
-        if (this._cachedUserId) return this._cachedUserId;
+    async getCurrentUserId(forceRefresh) {
+        if (!forceRefresh && this._cachedUserId) return this._cachedUserId;
         if (!supabaseClient) return null;
         try {
             const { data: { session } } = await supabaseClient.auth.getSession();
             this._cachedUserId = session?.user?.id || null;
             this._cachedAccessToken = session?.access_token || null;
             return this._cachedUserId;
-        } catch (e) { return null; }
+        } catch (e) {
+            return null;
+        }
+    },
+
+    _normalizeProfileRow(userId, data) {
+        if (!data) return null;
+        let p = { ...data, id: data.id || userId };
+        let isCreator =
+            p.is_site_creator === true ||
+            p.isSiteCreator === true ||
+            (typeof window.reminkoUserIdIsSiteCreatorSync === 'function' &&
+                window.reminkoUserIdIsSiteCreatorSync(userId)) ||
+            (typeof window.reminkoIsSiteCreatorProfile === 'function' &&
+                window.reminkoIsSiteCreatorProfile(p)) ||
+            (window.__reminkoSiteCreatorUserId &&
+                String(window.__reminkoSiteCreatorUserId).toLowerCase() ===
+                    String(userId || '').toLowerCase());
+        if (isCreator) {
+            p = {
+                ...p,
+                is_site_creator: true,
+                isSiteCreator: true
+            };
+        }
+        if (typeof window.reminkoProfileForAvatar === 'function') {
+            p = window.reminkoProfileForAvatar(p, userId);
+        }
+        return p;
     },
 
     async getProfile(userId, forceRefresh) {
@@ -40,35 +68,50 @@ const DirectMessagesService = {
                 data = row.data;
             }
             if (data) {
-                let p = { ...data, id: data.id || userId };
-                let isCreator =
-                    (typeof window.reminkoUserIdIsSiteCreatorSync === 'function' &&
-                        window.reminkoUserIdIsSiteCreatorSync(userId)) ||
-                    (typeof window.reminkoIsSiteCreatorProfile === 'function' &&
-                        window.reminkoIsSiteCreatorProfile(p));
-                if (!isCreator && typeof userIdIsSiteCreator === 'function') {
-                    try {
-                        isCreator = await userIdIsSiteCreator(userId);
-                    } catch (_) {
-                        /* ignore */
-                    }
-                }
-                if (isCreator) {
-                    p = {
-                        ...p,
-                        is_site_creator: true,
-                        isSiteCreator: true,
-                        avatar: 'Fons/Creator ava.png'
-                    };
-                }
-                if (typeof window.reminkoProfileForAvatar === 'function') {
-                    p = window.reminkoProfileForAvatar(p, userId);
-                }
+                const p = this._normalizeProfileRow(userId, data);
                 this._profileCache[userId] = p;
                 return p;
             }
             return data;
-        } catch (e) { return null; }
+        } catch (e) {
+            return null;
+        }
+    },
+
+    async getProfilesMap(userIds) {
+        const ids = [...new Set((userIds || []).filter(Boolean))];
+        const map = {};
+        if (!ids.length) return map;
+
+        const missing = [];
+        for (const id of ids) {
+            if (this._profileCache[id]) map[id] = this._profileCache[id];
+            else missing.push(id);
+        }
+        if (!missing.length) return map;
+
+        try {
+            if (typeof reminkoFetchProfilesIn === 'function') {
+                const rows = await reminkoFetchProfilesIn(supabaseClient, missing);
+                for (const row of rows || []) {
+                    const p = this._normalizeProfileRow(row.id, row);
+                    if (p) {
+                        this._profileCache[row.id] = p;
+                        map[row.id] = p;
+                    }
+                }
+            }
+        } catch (_) {
+            /* ignore */
+        }
+
+        for (const id of missing) {
+            if (!map[id]) {
+                const p = await this.getProfile(id);
+                if (p) map[id] = p;
+            }
+        }
+        return map;
     },
 
     async getConversations() {
@@ -78,15 +121,20 @@ const DirectMessagesService = {
         try {
             const { data: messages, error } = await supabaseClient
                 .from('direct_messages')
-                .select('*')
+                .select('id, sender_id, receiver_id, message, read, created_at')
                 .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .limit(600);
 
-            if (error || !messages) return [];
+            if (error || !messages) {
+                if (error) console.error('DM getConversations error:', error);
+                return [];
+            }
 
             const convMap = {};
             for (const msg of messages) {
                 const otherId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
+                if (!otherId) continue;
                 if (!convMap[otherId]) {
                     convMap[otherId] = {
                         userId: otherId,
@@ -100,12 +148,18 @@ const DirectMessagesService = {
             }
 
             const conversations = Object.values(convMap);
+            const profileMap = await this.getProfilesMap(conversations.map((c) => c.userId));
             for (const conv of conversations) {
-                conv.profile = await this.getProfile(conv.userId);
+                conv.profile = profileMap[conv.userId] || null;
             }
-            conversations.sort((a, b) => new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at));
+            conversations.sort(
+                (a, b) => new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at)
+            );
             return conversations;
-        } catch (e) { return []; }
+        } catch (e) {
+            console.error('DM getConversations exception:', e);
+            return [];
+        }
     },
 
     async getMessages(otherUserId, limit = 100) {
@@ -128,23 +182,47 @@ const DirectMessagesService = {
     },
 
     async sendMessage(receiverId, messageText) {
-        const userId = await this.getCurrentUserId();
-        if (!userId || !messageText.trim()) return null;
+        const userId = await this.getCurrentUserId(true);
+        const text = String(messageText || '').trim();
+        if (!userId) {
+            return { ok: false, error: 'Нет сессии. Войдите в аккаунт или обновите страницу.' };
+        }
+        if (!text) {
+            return { ok: false, error: 'Пустое сообщение.' };
+        }
+        if (text.length > 120000) {
+            return { ok: false, error: 'Сообщение слишком длинное. Уменьшите текст или вложение.' };
+        }
+        const rid = String(receiverId || '').trim();
+        if (!rid) {
+            return { ok: false, error: 'Получатель не указан.' };
+        }
 
         try {
             const { data, error } = await supabaseClient
                 .from('direct_messages')
                 .insert({
                     sender_id: userId,
-                    receiver_id: receiverId,
-                    message: messageText.trim()
+                    receiver_id: rid,
+                    message: text
                 })
                 .select()
                 .single();
 
-            if (error) { console.error('DM send error:', error); return null; }
-            return data;
-        } catch (e) { return null; }
+            if (error) {
+                console.error('DM send error:', error);
+                const msg =
+                    error.message ||
+                    (error.code === '42501'
+                        ? 'Нет прав на отправку (проверьте вход в аккаунт).'
+                        : 'Не удалось отправить сообщение.');
+                return { ok: false, error: msg, code: error.code || null };
+            }
+            return { ok: true, data };
+        } catch (e) {
+            console.error('DM send exception:', e);
+            return { ok: false, error: e.message || 'Ошибка отправки.' };
+        }
     },
 
     async markAsRead(otherUserId) {

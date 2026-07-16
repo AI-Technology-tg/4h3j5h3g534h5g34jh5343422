@@ -82,6 +82,17 @@ function validateRegisterFields(root, errorDiv) {
         return { valid: false, data: {} };
     }
 
+    if (typeof reminkoValidatePublicUsername === 'function') {
+        const nameCheck = reminkoValidatePublicUsername(username);
+        if (!nameCheck.ok) {
+            if (errorDiv) {
+                errorDiv.textContent = nameCheck.message || 'Недопустимое имя пользователя';
+                errorDiv.style.display = 'block';
+            }
+            return { valid: false, data: {} };
+        }
+    }
+
     if (errorDiv) {
         errorDiv.textContent = '';
         errorDiv.style.display = 'none';

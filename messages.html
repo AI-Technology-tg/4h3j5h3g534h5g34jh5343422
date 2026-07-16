@@ -59,7 +59,7 @@
         <main class="main-content-wrapper msg-v2-page-wrap">
             <div class="msg-v2-guest-gate" id="msgV2GuestGate" hidden>
                 <div class="msg-v2-guest-gate-card">
-                    <h2 class="msg-v2-guest-gate-title">Написать Создателю</h2>
+                    <h2 class="msg-v2-guest-gate-title">Написать Subarik</h2>
                     <p class="msg-v2-guest-gate-text">
                         Регистрация не обязательна: входим анонимно. Как к вам обращаться в переписке?
                     </p>
@@ -181,6 +181,7 @@
         let chatPollInterval = null;
         let convPollInterval = null;
         let lastConvFilter = '';
+        let cachedConversations = [];
         let guestCreatorMode = false;
         let siteCreatorUserIdResolved = null;
         let __reminkoMsgGuestBusy = false;
@@ -331,7 +332,7 @@
         function applyGuestCreatorUi() {
             document.body.classList.add('msg-v2-creator-guest');
             const title = document.querySelector('.msg-v2-title');
-            if (title) title.textContent = 'Создатель';
+            if (title) title.textContent = 'Subarik';
             const friendsBtn = document.querySelector('.msg-v2-head a[href="friends.html"]');
             if (friendsBtn) friendsBtn.style.display = 'none';
             const sw = document.querySelector('.msg-v2-search-wrap');
@@ -350,11 +351,21 @@
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session?.user) {
                 showMsgToast('Сессия не найдена');
+                hideLoading();
                 return;
             }
             currentUserId = session.user.id;
             guestCreatorMode = isAnonAuthUser(session.user);
             window.__reminkoMsgGuestCreatorMode = guestCreatorMode;
+
+            if (typeof DirectMessagesService !== 'undefined' && DirectMessagesService?.resetSessionCache) {
+                DirectMessagesService.resetSessionCache();
+            }
+            await DirectMessagesService.getCurrentUserId(true);
+
+            hideMsgGuestGate();
+            hideLoading();
+
             siteCreatorUserIdResolved = await resolveSiteCreatorUserId();
             window.__reminkoSiteCreatorUserId = siteCreatorUserIdResolved || null;
             if (guestCreatorMode) {
@@ -363,10 +374,6 @@
                 } else {
                     applyGuestCreatorUi();
                 }
-            }
-
-            if (typeof DirectMessagesService !== 'undefined' && DirectMessagesService?.resetSessionCache) {
-                DirectMessagesService.resetSessionCache();
             }
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -388,15 +395,9 @@
             }
 
             startConvPolling();
-            hideMsgGuestGate();
             if (window.navigationManager && typeof window.navigationManager.updateAuthLinks === 'function') {
-                try {
-                    await window.navigationManager.updateAuthLinks();
-                } catch (e) {
-                    /* ignore */
-                }
+                void window.navigationManager.updateAuthLinks().catch(() => {});
             }
-            hideLoading();
         }
 
         async function reminkoMessagesGuestContinue() {
@@ -546,7 +547,11 @@
                 if (!el) return;
                 if (el.id === 'msgV2SearchInput') {
                     lastConvFilter = el.value;
-                    loadConversations(lastConvFilter);
+                    if (cachedConversations.length) {
+                        renderConversations(cachedConversations, lastConvFilter);
+                    } else {
+                        loadConversations(lastConvFilter, { forceRefresh: true });
+                    }
                 } else if (el.id === 'msgV2Textarea') {
                     autoResizeTextarea(el);
                     if (String(el.value || '').trim()) scheduleTypingSignal();
@@ -679,7 +684,7 @@
                 btn.classList.toggle('is-active', unreadOnlyMode);
                 btn.setAttribute('aria-pressed', unreadOnlyMode ? 'true' : 'false');
             }
-            loadConversations(lastConvFilter);
+            renderConversations(cachedConversations, lastConvFilter);
         }
 
         function renderAttachmentPreview() {
@@ -781,13 +786,13 @@
             }, 1800);
         }
 
-        async function loadConversations(filter) {
+        async function refreshConversationsFromServer(filter) {
             const f = filter != null ? filter : lastConvFilter;
             let conversations = await DirectMessagesService.getConversations();
             if (guestCreatorMode && siteCreatorUserIdResolved) {
                 conversations = conversations.filter((c) => c.userId === siteCreatorUserIdResolved);
                 if (conversations.length === 0) {
-                    const p = await DirectMessagesService.getProfile(siteCreatorUserIdResolved, true);
+                    const p = await DirectMessagesService.getProfile(siteCreatorUserIdResolved);
                     conversations = [
                         {
                             userId: siteCreatorUserIdResolved,
@@ -804,8 +809,21 @@
                     ];
                 }
             }
+            cachedConversations = conversations;
             renderConversations(conversations, f);
             if (typeof reminkoUpdateDmBadge === 'function') reminkoUpdateDmBadge();
+            return conversations;
+        }
+
+        async function loadConversations(filter, options) {
+            const opts = options && typeof options === 'object' ? options : {};
+            const forceRefresh = opts.forceRefresh !== false;
+            const f = filter != null ? filter : lastConvFilter;
+            if (!forceRefresh && cachedConversations.length) {
+                renderConversations(cachedConversations, f);
+                return cachedConversations;
+            }
+            return refreshConversationsFromServer(f);
         }
 
         function renderConversations(conversations, filter) {
@@ -939,7 +957,8 @@
             setMobileChatOpen(true);
             setEmptyMainVisible(false);
 
-            const profile = await DirectMessagesService.getProfile(userId, true);
+            const cached = cachedConversations.find((c) => String(c.userId) === String(userId));
+            const profile = cached?.profile || (await DirectMessagesService.getProfile(userId));
             const isOnline = profile?.last_online && Date.now() - new Date(profile.last_online).getTime() < 5 * 60 * 1000;
             const activity = profile?.current_activity;
             const col = hashColor(userId);
@@ -998,7 +1017,7 @@
                 }
             });
 
-            loadConversations(lastConvFilter);
+            loadConversations(lastConvFilter, { forceRefresh: true });
         }
 
         function autoResizeTextarea(el) {
@@ -1084,20 +1103,40 @@
 
         async function sendDm() {
             const input = document.getElementById('msgV2Textarea');
+            const sendBtn = document.querySelector('#msgV2SendForm button[type="submit"]');
             if (!input || !activeChatUserId) return;
             const text = input.value.trim();
             if (!text && !dmSelectedAttachment) return;
+
+            const savedText = text;
+            const savedAttachment = dmSelectedAttachment;
             input.value = '';
             autoResizeTextarea(input);
-            const payloadText = buildDmMessagePayload(text, dmSelectedAttachment);
-            const msg = await DirectMessagesService.sendMessage(activeChatUserId, payloadText);
             dmSelectedAttachment = null;
             renderAttachmentPreview();
+            if (sendBtn) sendBtn.disabled = true;
+
+            const payloadText = buildDmMessagePayload(savedText, savedAttachment);
+            const result = await DirectMessagesService.sendMessage(activeChatUserId, payloadText);
             void clearTypingSignal();
-            if (msg) {
-                appendMessage(msg);
-                syncMessageDeliveryStates([msg]);
+
+            if (sendBtn) sendBtn.disabled = false;
+
+            if (result && result.ok && result.data) {
+                appendMessage(result.data);
+                syncMessageDeliveryStates([result.data]);
+                void loadConversations(lastConvFilter, { forceRefresh: true });
+                return;
             }
+
+            input.value = savedText;
+            autoResizeTextarea(input);
+            dmSelectedAttachment = savedAttachment;
+            renderAttachmentPreview();
+            showMsgToast(
+                (result && result.error) ||
+                    'Не удалось отправить. Проверьте интернет и что вы вошли в аккаунт.'
+            );
         }
 
         function updatePinButtonLabel() {
@@ -1124,7 +1163,7 @@
             }
             setPinnedOrder(pinned);
             document.getElementById('msgV2Dropdown').classList.remove('is-open');
-            loadConversations(lastConvFilter);
+            loadConversations(lastConvFilter, { forceRefresh: true });
         }
 
         function deleteActiveChat() {
@@ -1147,7 +1186,7 @@
             setMobileChatOpen(false);
             setEmptyMainVisible(true);
             document.getElementById('msgV2Messages').innerHTML = '';
-            loadConversations(lastConvFilter);
+            loadConversations(lastConvFilter, { forceRefresh: true });
             if (typeof reminkoUpdateDmBadge === 'function') reminkoUpdateDmBadge();
         }
 
@@ -1156,7 +1195,7 @@
             chatPollInterval = setInterval(async () => {
                 if (activeChatUserId !== userId) return;
                 const msgs = await DirectMessagesService.getMessages(userId);
-                const profile = await DirectMessagesService.getProfile(userId, true);
+                const profile = await DirectMessagesService.getProfile(userId);
                 setPeerTypingStatus(profile);
                 const container = document.getElementById('msgV2Messages');
                 if (!container) return;
@@ -1182,7 +1221,7 @@
             convPollInterval = setInterval(() => {
                 if (!activeChatUserId) {
                     lastConvFilter = document.getElementById('msgV2SearchInput')?.value || '';
-                    loadConversations(lastConvFilter);
+                    loadConversations(lastConvFilter, { forceRefresh: true });
                 }
             }, 5000);
         }
@@ -1225,9 +1264,6 @@
 
         function dmAvatarSrcForUser(profile, userId) {
             const uid = userId || profile?.id;
-            if (dmIsCreatorUser(uid, profile) && typeof reminkoCreatorAvatarUrl === 'function') {
-                return reminkoCreatorAvatarUrl();
-            }
             const profileForAv =
                 typeof reminkoProfileForAvatar === 'function'
                     ? reminkoProfileForAvatar(profile, uid)

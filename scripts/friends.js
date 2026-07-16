@@ -271,7 +271,7 @@ class FriendsService {
         try {
             let queryBuilder = supabaseClient
                 .from('profiles')
-                .select('id, username, avatar, last_online')
+                .select('id, username, avatar, last_online, is_site_creator')
                 .ilike('username', `%${query}%`)
                 .limit(20);
 

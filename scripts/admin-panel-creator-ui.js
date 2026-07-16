@@ -128,6 +128,8 @@ function switchTab(tabName) {
         void loadDashboard();
     } else if (tabName === 'users') {
         void loadUsersAdvanced(1);
+    } else if (tabName === 'team') {
+        void loadTeamPanel();
     } else if (tabName === 'moderation') {
         void loadChatAutomodPanel();
         void loadChatMessagesMod();
@@ -1636,6 +1638,7 @@ async function showUserActions(userId) {
                             ? `<button class="admin-btn" onclick="toggleBan('${userId}', false)">✅ Разбанить</button>`
                             : `<button class="admin-btn admin-btn-danger" onclick="toggleBan('${userId}', true)">🚫 Забанить</button>`
                     }
+                    <button class="admin-btn" onclick="showEditUserUsername('${userId}')">✏️ Изменить имя</button>
                     <button class="admin-btn" onclick="showEditSubscriptions('${userId}')">💎 VIP «Смотреть вместе»</button>
                     <button class="admin-btn" onclick="showAiSubscriptionEditor('${userId}')">🤖 Тариф Minko AI</button>
                     <button class="admin-btn" onclick="showUserActivity('${userId}')">📊 Активность</button>
@@ -2617,6 +2620,163 @@ async function openMinkoAiLogsModal() {
     });
 }
 
+const TEAM_ROLE_LABELS = {
+    moderator: 'Модератор',
+    admin: 'Админ',
+    sponsor: 'Спонсор',
+    promoter: 'Пиарщик'
+};
+
+function initTeamSection() {
+    if (window.__reminkoTeamAdminBound) return;
+    window.__reminkoTeamAdminBound = true;
+    document.getElementById('teamAssignBtn')?.addEventListener('click', () => void assignTeamRoleFromForm());
+    document.getElementById('teamRefreshBtn')?.addEventListener('click', () => void loadTeamPanel());
+}
+
+async function loadTeamPanel() {
+    const list = document.getElementById('teamMembersList');
+    const status = document.getElementById('teamPanelStatus');
+    if (!list || !supabaseClient) return;
+    list.innerHTML = '<div class="users-card-empty">Загрузка…</div>';
+    try {
+        const { data: rows, error } = await supabaseClient
+            .from('site_team_roles')
+            .select('user_id, role, note, created_at, updated_at')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        if (!rows || !rows.length) {
+            list.innerHTML = '<div class="users-card-empty">Команда пока пуста — выдайте первую роль выше.</div>';
+            if (status) status.textContent = '';
+            return;
+        }
+        const ids = rows.map((r) => r.user_id);
+        const profiles =
+            typeof reminkoFetchProfilesIn === 'function'
+                ? await reminkoFetchProfilesIn(supabaseClient, ids)
+                : [];
+        const profileMap = {};
+        for (const p of profiles || []) profileMap[p.id] = p;
+
+        list.innerHTML = rows
+            .map((row) => {
+                const p = profileMap[row.user_id] || {};
+                const roleLabel = TEAM_ROLE_LABELS[row.role] || row.role;
+                const uid = adminPanelEscapeHtml(String(row.user_id));
+                return `<div class="users-card">
+                    <div class="users-card-head">
+                        <h4 class="users-card-name">${adminPanelEscapeHtml(p.username || 'Без имени')}</h4>
+                        <span class="admin-badge">${adminPanelEscapeHtml(roleLabel)}</span>
+                    </div>
+                    <p class="users-card-meta"><code>${uid}</code></p>
+                    ${row.note ? `<p class="users-card-meta">${adminPanelEscapeHtml(row.note)}</p>` : ''}
+                    <div class="users-card-actions">
+                        <button type="button" class="admin-btn admin-btn-danger admin-btn-small" data-team-remove="${uid}">Снять роль</button>
+                    </div>
+                </div>`;
+            })
+            .join('');
+
+        list.querySelectorAll('[data-team-remove]').forEach((btn) => {
+            btn.addEventListener('click', () => void removeTeamRole(btn.getAttribute('data-team-remove')));
+        });
+        if (status) status.textContent = `В команде: ${rows.length}`;
+    } catch (e) {
+        list.innerHTML = `<div class="users-card-empty">Ошибка: ${adminPanelEscapeHtml(e.message || 'загрузка')}</div>`;
+    }
+}
+
+async function assignTeamRoleFromForm() {
+    const userId = String(document.getElementById('teamAssignUserId')?.value || '').trim();
+    const role = String(document.getElementById('teamAssignRole')?.value || '').trim();
+    const note = String(document.getElementById('teamAssignNote')?.value || '').trim();
+    const status = document.getElementById('teamPanelStatus');
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+        showErrorSafe('Укажите корректный UUID пользователя');
+        return;
+    }
+    if (!TEAM_ROLE_LABELS[role]) {
+        showErrorSafe('Выберите роль');
+        return;
+    }
+    try {
+        const actorId = window.creatorAdminPanel?.currentUser?.id || null;
+        const { error } = await supabaseClient.from('site_team_roles').upsert(
+            {
+                user_id: userId,
+                role,
+                note: note || null,
+                assigned_by: actorId,
+                updated_at: new Date().toISOString()
+            },
+            { onConflict: 'user_id' }
+        );
+        if (error) throw error;
+        if (role === 'admin' || role === 'moderator') {
+            await supabaseClient.from('admins').upsert(
+                { user_id: userId, role: role === 'moderator' ? 'moderator' : 'admin' },
+                { onConflict: 'user_id' }
+            );
+        }
+        if (typeof showSuccess === 'function') showSuccess('Роль сохранена');
+        if (status) status.textContent = 'Роль обновлена';
+        void loadTeamPanel();
+    } catch (e) {
+        showErrorSafe(e.message || 'Не удалось выдать роль');
+    }
+}
+
+async function removeTeamRole(userId) {
+    if (!userId || !supabaseClient) return;
+    if (!window.confirm('Снять роль с этого участника команды?')) return;
+    try {
+        const { error } = await supabaseClient.from('site_team_roles').delete().eq('user_id', userId);
+        if (error) throw error;
+        await supabaseClient.from('admins').delete().eq('user_id', userId);
+        if (typeof showSuccess === 'function') showSuccess('Роль снята');
+        void loadTeamPanel();
+    } catch (e) {
+        showErrorSafe(e.message || 'Не удалось снять роль');
+    }
+}
+
+async function showEditUserUsername(userId) {
+    const modalData = await openCreatorActionModal({
+        title: 'Изменить имя пользователя',
+        submitLabel: 'Сохранить',
+        fields: [
+            {
+                id: 'username',
+                label: 'Новое имя (3–40 символов)',
+                placeholder: 'Например, Subarik или Модератор_Аня'
+            }
+        ]
+    });
+    if (!modalData) return;
+    const username = String(modalData.username || '').trim();
+    if (username.length < 3) {
+        showErrorSafe('Имя должно быть не короче 3 символов');
+        return;
+    }
+    if (typeof reminkoValidatePublicUsername === 'function') {
+        const check = reminkoValidatePublicUsername(username, { allowStaff: true });
+        if (!check.ok) {
+            showErrorSafe(check.message || 'Недопустимое имя');
+            return;
+        }
+    }
+    try {
+        const { error } = await supabaseClient.from('profiles').update({ username }).eq('id', userId);
+        if (error) throw error;
+        if (typeof showSuccess === 'function') showSuccess('Имя обновлено');
+        document.querySelector('.modal.active')?.remove();
+        void loadUsersAdvanced(currentUsersPage);
+    } catch (e) {
+        showErrorSafe(e.message || 'Ошибка сохранения имени');
+    }
+}
+window.showEditUserUsername = showEditUserUsername;
+
 document.addEventListener('DOMContentLoaded', async () => {
     if (!supabaseClient) {
         showErrorSafe('Supabase не инициализирован');
@@ -2647,6 +2807,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTabs();
     bindDashboardControls();
     initUsersSection();
+    initTeamSection();
     initModerationSection();
     initNotificationsSection();
     initMaintenanceSettingsSection();

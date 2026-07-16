@@ -63,6 +63,13 @@ function validateUsername(username, minLength = 3, maxLength = 30) {
     if (invalidChars.test(trimmed)) {
         return { valid: false, message: 'Имя пользователя содержит недопустимые символы' };
     }
+
+    if (typeof reminkoValidatePublicUsername === 'function') {
+        const reserved = reminkoValidatePublicUsername(trimmed);
+        if (!reserved.ok) {
+            return { valid: false, message: reserved.message || 'Недопустимое имя пользователя' };
+        }
+    }
     
     return { valid: true, message: '' };
 }

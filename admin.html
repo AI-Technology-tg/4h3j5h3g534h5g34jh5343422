@@ -66,6 +66,7 @@
                 <div class="admin-tabs" id="adminTabs">
                     <button class="admin-tab active" data-tab="dashboard">📊 Дашборд</button>
                     <button class="admin-tab" data-tab="users">👥 Пользователи</button>
+                    <button class="admin-tab" data-tab="team">🤝 Команда</button>
                     <button class="admin-tab" data-tab="moderation">🛡️ Модерация</button>
                     <button class="admin-tab" data-tab="notifications">🔔 Уведомления</button>
                     <button class="admin-tab" data-tab="minkoServer">🤖 Сервер Minko AI</button>
@@ -209,6 +210,41 @@
                             VIP продаётся только для <strong>«Смотреть вместе»</strong> — в профиле (⚙️ → услуги). Minko AI у всех в режиме <strong>«Сонная Minko»</strong> без отдельной подписки.
                             Ваша учётка создателя в этом списке <strong>не показывается</strong>; VIP «Вместе» для неё <strong>навсегда</strong> без строки в таблице подписок.
                         </p>
+                    </div>
+                </div>
+
+                <!-- Команда -->
+                <div class="admin-tab-content" id="tabTeam">
+                    <div class="admin-section">
+                        <h2>🤝 Команда сайта</h2>
+                        <p class="admin-inline-hint" style="margin:0 0 1rem;">
+                            Выдача ролей: Модератор, Админ, Спонсор, Пиарщик. Пользователи с ролями могут получать «служебные» ники при вашем редактировании.
+                        </p>
+                        <div class="filters-row" style="align-items:flex-end;flex-wrap:wrap;gap:0.65rem;">
+                            <div style="flex:1;min-width:220px;">
+                                <label class="admin-inline-hint" for="teamAssignUserId">ID пользователя (UUID)</label>
+                                <input type="text" class="filter-input" id="teamAssignUserId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
+                            </div>
+                            <div style="min-width:180px;">
+                                <label class="admin-inline-hint" for="teamAssignRole">Роль</label>
+                                <select class="filter-select" id="teamAssignRole">
+                                    <option value="moderator">Модератор</option>
+                                    <option value="admin">Админ</option>
+                                    <option value="sponsor">Спонсор</option>
+                                    <option value="promoter">Пиарщик</option>
+                                </select>
+                            </div>
+                            <div style="flex:1;min-width:220px;">
+                                <label class="admin-inline-hint" for="teamAssignNote">Заметка (необязательно)</label>
+                                <input type="text" class="filter-input" id="teamAssignNote" placeholder="Комментарий для себя">
+                            </div>
+                            <button type="button" class="admin-btn" id="teamAssignBtn">Выдать / обновить роль</button>
+                            <button type="button" class="admin-btn admin-btn-secondary" id="teamRefreshBtn">Обновить список</button>
+                        </div>
+                        <div id="teamPanelStatus" class="admin-inline-hint" style="margin:0.75rem 0;"></div>
+                        <div id="teamMembersList" class="users-cards-grid">
+                            <div class="users-card-empty">Загрузка команды…</div>
+                        </div>
                     </div>
                 </div>
 

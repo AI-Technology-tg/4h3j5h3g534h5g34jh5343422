@@ -461,6 +461,17 @@ CREATE TABLE IF NOT EXISTS public.admins (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS public.site_team_roles (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('moderator', 'admin', 'sponsor', 'promoter')),
+  note TEXT,
+  assigned_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_team_roles_role ON public.site_team_roles(role);
+
 CREATE TABLE IF NOT EXISTS public.chat_mutes (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   muted_until TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -514,6 +525,7 @@ CREATE TABLE IF NOT EXISTS public.creator_audit_logs (
 CREATE INDEX IF NOT EXISTS idx_chat_mutes_muted_until ON public.chat_mutes(muted_until);
 
 ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_team_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_mutes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_automod_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_automod_state ENABLE ROW LEVEL SECURITY;
@@ -581,6 +593,7 @@ DECLARE
     'site_visit_events',
     'direct_messages',
     'admins',
+    'site_team_roles',
     'chat_mutes',
     'chat_automod_rules',
     'chat_automod_state',
@@ -677,6 +690,7 @@ ALTER TABLE public.global_chat_whisper_secrets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.avatar_ai_generations ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_team_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_mutes ENABLE ROW LEVEL SECURITY;
 
 -- ЛС (повторное ENABLE безопасно — состояние «уже включено»)
@@ -1191,6 +1205,23 @@ CREATE POLICY "admins_update" ON public.admins FOR UPDATE USING (
   public.is_site_creator_user_id(auth.uid())
 ) WITH CHECK (public.is_site_creator_user_id(auth.uid()));
 CREATE POLICY "admins_delete" ON public.admins FOR DELETE USING (
+  public.is_site_creator_user_id(auth.uid())
+);
+
+DROP POLICY IF EXISTS "site_team_roles_select" ON public.site_team_roles;
+DROP POLICY IF EXISTS "site_team_roles_insert" ON public.site_team_roles;
+DROP POLICY IF EXISTS "site_team_roles_update" ON public.site_team_roles;
+DROP POLICY IF EXISTS "site_team_roles_delete" ON public.site_team_roles;
+CREATE POLICY "site_team_roles_select" ON public.site_team_roles FOR SELECT USING (
+  auth.uid() = user_id OR public.is_site_creator_user_id(auth.uid())
+);
+CREATE POLICY "site_team_roles_insert" ON public.site_team_roles FOR INSERT WITH CHECK (
+  public.is_site_creator_user_id(auth.uid())
+);
+CREATE POLICY "site_team_roles_update" ON public.site_team_roles FOR UPDATE USING (
+  public.is_site_creator_user_id(auth.uid())
+) WITH CHECK (public.is_site_creator_user_id(auth.uid()));
+CREATE POLICY "site_team_roles_delete" ON public.site_team_roles FOR DELETE USING (
   public.is_site_creator_user_id(auth.uid())
 );
 

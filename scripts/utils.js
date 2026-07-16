@@ -931,7 +931,7 @@ function openMangaPage(mangaId) {
     window.location.href = reminkoContentViewUrl('manga', mangaId);
 }
 
-/** Статичный аватар «Создателя» (как в профиле) — единый для друзей и ЛС. */
+/** Статичный запасной аватар Создателя, если в профиле нет своей картинки. */
 const REMINKO_CREATOR_AVATAR_REL = 'Fons/Creator ava.png';
 
 /** Синхронно: UUID совпадает с создателем (config / кэш страницы). */
@@ -963,7 +963,7 @@ function reminkoIsSiteCreatorProfile(p) {
     const u = String(p.username || '')
         .toLowerCase()
         .trim();
-    if (u === 'creator' || u === 'creator@reminko.com' || u === 'dubina') return true;
+    if (u === 'creator' || u === 'creator@reminko.com' || u === 'dubina' || u === 'subarik') return true;
     if (p.email && String(p.email).toLowerCase() === 'creator@reminko.com') return true;
     return false;
 }
@@ -978,7 +978,6 @@ function reminkoProfileForAvatar(p, userId) {
     if (isCreator) {
         base.is_site_creator = true;
         base.isSiteCreator = true;
-        base.avatar = REMINKO_CREATOR_AVATAR_REL;
     }
     return base;
 }
@@ -989,18 +988,19 @@ function reminkoCreatorAvatarUrl() {
 }
 
 /**
- * URL картинки для аватара в списках. Для Создателя — всегда Fons/Creator ava.png.
- * Если нет картинки, возвращает null (тогда UI может показать инициалы).
+ * URL картинки для аватара в списках. Сначала avatar из профиля; для Создателя без своей картинки — запасной файл.
  * @param {{ username?: string, avatar?: string, email?: string, isSiteCreator?: boolean, is_site_creator?: boolean }|null|undefined} p
  * @returns {string|null}
  */
 function reminkoProfileAvatarImageUrl(p) {
     if (!p) return null;
-    if (reminkoIsSiteCreatorProfile(p)) return reminkoCreatorAvatarUrl();
     const a = p.avatar && String(p.avatar).trim();
-    if (!a) return null;
-    if (/^https?:\/\//i.test(a) || a.startsWith('data:') || a.startsWith('blob:')) return a;
-    return reminkoResolveAssetUrl(a);
+    if (a) {
+        if (/^https?:\/\//i.test(a) || a.startsWith('data:') || a.startsWith('blob:')) return a;
+        return reminkoResolveAssetUrl(a);
+    }
+    if (reminkoIsSiteCreatorProfile(p)) return reminkoCreatorAvatarUrl();
+    return null;
 }
 
 /**
@@ -1009,10 +1009,117 @@ function reminkoProfileAvatarImageUrl(p) {
  * @param {string} [placeholderRel] — например Fons/seitFon.jpg
  */
 function reminkoProfileListAvatarSrc(p, placeholderRel) {
-    const fromProfile = reminkoProfileAvatarImageUrl(p);
+    const normalized =
+        typeof reminkoProfileForAvatar === 'function' && p
+            ? reminkoProfileForAvatar(p, p.id)
+            : p;
+    const fromProfile = reminkoProfileAvatarImageUrl(normalized);
     if (fromProfile) return fromProfile;
     return reminkoResolveAssetUrl(placeholderRel || 'Fons/seitFon.jpg');
 }
+
+/** Нормализация ника для проверки «служебных» имён (без пробелов и знаков). */
+function reminkoNormalizeUsernameForGuard(name) {
+    return String(name || '')
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z\u0430-\u044f\u04510-9]/gi, '');
+}
+
+const REMINKO_RESERVED_USERNAME_FRAGMENTS = [
+    'создател',
+    'creator',
+    'subarik',
+    'dubina',
+    'админ',
+    'admin',
+    'administrator',
+    'модера',
+    'moderator',
+    'moder',
+    'модер',
+    'разработ',
+    'developer',
+    'devteam',
+    'devops',
+    'программист',
+    'tester',
+    'тестер',
+    'betatest',
+    'owner',
+    'владел',
+    'official',
+    'официал',
+    'support',
+    'поддерж',
+    'саппорт',
+    'staff',
+    'персонал',
+    'спонсор',
+    'sponsor',
+    'promoter',
+    'пиар',
+    'reminko',
+    'создательсайта',
+    'sitecreator',
+    'teamlead',
+    'техподдерж'
+];
+
+/**
+ * Запрет «служебных» ников для обычных пользователей.
+ * @param {string} username
+ * @param {{ allowStaff?: boolean }} [options] — true для создателя при выдаче ролей
+ * @returns {{ ok: boolean, message?: string }}
+ */
+function reminkoValidatePublicUsername(username, options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    if (opts.allowStaff) return { ok: true };
+    const raw = String(username || '').trim();
+    if (raw.length < 3) {
+        return { ok: false, message: 'Имя должно быть не короче 3 символов.' };
+    }
+    const norm = reminkoNormalizeUsernameForGuard(raw);
+    if (!norm) return { ok: true };
+    for (const frag of REMINKO_RESERVED_USERNAME_FRAGMENTS) {
+        if (norm.includes(frag)) {
+            return {
+                ok: false,
+                message:
+                    'Такой ник звучит как должность команды сайта — без самовыдвижения 😄 Выбери имя, которое не похоже на разработчика, модератора, админа или другую роль проекта.'
+            };
+        }
+    }
+    return { ok: true };
+}
+window.reminkoValidatePublicUsername = reminkoValidatePublicUsername;
+
+/**
+ * Ссылка на messages.html с учётом вложенных путей (/anime/, /catalog/, …).
+ * @param {string} [userId]
+ * @param {{ creator?: boolean }} [params]
+ */
+function reminkoMessagesLink(userId, params) {
+    const q = new URLSearchParams();
+    if (userId) q.set('user', String(userId));
+    if (params && params.creator) q.set('creator', '1');
+    const qs = q.toString();
+    const rel = 'messages.html' + (qs ? '?' + qs : '');
+    if (typeof globalThis !== 'undefined' && globalThis.location) {
+        const loc = globalThis.location;
+        if (loc.origin && !String(loc.protocol).startsWith('file')) {
+            return '/' + rel.replace(/^\//, '');
+        }
+        const depth =
+            loc.pathname && loc.pathname.includes('/')
+                ? (loc.pathname.replace(/\\/g, '/').match(/\//g) || []).length - 1
+                : 0;
+        if (depth > 0) return '../'.repeat(depth) + rel;
+    }
+    return rel;
+}
+window.reminkoMessagesLink = reminkoMessagesLink;
 
 // Экспорт функций
 window.reminkoContentViewUrl = reminkoContentViewUrl;

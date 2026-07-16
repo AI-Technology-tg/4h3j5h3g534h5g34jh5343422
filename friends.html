@@ -238,9 +238,13 @@
             return colors[Math.abs(h) % colors.length];
         }
 
-        /** Круглый аватар: фото из профиля или инициалы. У Создателя — всегда Fons/Creator ava.png. */
+        /** Круглый аватар: фото из профиля или инициалы. */
         function friendsAvatarHtml(user) {
-            const u = user || {};
+            const uRaw = user || {};
+            const u =
+                typeof reminkoProfileForAvatar === 'function'
+                    ? reminkoProfileForAvatar(uRaw, uRaw.id)
+                    : uRaw;
             const col = hashColor(u.id);
             const ini = escapeHtml(userInitials(u.username));
             const ph =
@@ -283,6 +287,10 @@
         async function initPage() {
             try {
                 if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+                    if (typeof reminkoResolveSiteCreatorUserId === 'function') {
+                        window.__reminkoSiteCreatorUserId =
+                            (await reminkoResolveSiteCreatorUserId(supabaseClient)) || null;
+                    }
                     const { data: { session } } = await supabaseClient.auth.getSession();
                     if (session && session.user) {
                         currentUser = { id: session.user.id, email: session.user.email };
