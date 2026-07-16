@@ -1087,10 +1087,23 @@ class NavigationManager {
                     messagesLink.setAttribute('href', basePath + (toCreator ? 'messages.html?creator=1' : 'messages.html'));
                 };
                 if (user && !user.isAnonymous) {
+                    let isSiteCreatorAcc =
+                        user.isSiteCreator === true ||
+                        user.is_site_creator === true ||
+                        (typeof window.reminkoIsSiteCreatorProfile === 'function' &&
+                            window.reminkoIsSiteCreatorProfile(user));
+                    if (!isSiteCreatorAcc && typeof window.reminkoIsUserSiteCreator === 'function') {
+                        try {
+                            isSiteCreatorAcc = await window.reminkoIsUserSiteCreator();
+                        } catch (_) {
+                            /* ignore */
+                        }
+                    }
                     const creatorAdminLink = document.getElementById('sidebarCreatorAdminLink');
                     if (creatorAdminLink) {
                         const em = (user.email || '').toLowerCase().trim();
-                        creatorAdminLink.style.display = em === 'creator@reminko.com' ? '' : 'none';
+                        creatorAdminLink.style.display =
+                            isSiteCreatorAcc || em === 'creator@reminko.com' ? '' : 'none';
                     }
                     setMessagesHref(false);
                     if (friendsLink) friendsLink.style.display = '';

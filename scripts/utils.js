@@ -1092,6 +1092,34 @@ function reminkoValidatePublicUsername(username, options) {
 }
 window.reminkoValidatePublicUsername = reminkoValidatePublicUsername;
 
+/** Пресеты аватаров для гостевого входа в ЛС (без регистрации). */
+function reminkoGuestAvatarPresets() {
+    const out = [];
+    for (let i = 1; i <= 5; i++) {
+        out.push(`Fons/${i} b.jpg`, `Fons/${i} g.jpg`);
+    }
+    return out;
+}
+window.reminkoGuestAvatarPresets = reminkoGuestAvatarPresets;
+
+function reminkoIsAutoGuestUsername(username) {
+    const s = String(username || '').trim().toLowerCase();
+    if (!s || s.length < 2) return true;
+    if (s === 'guest' || s === 'гость' || s === 'anonymous' || s === 'anon') return true;
+    if (/^user_[a-f0-9]{6,}$/i.test(s)) return true;
+    if (/^guest[\W_0-9-]*$/i.test(s)) return true;
+    return false;
+}
+window.reminkoIsAutoGuestUsername = reminkoIsAutoGuestUsername;
+
+function reminkoGenderFromPresetAvatar(avatarPath) {
+    const a = String(avatarPath || '');
+    return /(?:^|\/)Fons\/\d+\s+g\.jpg$/i.test(a) || /(?:^|\/)Fons\/\d+\s+G\.jpg$/i.test(a)
+        ? 'female'
+        : 'male';
+}
+window.reminkoGenderFromPresetAvatar = reminkoGenderFromPresetAvatar;
+
 /**
  * Ссылка на messages.html с учётом вложенных путей (/anime/, /catalog/, …).
  * @param {string} [userId]

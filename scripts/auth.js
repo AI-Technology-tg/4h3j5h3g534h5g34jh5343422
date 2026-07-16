@@ -633,11 +633,27 @@ async function getCurrentUser(forceRefresh = false) {
                 return null;
             }
 
+            const meta = su.user_metadata || {};
+            const anonMetaName =
+                su.is_anonymous === true
+                    ? String(meta.username || meta.display_name || meta.full_name || '').trim()
+                    : '';
             const userData = {
                 id: su.id,
                 email: su.email || '',
-                username: profile?.username || su.email?.split('@')[0] || 'Пользователь',
-                avatar: profile?.avatar || 'Fons/1 b.jpg',
+                username:
+                    profile?.username ||
+                    (anonMetaName &&
+                    typeof reminkoIsAutoGuestUsername === 'function' &&
+                    !reminkoIsAutoGuestUsername(anonMetaName)
+                        ? anonMetaName
+                        : null) ||
+                    (su.is_anonymous ? anonMetaName || 'Гость' : su.email?.split('@')[0]) ||
+                    'Пользователь',
+                avatar:
+                    profile?.avatar ||
+                    (su.is_anonymous && meta.avatar ? String(meta.avatar) : null) ||
+                    'Fons/1 b.jpg',
                 isAnonymous: su.is_anonymous === true,
                 is_banned: false,
                 is_site_creator: profile?.is_site_creator === true,

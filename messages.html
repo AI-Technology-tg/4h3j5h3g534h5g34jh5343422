@@ -65,6 +65,8 @@
                     </p>
                     <label class="msg-v2-guest-gate-label" for="msgV2GuestName">Ваше имя или ник</label>
                     <input type="text" class="msg-v2-guest-gate-input" id="msgV2GuestName" maxlength="40" autocomplete="name" placeholder="Например, Аня">
+                    <span class="msg-v2-guest-gate-label">Аватар</span>
+                    <div class="msg-v2-guest-avatar-grid" id="msgV2GuestAvatarGrid" role="listbox" aria-label="Выбор аватара"></div>
                     <p class="msg-v2-guest-gate-err" id="msgV2GuestErr" role="alert" hidden></p>
                     <button type="button" class="msg-v2-guest-gate-btn" id="msgV2GuestStart">Продолжить</button>
                     <a class="msg-v2-guest-gate-back" href="index.html">На главную</a>
@@ -183,8 +185,10 @@
         let lastConvFilter = '';
         let cachedConversations = [];
         let guestCreatorMode = false;
+        let currentUserIsSiteCreator = false;
         let siteCreatorUserIdResolved = null;
         let __reminkoMsgGuestBusy = false;
+        let guestSelectedAvatar = 'Fons/1 b.jpg';
         let unreadOnlyMode = false;
         let dmTypingStopTimer = null;
         let dmSelectedAttachment = null;
@@ -254,7 +258,10 @@
 
         function sortConversations(list) {
             const pinned = getPinnedOrder();
-            const creatorId = siteCreatorUserIdResolved ? String(siteCreatorUserIdResolved) : null;
+            const creatorId =
+                !currentUserIsSiteCreator && siteCreatorUserIdResolved
+                    ? String(siteCreatorUserIdResolved)
+                    : null;
             return list.slice().sort((a, b) => {
                 const aCreator = creatorId && String(a.userId) === creatorId;
                 const bCreator = creatorId && String(b.userId) === creatorId;
@@ -387,10 +394,93 @@
             if (menuW) menuW.style.display = 'none';
         }
 
+        function initGuestAvatarPicker() {
+            const grid = document.getElementById('msgV2GuestAvatarGrid');
+            if (!grid || grid.dataset.ready === '1') return;
+            grid.dataset.ready = '1';
+            grid.innerHTML = '';
+            const presets =
+                typeof reminkoGuestAvatarPresets === 'function'
+                    ? reminkoGuestAvatarPresets()
+                    : ['Fons/1 b.jpg', 'Fons/2 b.jpg', 'Fons/3 b.jpg', 'Fons/1 g.jpg', 'Fons/2 g.jpg'];
+            presets.forEach((rel, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'msg-v2-guest-avatar-btn' + (idx === 0 ? ' is-selected' : '');
+                btn.dataset.avatar = rel;
+                btn.setAttribute('role', 'option');
+                btn.setAttribute('aria-selected', idx === 0 ? 'true' : 'false');
+                const src =
+                    typeof reminkoResolveAssetUrl === 'function' ? reminkoResolveAssetUrl(rel) : rel;
+                btn.innerHTML = `<img src="${escapeHtml(src)}" alt="" width="56" height="56" decoding="async">`;
+                btn.addEventListener('click', () => {
+                    guestSelectedAvatar = rel;
+                    grid.querySelectorAll('.msg-v2-guest-avatar-btn').forEach((el) => {
+                        const on = el === btn;
+                        el.classList.toggle('is-selected', on);
+                        el.setAttribute('aria-selected', on ? 'true' : 'false');
+                    });
+                });
+                grid.appendChild(btn);
+            });
+            guestSelectedAvatar = presets[0] || 'Fons/1 b.jpg';
+        }
+
         async function profileNeedsDisplayNameForMessages(uid) {
-            const { data: p } = await supabaseClient.from('profiles').select('username').eq('id', uid).maybeSingle();
+            const { data: p } = await supabaseClient
+                .from('profiles')
+                .select('username, avatar')
+                .eq('id', uid)
+                .maybeSingle();
             const u = (p && p.username && String(p.username).trim()) || '';
-            return u.length < 2;
+            if (
+                typeof reminkoIsAutoGuestUsername === 'function'
+                    ? reminkoIsAutoGuestUsername(u)
+                    : u.length < 2
+            ) {
+                return true;
+            }
+            const av = (p && p.avatar && String(p.avatar).trim()) || '';
+            if (!av || av === 'Fons/seitFon.jpg') return true;
+            return false;
+        }
+
+        async function persistGuestProfile(uid, name, avatarRel) {
+            const avatar = String(avatarRel || guestSelectedAvatar || 'Fons/1 b.jpg').trim();
+            const gender =
+                typeof reminkoGenderFromPresetAvatar === 'function'
+                    ? reminkoGenderFromPresetAvatar(avatar)
+                    : 'male';
+            const row = { id: uid, username: name, avatar, gender };
+            let { error } = await supabaseClient.from('profiles').upsert(row, { onConflict: 'id' });
+            if (error) {
+                const upd = await supabaseClient
+                    .from('profiles')
+                    .update({ username: name, avatar, gender })
+                    .eq('id', uid);
+                error = upd.error;
+            }
+            if (error) return error;
+            if (DirectMessagesService?._profileCache) {
+                delete DirectMessagesService._profileCache[uid];
+            }
+            return null;
+        }
+
+        async function detectCurrentUserIsSiteCreator(uid) {
+            if (typeof reminkoIsUserSiteCreator === 'function') {
+                try {
+                    if (await reminkoIsUserSiteCreator()) return true;
+                } catch (_) {
+                    /* ignore */
+                }
+            }
+            if (siteCreatorUserIdResolved && uid) {
+                return (
+                    String(siteCreatorUserIdResolved).toLowerCase() === String(uid).toLowerCase()
+                );
+            }
+            return false;
         }
 
         async function runAfterSessionReady() {
@@ -402,7 +492,6 @@
             }
             currentUserId = session.user.id;
             guestCreatorMode = isAnonAuthUser(session.user);
-            window.__reminkoMsgGuestCreatorMode = guestCreatorMode;
 
             if (typeof DirectMessagesService !== 'undefined' && DirectMessagesService?.resetSessionCache) {
                 DirectMessagesService.resetSessionCache();
@@ -419,19 +508,36 @@
 
             siteCreatorUserIdResolved = await creatorPromise;
             window.__reminkoSiteCreatorUserId = siteCreatorUserIdResolved || null;
+            currentUserIsSiteCreator = await detectCurrentUserIsSiteCreator(currentUserId);
+            window.__reminkoCurrentUserIsSiteCreator = currentUserIsSiteCreator;
             await sessionPromise;
 
-            if (guestCreatorMode) {
+            if (currentUserIsSiteCreator) {
+                guestCreatorMode = false;
+                document.body.classList.remove('msg-v2-creator-guest');
+            } else if (guestCreatorMode) {
                 if (!siteCreatorUserIdResolved) {
                     showMsgToast('ID Создателя не настроен (siteCreatorUserId / is_site_creator).');
                 } else {
                     applyGuestCreatorUi();
                 }
             }
+            window.__reminkoMsgGuestCreatorMode = guestCreatorMode;
 
             const urlParams = new URLSearchParams(window.location.search);
             const chatWith = urlParams.get('user');
             const openCreator = urlParams.get('creator') === '1' || urlParams.get('to') === 'creator';
+
+            if (currentUserIsSiteCreator && openCreator) {
+                try {
+                    const u = new URL(window.location.href);
+                    u.searchParams.delete('creator');
+                    u.searchParams.delete('to');
+                    window.history.replaceState(null, '', u.pathname + u.search);
+                } catch (_) {
+                    /* ignore */
+                }
+            }
 
             void loadConversations();
             if (typeof reminkoUpdateDmBadge === 'function') reminkoUpdateDmBadge();
@@ -441,7 +547,7 @@
                 } else {
                     void openChat(siteCreatorUserIdResolved);
                 }
-            } else if (openCreator && siteCreatorUserIdResolved) {
+            } else if (openCreator && siteCreatorUserIdResolved && !currentUserIsSiteCreator) {
                 void openChat(siteCreatorUserIdResolved);
             } else if (guestCreatorMode && siteCreatorUserIdResolved) {
                 void openChat(siteCreatorUserIdResolved);
@@ -458,14 +564,22 @@
             setMsgGuestErr('');
             const nameInp = document.getElementById('msgV2GuestName');
             const name = (nameInp && nameInp.value) ? nameInp.value.trim() : '';
-            if (name.length < 2) {
-                setMsgGuestErr('Укажите имя или ник (от 2 символов).');
+            if (name.length < 3) {
+                setMsgGuestErr('Укажите имя или ник (от 3 символов).');
                 return;
             }
             if (name.length > 40) {
                 setMsgGuestErr('Слишком длинное имя.');
                 return;
             }
+            if (typeof reminkoValidatePublicUsername === 'function') {
+                const check = reminkoValidatePublicUsername(name);
+                if (!check.ok) {
+                    setMsgGuestErr(check.message || 'Недопустимое имя.');
+                    return;
+                }
+            }
+            const avatarRel = guestSelectedAvatar || 'Fons/1 b.jpg';
             if (!supabaseClient || !supabaseClient.auth) {
                 setMsgGuestErr('Нет подключения к серверу (Supabase).');
                 return;
@@ -494,12 +608,15 @@
                         return;
                     }
                     const { error: uErr } = await supabaseClient.auth.updateUser({
-                        data: { username: name, display_name: name, full_name: name }
+                        data: {
+                            username: name,
+                            display_name: name,
+                            full_name: name,
+                            avatar: avatarRel
+                        }
                     });
                     if (uErr) console.warn('[messages] updateUser:', uErr);
-                    const { error: pe } = await supabaseClient
-                        .from('profiles')
-                        .upsert({ id: u.id, username: name, gender: 'male' }, { onConflict: 'id' });
+                    const pe = await persistGuestProfile(u.id, name, avatarRel);
                     if (pe) {
                         setMsgGuestErr(pe.message || 'Не удалось сохранить имя. Попробуйте другое.');
                         return;
@@ -507,14 +624,17 @@
                 } else {
                     const uid = s0.user.id;
                     const { error: u1 } = await supabaseClient.auth.updateUser({
-                        data: { username: name, display_name: name, full_name: name }
+                        data: {
+                            username: name,
+                            display_name: name,
+                            full_name: name,
+                            avatar: avatarRel
+                        }
                     });
                     if (u1) console.warn('[messages] updateUser:', u1);
-                    const { error: u2 } = await supabaseClient
-                        .from('profiles')
-                        .upsert({ id: uid, username: name, gender: 'male' }, { onConflict: 'id' });
-                    if (u2) {
-                        setMsgGuestErr(u2.message || 'Не удалось сохранить имя (проверьте RLS в Supabase).');
+                    const pe = await persistGuestProfile(uid, name, avatarRel);
+                    if (pe) {
+                        setMsgGuestErr(pe.message || 'Не удалось сохранить имя (проверьте RLS в Supabase).');
                         return;
                     }
                 }
@@ -667,6 +787,7 @@
                         window.location.replace(messagesPageRelativeToMessagesWithCreator());
                         return;
                     }
+                    initGuestAvatarPicker();
                     showMsgGuestGate();
                     hideMsgPageLoading();
                 } else if (isAnonAuthUser(session.user) && (await profileNeedsDisplayNameForMessages(session.user.id))) {
@@ -674,6 +795,7 @@
                         window.location.replace(messagesPageRelativeToMessagesWithCreator());
                         return;
                     }
+                    initGuestAvatarPicker();
                     showMsgGuestGate();
                     hideMsgPageLoading();
                 } else {
@@ -978,6 +1100,14 @@
         }
 
         async function openChat(userId) {
+            if (userId && currentUserId && String(userId) === String(currentUserId)) return;
+            if (
+                currentUserIsSiteCreator &&
+                siteCreatorUserIdResolved &&
+                String(userId).toLowerCase() === String(siteCreatorUserIdResolved).toLowerCase()
+            ) {
+                return;
+            }
             if (
                 window.__reminkoMsgGuestCreatorMode &&
                 siteCreatorUserIdResolved &&

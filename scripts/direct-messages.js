@@ -190,6 +190,19 @@ const DirectMessagesService = {
                 conv.profile = profileMap[conv.userId] || null;
             }
 
+            const currentIsCreator =
+                creatorId &&
+                userId &&
+                (String(creatorId).toLowerCase() === String(userId).toLowerCase() ||
+                    (typeof window.reminkoUserIdIsSiteCreatorSync === 'function' &&
+                        window.reminkoUserIdIsSiteCreatorSync(userId)));
+
+            if (currentIsCreator) {
+                return conversations.filter(
+                    (c) => String(c.userId).toLowerCase() !== String(creatorId).toLowerCase()
+                );
+            }
+
             if (creatorId) {
                 const cid = String(creatorId);
                 const hasCreator = conversations.some((c) => String(c.userId) === cid);
