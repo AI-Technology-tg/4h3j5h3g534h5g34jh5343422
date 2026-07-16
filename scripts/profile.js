@@ -287,9 +287,25 @@ async function renderProfile(userData, isViewMode = false) {
 
     // Аватар
     const creatorByEmail = (userData.email || '').toLowerCase() === 'creator@reminko.com';
-    const creatorByName = (userData.username || '').toLowerCase() === 'creator@reminko.com'
-        || (userData.username || '').toLowerCase() === 'creator';
-    const isCreatorAccount = Boolean(userData.isSiteCreator) || creatorByEmail || creatorByName;
+    const creatorByName =
+        ['creator@reminko.com', 'creator', 'subarik', 'dubina'].includes(
+            (userData.username || '').toLowerCase()
+        ) ||
+        (typeof reminkoUserIdIsSiteCreatorSync === 'function' &&
+            reminkoUserIdIsSiteCreatorSync(profileUserId));
+    const isCreatorAccount =
+        Boolean(userData.isSiteCreator || userData.is_site_creator) || creatorByEmail || creatorByName;
+
+    if (typeof reminkoEnsureSiteCreatorUserIdCached === 'function') {
+        await reminkoEnsureSiteCreatorUserIdCached();
+    }
+    if (typeof reminkoPrefetchTeamRoles === 'function') {
+        await reminkoPrefetchTeamRoles([profileUserId]);
+    }
+    const profileTeamRole =
+        typeof reminkoResolveProfileTeamRole === 'function'
+            ? reminkoResolveProfileTeamRole(userData, profileUserId)
+            : null;
 
     let avatarUrl = isCreatorAccount ? 'Fons/Creator ava.png' : (userData.avatar || 'Fons/1 b.jpg');
     if (!isViewMode) {
@@ -400,11 +416,19 @@ async function renderProfile(userData, isViewMode = false) {
     // VIP бейджи для имени
     let vipBadge = '';
     if (isCreatorAccount) {
-        vipBadge = '<img class="profile-creator-badge" src="Fons/creator znak.png" alt="Создатель" title="Создатель сайта" onerror="this.onerror=null;this.src=\'Fons/Creator ava.png\'">';
+        vipBadge =
+            typeof reminkoTeamRoleBadgeHtml === 'function'
+                ? reminkoTeamRoleBadgeHtml('creator', 'profile-creator-badge')
+                : '<img class="profile-creator-badge" src="Fons/creator znak.png" alt="Создатель" title="Создатель сайта" onerror="this.onerror=null;this.src=\'Fons/Creator ava.png\'">';
         if (!isViewMode) {
             vipBadge +=
                 '<span class="profile-vip-badge" title="VIP «Смотреть вместе» — навсегда">🎬 Watch</span>';
         }
+    } else if (profileTeamRole && profileTeamRole !== 'creator') {
+        vipBadge =
+            typeof reminkoTeamRoleBadgeHtml === 'function'
+                ? reminkoTeamRoleBadgeHtml(profileTeamRole, 'profile-team-role-badge')
+                : '';
     } else if (!isViewMode) {
         if (vipSubscription && vipSubscription.is_active) vipBadge += '<span class="profile-vip-badge" title="VIP Просмотр вместе">🎬 Watch</span>';
     }

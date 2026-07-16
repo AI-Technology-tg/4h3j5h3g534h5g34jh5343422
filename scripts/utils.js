@@ -978,6 +978,7 @@ function reminkoProfileForAvatar(p, userId) {
     if (isCreator) {
         base.is_site_creator = true;
         base.isSiteCreator = true;
+        base.avatar = REMINKO_CREATOR_AVATAR_REL;
     }
     return base;
 }
@@ -988,19 +989,15 @@ function reminkoCreatorAvatarUrl() {
 }
 
 /**
- * URL картинки для аватара в списках. Сначала avatar из профиля; для Создателя без своей картинки — запасной файл.
- * @param {{ username?: string, avatar?: string, email?: string, isSiteCreator?: boolean, is_site_creator?: boolean }|null|undefined} p
- * @returns {string|null}
+ * URL картинки для аватара. У Создателя сайта — всегда Fons/Creator ava.png для всех пользователей.
  */
 function reminkoProfileAvatarImageUrl(p) {
     if (!p) return null;
-    const a = p.avatar && String(p.avatar).trim();
-    if (a) {
-        if (/^https?:\/\//i.test(a) || a.startsWith('data:') || a.startsWith('blob:')) return a;
-        return reminkoResolveAssetUrl(a);
-    }
     if (reminkoIsSiteCreatorProfile(p)) return reminkoCreatorAvatarUrl();
-    return null;
+    const a = p.avatar && String(p.avatar).trim();
+    if (!a) return null;
+    if (/^https?:\/\//i.test(a) || a.startsWith('data:') || a.startsWith('blob:')) return a;
+    return reminkoResolveAssetUrl(a);
 }
 
 /**
@@ -1120,6 +1117,105 @@ function reminkoMessagesLink(userId, params) {
     return rel;
 }
 window.reminkoMessagesLink = reminkoMessagesLink;
+
+/** Значки ролей команды (Fons/* znak.png) — как у Создателя в профиле. */
+const REMINKO_TEAM_ROLE_BADGES = {
+    creator: 'Fons/creator znak.png',
+    moderator: 'Fons/moderator znak.png',
+    admin: 'Fons/admin znak.png',
+    sponsor: 'Fons/sponsor znak.png',
+    promoter: 'Fons/promoter znak.png',
+    support: 'Fons/support znak.png'
+};
+
+const REMINKO_TEAM_ROLE_LABELS = {
+    creator: 'Создатель',
+    moderator: 'Модератор',
+    admin: 'Админ',
+    sponsor: 'Спонсор',
+    promoter: 'Пиарщик',
+    support: 'Поддержка'
+};
+
+function reminkoTeamRoleBadgeRel(role) {
+    if (!role) return null;
+    return REMINKO_TEAM_ROLE_BADGES[String(role).toLowerCase()] || null;
+}
+
+function reminkoTeamRoleBadgeUrl(role) {
+    const rel = reminkoTeamRoleBadgeRel(role);
+    return rel ? reminkoResolveAssetUrl(rel) : null;
+}
+
+function reminkoTeamRoleLabel(role) {
+    return REMINKO_TEAM_ROLE_LABELS[String(role || '').toLowerCase()] || '';
+}
+
+/** Кэш ролей команды по user id (заполняется reminkoPrefetchTeamRoles). */
+const __reminkoTeamRoleCache = {};
+
+async function reminkoPrefetchTeamRoles(userIds) {
+    const ids = [...new Set((userIds || []).filter(Boolean))];
+    const missing = ids.filter((id) => __reminkoTeamRoleCache[id] === undefined);
+    if (!missing.length || !supabaseClient) return __reminkoTeamRoleCache;
+    try {
+        const { data, error } = await supabaseClient
+            .from('site_team_roles')
+            .select('user_id, role')
+            .in('user_id', missing);
+        if (!error && data) {
+            for (const row of data) {
+                __reminkoTeamRoleCache[row.user_id] = row.role || null;
+            }
+        }
+    } catch (_) {
+        /* ignore */
+    }
+    for (const id of missing) {
+        if (__reminkoTeamRoleCache[id] === undefined) __reminkoTeamRoleCache[id] = null;
+    }
+    return __reminkoTeamRoleCache;
+}
+
+function reminkoCachedTeamRole(userId) {
+    if (!userId) return null;
+    const v = __reminkoTeamRoleCache[userId];
+    return v === undefined ? null : v;
+}
+
+function reminkoResolveProfileTeamRole(p, userId) {
+    const uid = userId || p?.id;
+    if (reminkoIsSiteCreatorProfile(p) || (uid && reminkoUserIdIsSiteCreatorSync(uid))) {
+        return 'creator';
+    }
+    return reminkoCachedTeamRole(uid);
+}
+
+function reminkoTeamRoleBadgeHtml(role, className) {
+    const rel = reminkoTeamRoleBadgeRel(role);
+    if (!rel) return '';
+    const label = reminkoTeamRoleLabel(role) || role;
+    const cls = className || 'profile-team-role-badge';
+    const src = reminkoResolveAssetUrl(rel);
+    return `<img class="${cls}" src="${src}" alt="${label}" title="${label}" loading="lazy" decoding="async" onerror="this.style.display='none'">`;
+}
+
+async function reminkoEnsureSiteCreatorUserIdCached() {
+    if (window.__reminkoSiteCreatorUserId) return window.__reminkoSiteCreatorUserId;
+    if (typeof reminkoResolveSiteCreatorUserId !== 'function' || !supabaseClient) return null;
+    try {
+        const id = await reminkoResolveSiteCreatorUserId(supabaseClient);
+        window.__reminkoSiteCreatorUserId = id || null;
+        return window.__reminkoSiteCreatorUserId;
+    } catch (_) {
+        return null;
+    }
+}
+window.reminkoEnsureSiteCreatorUserIdCached = reminkoEnsureSiteCreatorUserIdCached;
+window.reminkoPrefetchTeamRoles = reminkoPrefetchTeamRoles;
+window.reminkoTeamRoleBadgeHtml = reminkoTeamRoleBadgeHtml;
+window.reminkoResolveProfileTeamRole = reminkoResolveProfileTeamRole;
+window.reminkoTeamRoleLabel = reminkoTeamRoleLabel;
 
 // Экспорт функций
 window.reminkoContentViewUrl = reminkoContentViewUrl;

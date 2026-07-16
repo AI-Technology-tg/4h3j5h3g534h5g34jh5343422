@@ -351,7 +351,7 @@
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session?.user) {
                 showMsgToast('Сессия не найдена');
-                hideLoading();
+                hideMsgPageLoading();
                 return;
             }
             currentUserId = session.user.id;
@@ -361,13 +361,20 @@
             if (typeof DirectMessagesService !== 'undefined' && DirectMessagesService?.resetSessionCache) {
                 DirectMessagesService.resetSessionCache();
             }
-            await DirectMessagesService.getCurrentUserId(true);
 
             hideMsgGuestGate();
-            hideLoading();
+            hideMsgPageLoading();
 
-            siteCreatorUserIdResolved = await resolveSiteCreatorUserId();
+            const creatorPromise =
+                typeof reminkoEnsureSiteCreatorUserIdCached === 'function'
+                    ? reminkoEnsureSiteCreatorUserIdCached()
+                    : resolveSiteCreatorUserId();
+            const sessionPromise = DirectMessagesService.getCurrentUserId(true);
+
+            siteCreatorUserIdResolved = await creatorPromise;
             window.__reminkoSiteCreatorUserId = siteCreatorUserIdResolved || null;
+            await sessionPromise;
+
             if (guestCreatorMode) {
                 if (!siteCreatorUserIdResolved) {
                     showMsgToast('ID Создателя не настроен (siteCreatorUserId / is_site_creator).');
@@ -380,18 +387,18 @@
             const chatWith = urlParams.get('user');
             const openCreator = urlParams.get('creator') === '1' || urlParams.get('to') === 'creator';
 
-            await loadConversations();
+            void loadConversations();
             if (typeof reminkoUpdateDmBadge === 'function') reminkoUpdateDmBadge();
             if (chatWith) {
                 if (!guestCreatorMode || chatWith === siteCreatorUserIdResolved) {
-                    openChat(chatWith);
+                    void openChat(chatWith);
                 } else {
-                    openChat(siteCreatorUserIdResolved);
+                    void openChat(siteCreatorUserIdResolved);
                 }
             } else if (openCreator && siteCreatorUserIdResolved) {
-                openChat(siteCreatorUserIdResolved);
+                void openChat(siteCreatorUserIdResolved);
             } else if (guestCreatorMode && siteCreatorUserIdResolved) {
-                openChat(siteCreatorUserIdResolved);
+                void openChat(siteCreatorUserIdResolved);
             }
 
             startConvPolling();
@@ -621,20 +628,20 @@
                         return;
                     }
                     showMsgGuestGate();
-                    hideLoading();
+                    hideMsgPageLoading();
                 } else if (isAnonAuthUser(session.user) && (await profileNeedsDisplayNameForMessages(session.user.id))) {
                     if (!hasCreatorQuery()) {
                         window.location.replace(messagesPageRelativeToMessagesWithCreator());
                         return;
                     }
                     showMsgGuestGate();
-                    hideLoading();
+                    hideMsgPageLoading();
                 } else {
                     await runAfterSessionReady();
                 }
             } catch (e) {
                 console.error('Messages init error:', e);
-                hideLoading();
+                hideMsgPageLoading();
             }
         });
 
@@ -1264,6 +1271,14 @@
 
         function dmAvatarSrcForUser(profile, userId) {
             const uid = userId || profile?.id;
+            if (
+                (typeof dmIsCreatorUser === 'function' && dmIsCreatorUser(uid, profile)) ||
+                (typeof reminkoIsSiteCreatorProfile === 'function' && reminkoIsSiteCreatorProfile(profile)) ||
+                (uid && typeof reminkoUserIdIsSiteCreatorSync === 'function' && reminkoUserIdIsSiteCreatorSync(uid))
+            ) {
+                if (typeof reminkoCreatorAvatarUrl === 'function') return reminkoCreatorAvatarUrl();
+                return dmResolveAvatar('Fons/Creator ava.png');
+            }
             const profileForAv =
                 typeof reminkoProfileForAvatar === 'function'
                     ? reminkoProfileForAvatar(profile, uid)
@@ -1322,10 +1337,16 @@
             if (h < 24) return h + ' ч. назад';
             return new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
         }
-        function hideLoading() {
+        function hideMsgPageLoading() {
+            document.body.classList.add('reminko-content-revealed', 'reminko-ui-ready', 'reminko-loading-dismissed');
             const el = document.getElementById('loadingScreen');
-            if (el) el.style.display = 'none';
-            if (typeof window.dispatchReminkoLoadingHidden === 'function') window.dispatchReminkoLoadingHidden();
+            if (el) {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+            if (typeof window.dispatchReminkoLoadingHidden === 'function') {
+                window.dispatchReminkoLoadingHidden();
+            }
         }
     </script>
 </body>

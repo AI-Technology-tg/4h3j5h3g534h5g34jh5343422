@@ -2624,7 +2624,8 @@ const TEAM_ROLE_LABELS = {
     moderator: 'Модератор',
     admin: 'Админ',
     sponsor: 'Спонсор',
-    promoter: 'Пиарщик'
+    promoter: 'Пиарщик',
+    support: 'Поддержка'
 };
 
 function initTeamSection() {

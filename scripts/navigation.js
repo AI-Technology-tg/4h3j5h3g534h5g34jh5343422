@@ -811,6 +811,10 @@ class NavigationManager {
         this.initYandexMetrika();
         this.initSiteOnlineWidget();
 
+        if (typeof reminkoEnsureSiteCreatorUserIdCached === 'function' && typeof supabaseClient !== 'undefined') {
+            void reminkoEnsureSiteCreatorUserIdCached();
+        }
+
         const navManagerInstance = this;
         setTimeout(() => {
             if (window.navigationManager && typeof window.navigationManager.updateNotificationBadge === 'function') {

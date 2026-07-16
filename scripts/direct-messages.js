@@ -35,7 +35,8 @@ const DirectMessagesService = {
             p = {
                 ...p,
                 is_site_creator: true,
-                isSiteCreator: true
+                isSiteCreator: true,
+                avatar: 'Fons/Creator ava.png'
             };
         }
         if (typeof window.reminkoProfileForAvatar === 'function') {
@@ -119,16 +120,41 @@ const DirectMessagesService = {
         if (!userId) return [];
 
         try {
-            const { data: messages, error } = await supabaseClient
-                .from('direct_messages')
-                .select('id, sender_id, receiver_id, message, read, created_at')
-                .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-                .order('created_at', { ascending: false })
-                .limit(600);
+            const selectCols = 'id, sender_id, receiver_id, message, read, created_at';
+            const perSideLimit = 180;
+            const [sentRes, recvRes, unreadRes] = await Promise.all([
+                supabaseClient
+                    .from('direct_messages')
+                    .select(selectCols)
+                    .eq('sender_id', userId)
+                    .order('created_at', { ascending: false })
+                    .limit(perSideLimit),
+                supabaseClient
+                    .from('direct_messages')
+                    .select(selectCols)
+                    .eq('receiver_id', userId)
+                    .order('created_at', { ascending: false })
+                    .limit(perSideLimit),
+                supabaseClient
+                    .from('direct_messages')
+                    .select('sender_id')
+                    .eq('receiver_id', userId)
+                    .eq('read', false)
+                    .limit(500)
+            ]);
 
-            if (error || !messages) {
-                if (error) console.error('DM getConversations error:', error);
+            if (sentRes.error && recvRes.error) {
+                console.error('DM getConversations error:', sentRes.error || recvRes.error);
                 return [];
+            }
+
+            const messages = [...(sentRes.data || []), ...(recvRes.data || [])];
+            messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            const unreadBySender = {};
+            for (const row of unreadRes.data || []) {
+                if (!row.sender_id) continue;
+                unreadBySender[row.sender_id] = (unreadBySender[row.sender_id] || 0) + 1;
             }
 
             const convMap = {};
@@ -139,15 +165,15 @@ const DirectMessagesService = {
                     convMap[otherId] = {
                         userId: otherId,
                         lastMessage: msg,
-                        unreadCount: 0
+                        unreadCount: unreadBySender[otherId] || 0
                     };
-                }
-                if (msg.receiver_id === userId && !msg.read) {
-                    convMap[otherId].unreadCount++;
                 }
             }
 
             const conversations = Object.values(convMap);
+            if (typeof reminkoEnsureSiteCreatorUserIdCached === 'function') {
+                await reminkoEnsureSiteCreatorUserIdCached();
+            }
             const profileMap = await this.getProfilesMap(conversations.map((c) => c.userId));
             for (const conv of conversations) {
                 conv.profile = profileMap[conv.userId] || null;

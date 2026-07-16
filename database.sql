@@ -463,7 +463,7 @@ CREATE TABLE IF NOT EXISTS public.admins (
 
 CREATE TABLE IF NOT EXISTS public.site_team_roles (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('moderator', 'admin', 'sponsor', 'promoter')),
+  role TEXT NOT NULL CHECK (role IN ('moderator', 'admin', 'sponsor', 'promoter', 'support')),
   note TEXT,
   assigned_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
@@ -1213,7 +1213,7 @@ DROP POLICY IF EXISTS "site_team_roles_insert" ON public.site_team_roles;
 DROP POLICY IF EXISTS "site_team_roles_update" ON public.site_team_roles;
 DROP POLICY IF EXISTS "site_team_roles_delete" ON public.site_team_roles;
 CREATE POLICY "site_team_roles_select" ON public.site_team_roles FOR SELECT USING (
-  auth.uid() = user_id OR public.is_site_creator_user_id(auth.uid())
+  auth.uid() IS NOT NULL
 );
 CREATE POLICY "site_team_roles_insert" ON public.site_team_roles FOR INSERT WITH CHECK (
   public.is_site_creator_user_id(auth.uid())

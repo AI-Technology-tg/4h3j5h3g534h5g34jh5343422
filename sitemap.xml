@@ -21,21 +21,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/privacy-policy.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/terms-of-service.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/account-deletion.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20052991</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

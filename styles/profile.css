@@ -1144,6 +1144,16 @@ body.profile-page::before {
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.profile-team-role-badge {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    border-radius: 6px;
+    vertical-align: middle;
+    margin-left: .35rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 /* Сетка постов на профиле */
 .profile-posts-grid {
     display: grid;

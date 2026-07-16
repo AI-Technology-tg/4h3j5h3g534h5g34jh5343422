@@ -287,7 +287,9 @@
         async function initPage() {
             try {
                 if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-                    if (typeof reminkoResolveSiteCreatorUserId === 'function') {
+                    if (typeof reminkoEnsureSiteCreatorUserIdCached === 'function') {
+                        await reminkoEnsureSiteCreatorUserIdCached();
+                    } else if (typeof reminkoResolveSiteCreatorUserId === 'function') {
                         window.__reminkoSiteCreatorUserId =
                             (await reminkoResolveSiteCreatorUserId(supabaseClient)) || null;
                     }

@@ -56,6 +56,13 @@ class FriendsService {
                     ? await reminkoFetchProfilesIn(supabaseClient, friendIds)
                     : [];
 
+            if (typeof reminkoEnsureSiteCreatorUserIdCached === 'function') {
+                await reminkoEnsureSiteCreatorUserIdCached();
+            }
+            if (typeof reminkoPrefetchTeamRoles === 'function') {
+                await reminkoPrefetchTeamRoles(friendIds);
+            }
+
             // Объединяем данные
             const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
             this.friends = allFriends.map(f => ({
