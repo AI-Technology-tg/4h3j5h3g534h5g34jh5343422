@@ -823,7 +823,21 @@ function ensureUserDataRecord(userId) {
             adsEnabled: true,
             notificationsEnabled: true,
             showRecommendations: true,
-            theme: 'dark'
+            theme: 'dark',
+            notificationPrefs: {
+                toastSite: true,
+                sound: true,
+                browserPush: true,
+                browserPushWhenHidden: true,
+                browserPushWhenUnfocused: true,
+                browserPushOnOtherPage: true,
+                newEpisodeFavorites: true,
+                newEpisodeRecent: true,
+                directMessages: true,
+                friendRequests: true,
+                systemNews: true,
+                minkoAi: true
+            }
         }
     };
     updateUserData(userId, defaults);

@@ -31,6 +31,7 @@ const filesToMinify = [
     'main.js',
     'navigation.js',
     'utils-notifications.js',
+    'notification-preferences.js',
     'notifications.js',
     'register.js',
     'email-confirm.js',

@@ -1,7 +1,32 @@
 // Система уведомлений
 /** Корень сайта — иначе на /catalog/ запрашивается /catalog/sound/... (404) */
-const NOTIFICATION_SOUND_PATH = '/sound/Rezero Respawn Sound Effect (Clean Perfect).mp3';
+const NOTIFICATION_SOUND_FILES = [
+    '/sound/notify-respawn.mp3',
+    '/sound/Rezero Respawn Sound Effect (Clean Perfect).mp3'
+];
 const NOTIFICATION_SOUND_VOLUME = 0.25;
+
+function reminkoNotificationSoundUrl(filePath) {
+    const rel = String(filePath || NOTIFICATION_SOUND_FILES[0]).replace(/^\//, '');
+    const segments = rel.split('/').filter(Boolean).map((part) => encodeURIComponent(part));
+    const path = '/' + segments.join('/');
+    const origin = (
+        (window.APP_CONFIG && window.APP_CONFIG.siteOrigin) ||
+        window.location.origin ||
+        ''
+    ).replace(/\/$/, '');
+    if (origin && !String(window.location.protocol).startsWith('file:')) {
+        return origin + path;
+    }
+    const depth =
+        window.location && window.location.pathname
+            ? (window.location.pathname.match(/\//g) || []).length - 1
+            : 0;
+    const prefix = depth > 0 ? '../'.repeat(depth) : '';
+    return prefix + segments.join('/');
+}
+
+window.reminkoNotificationSoundUrl = reminkoNotificationSoundUrl;
 
 class NotificationService {
     constructor() {
@@ -9,6 +34,8 @@ class NotificationService {
         this.unreadCount = 0;
         this.currentUser = null;
         this._notificationAudio = null;
+        this._notificationAudioSrc = '';
+        this._soundFallbackReady = false;
         /** Антиспам: одинаковые тосты подряд */
         this._toastDedupeKey = '';
         this._toastDedupeAt = 0;
@@ -22,15 +49,74 @@ class NotificationService {
             .replace(/</g, '&lt;');
     }
 
-    _playNotificationSound() {
+    _playNotificationSoundFallback() {
         try {
-            if (!this._notificationAudio) {
-                this._notificationAudio = new Audio(NOTIFICATION_SOUND_PATH);
-            }
-            this._notificationAudio.volume = Math.min(1, Math.max(0, NOTIFICATION_SOUND_VOLUME));
-            this._notificationAudio.currentTime = 0;
-            this._notificationAudio.play().catch(() => {});
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = this._audioCtx || new AudioCtx();
+            this._audioCtx = ctx;
+            if (ctx.state === 'suspended') void ctx.resume();
+
+            const now = ctx.currentTime;
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(Math.min(0.22, NOTIFICATION_SOUND_VOLUME + 0.05), now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+            gain.connect(ctx.destination);
+
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(660, now + 0.12);
+            osc.connect(gain);
+            osc.start(now);
+            osc.stop(now + 0.46);
         } catch (e) {}
+    }
+
+    _playNotificationSound(force) {
+        if (!force && typeof window.reminkoShouldPlayNotificationSound === 'function') {
+            if (!window.reminkoShouldPlayNotificationSound()) return;
+        }
+        const files = Array.isArray(NOTIFICATION_SOUND_FILES) ? NOTIFICATION_SOUND_FILES : [];
+        const tryPlay = (index) => {
+            if (index >= files.length) {
+                this._playNotificationSoundFallback();
+                return;
+            }
+            const url = reminkoNotificationSoundUrl(files[index]);
+            try {
+                if (!this._notificationAudio || this._notificationAudioSrc !== url) {
+                    this._notificationAudio = new Audio(url);
+                    this._notificationAudioSrc = url;
+                }
+                this._notificationAudio.volume = Math.min(1, Math.max(0, NOTIFICATION_SOUND_VOLUME));
+                this._notificationAudio.currentTime = 0;
+                const playPromise = this._notificationAudio.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => tryPlay(index + 1));
+                }
+            } catch (e) {
+                tryPlay(index + 1);
+            }
+        };
+        tryPlay(0);
+    }
+
+    _maybeBrowserPush(title, body, context) {
+        if (typeof window.reminkoShowBrowserNotification !== 'function') return;
+        void window.reminkoShowBrowserNotification(title, body, context);
+    }
+
+    _siteToastsEnabled(type) {
+        if (typeof window.reminkoGetNotificationPrefs === 'function') {
+            const prefs = window.reminkoGetNotificationPrefs();
+            if (!prefs.toastSite) return false;
+        }
+        if (type && typeof window.reminkoIsNotifyTypeEnabled === 'function') {
+            return window.reminkoIsNotifyTypeEnabled(type);
+        }
+        return true;
     }
 
     async init() {
@@ -96,6 +182,11 @@ class NotificationService {
                             row.sender_id,
                             av
                         );
+                        this._maybeBrowserPush(name, row.message || 'Новое сообщение', {
+                            type: 'dm',
+                            link: `messages.html?user=${encodeURIComponent(String(row.sender_id))}`,
+                            tag: 'reminko-dm-' + String(row.sender_id)
+                        });
                         if (typeof window.reminkoUpdateDmBadge === 'function') {
                             window.reminkoUpdateDmBadge();
                         }
@@ -159,7 +250,18 @@ class NotificationService {
                     this.unreadCount++;
                     this.updateNotificationBadge();
                     this.renderNotifications();
-                    this.showToast(payload.new);
+                    if (this._siteToastsEnabled(payload.new?.type)) {
+                        this.showToast(payload.new);
+                    }
+                    this._maybeBrowserPush(
+                        payload.new?.title || 'Re-Minko',
+                        payload.new?.message || '',
+                        {
+                            type: payload.new?.type || 'info',
+                            link: payload.new?.link || '',
+                            tag: 'reminko-db-' + String(payload.new?.id || payload.new?.type || 'info')
+                        }
+                    );
                 })
                 .subscribe();
         } catch (error) {
@@ -455,6 +557,11 @@ class NotificationService {
             if (options && typeof options.link === 'string') link = options.link.trim();
         }
 
+        if (!this._siteToastsEnabled(notifType)) {
+            if (options.withSound) this._playNotificationSound();
+            return;
+        }
+
         const dedupeKey = `${notifType}\0${headline}\0${message}\0${link}`;
         const now = Date.now();
         if (dedupeKey === this._toastDedupeKey && now - this._toastDedupeAt < 2000) {
@@ -549,13 +656,46 @@ class NotificationService {
     
     showToast(notification) {
         if (notification && typeof notification === 'object') {
+            if (!this._siteToastsEnabled(notification.type)) {
+                this._maybeBrowserPush(
+                    notification.title || 'Re-Minko',
+                    notification.message || '',
+                    {
+                        type: notification.type || 'info',
+                        link: notification.link || '',
+                        tag: 'reminko-toast-' + String(notification.type || 'info')
+                    }
+                );
+                return;
+            }
             this.showNotification(notification, notification.type || 'info', { withSound: true });
+            this._maybeBrowserPush(
+                notification.title || 'Re-Minko',
+                notification.message || '',
+                {
+                    type: notification.type || 'info',
+                    link: notification.link || '',
+                    tag:
+                        notification.type === 'new_episode' && notification.data?.anime_id
+                            ? 'reminko-ep-' + String(notification.data.anime_id)
+                            : 'reminko-toast-' + String(notification.type || 'info')
+                }
+            );
         } else {
             this.showNotification(notification, 'info', { withSound: true });
         }
     }
 
     showDmNotification(senderName, message, senderId, avatarUrl) {
+        if (!this._siteToastsEnabled('dm')) {
+            this._playNotificationSound();
+            this._maybeBrowserPush(senderName, message, {
+                type: 'dm',
+                link: `messages.html?user=${encodeURIComponent(String(senderId || ''))}`,
+                tag: 'reminko-dm-' + String(senderId || '')
+            });
+            return;
+        }
         const { container, toolbar } = this._ensureToastShell();
         this._capVisibleToasts(container, 5);
         const sid = String(senderId || '').replace(/'/g, '');
@@ -671,6 +811,12 @@ class NotificationService {
 
         this._playNotificationSound();
         requestAnimationFrame(() => el.classList.add('show'));
+
+        this._maybeBrowserPush(senderName || 'Сообщение', String(message || ''), {
+            type: 'dm',
+            link: `messages.html?user=${encodeURIComponent(sid)}`,
+            tag: 'reminko-dm-' + sid
+        });
 
         hideTimer = setTimeout(() => {
             if (el.classList.contains('is-reply-open')) return;

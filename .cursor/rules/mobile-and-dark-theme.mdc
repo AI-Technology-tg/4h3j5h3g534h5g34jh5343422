@@ -1,0 +1,43 @@
+---
+description: Любая фича/правка — сразу mobile (≤900px) и тёмная тема, не только PC light
+alwaysApply: true
+---
+
+# Mobile + тёмная тема обязательны
+
+Любое изменение проекта (новая страница, блок, компонент, модалка, фильтр, карточка) **сразу** должно работать в трёх режимах:
+
+1. **Desktop (дефолт)**
+2. **Mobile** — экраны ≤900px
+3. **Тёмная тема** — `body.theme-dark` / `html[data-rem-theme="dark"]`
+
+Не оставлять «допилим потом для телефона/тёмной стороны».
+
+## Mobile (≤900px)
+
+- Стили через `@media (max-width: 900px)` в `styles/main.css` или в CSS страницы/фичи — **без** зависимости от preview-класса.
+- Для новых блоков использовать утилиты из `main.css`: `.reminko-mobile-grid`, `.reminko-mobile-scroll-x`, `.reminko-mobile-stack`, `.reminko-mobile-full`.
+- JS: `reminkoIsMobileLayout()` (`utils.js`) вместо проверки только `reminko-mobile-preview`.
+- Проверять: нижняя навигация, safe-area, горизонтальный скролл карточек, читаемость таймеров/бейджей, фильтры и модалки на узком экране.
+
+## Тёмная тема
+
+- Новые цвета/фоны/границы — дублировать в `styles/theme-dark.css` под `body.theme-dark`.
+- Не полагаться только на светлые переменные из `main.css`; для dark задавать контраст текста, карточек, hover, input, dropdown.
+- Календарь, таймеры, каталог, главная — образец: уже есть блоки в `theme-dark.css`.
+
+## Чеклист перед завершением задачи
+
+- [ ] Новый/изменённый UI виден и usable на 375px ширины
+- [ ] Тёмная тема: текст читаем, нет белых «дыр» и невидимых кнопок
+- [ ] Cache-buster CSS при необходимости (`main.css?v=…` в HTML)
+- [ ] Не ломать существующий desktop light
+
+## Файлы
+
+| Назначение | Путь |
+|------------|------|
+| Mobile layout | `styles/main.css` (@media 900px) |
+| Dark overrides | `styles/theme-dark.css` |
+| Mobile JS-хелпер | `scripts/utils.js` → `reminkoIsMobileLayout` |
+| Ранний dark boot | `scripts/desktop-only-guard.js` |

@@ -664,6 +664,40 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.settings-info-list {
+    margin: 0;
+    display: grid;
+    gap: 0.65rem;
+}
+
+.settings-info-list > div {
+    display: grid;
+    grid-template-columns: minmax(140px, 220px) 1fr;
+    gap: 0.75rem;
+    align-items: baseline;
+}
+
+.settings-info-list dt {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+.settings-info-list dd {
+    margin: 0;
+    font-size: 0.88rem;
+    word-break: break-all;
+    color: #f3e8ff;
+}
+
+@media (max-width: 560px) {
+    .settings-info-list > div {
+        grid-template-columns: 1fr;
+        gap: 0.2rem;
+    }
+}
+
 .setting-card h3 {
     margin: 0 0 1rem 0;
     color: var(--text-color);

@@ -403,6 +403,40 @@
         return '';
     }
 
+    /** Скрытые названия для поиска постера (не показываются на сайте) */
+    function reminkoCollectPosterSearchTitles(anime, malId) {
+        const seen = new Set();
+        const out = [];
+        const push = (value) => {
+            const s = String(value || '').trim();
+            if (!s || s.length < 2) return;
+            const key = s.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            out.push(s);
+        };
+
+        const src = anime && typeof anime === 'object' ? anime : {};
+        if (Array.isArray(src._posterSearchTitles)) src._posterSearchTitles.forEach(push);
+        if (Array.isArray(src._searchTitles)) src._searchTitles.forEach(push);
+
+        push(src.titleAlt);
+        push(src.title_alt);
+        push(src.title_en);
+        push(src.title_english);
+        push(src.title_japanese);
+
+        const jikan = src._jikan || src._jikanRaw || src;
+        push(jikan.title_english);
+        push(jikan.title_japanese);
+        push(jikan.title);
+
+        push(src.title);
+        push(russianTitleFromCatalogMal(malId));
+
+        return out;
+    }
+
     function russianTitleFromCatalogMal(malId) {
         const mal = parseInt(malId, 10);
         if (!Number.isFinite(mal) || mal <= 0) return '';
@@ -529,20 +563,19 @@
             }
         }
 
-        const title =
-            (anime && (anime.title_ru || anime.title || anime.titleAlt)) ||
-            russianTitleFromCatalogMal(mal) ||
-            '';
-        if (title && typeof global.getPosterFast === 'function') {
-            try {
-                const u = await global.getPosterFast(title, 'anime');
-                const ph = global.POSTER_PLACEHOLDER || '';
-                if (u && u !== ph && !isShikimoriPlaceholderPoster(u)) {
-                    writeMalPosterCache(mal, u);
-                    return u;
+        const searchTitles = reminkoCollectPosterSearchTitles(anime, mal);
+        if (searchTitles.length && typeof global.getPosterFast === 'function') {
+            for (const title of searchTitles) {
+                try {
+                    const u = await global.getPosterFast(title, 'anime');
+                    const ph = global.POSTER_PLACEHOLDER || '';
+                    if (u && u !== ph && !isShikimoriPlaceholderPoster(u)) {
+                        writeMalPosterCache(mal, u);
+                        return u;
+                    }
+                } catch (_) {
+                    /* ignore */
                 }
-            } catch (_) {
-                /* ignore */
             }
         }
 
@@ -630,6 +663,7 @@
     global.readMalPosterCache = readMalPosterCache;
     global.writeMalPosterCache = writeMalPosterCache;
     global.pickKnownPosterUrl = pickKnownPosterUrl;
+    global.reminkoCollectPosterSearchTitles = reminkoCollectPosterSearchTitles;
     global.fetchPosterUrlForMal = fetchPosterUrlForMal;
     global.attachJikanPosterFallback = attachJikanPosterFallback;
     global.prefetchPosterUrlsForMals = prefetchPosterUrlsForMals;

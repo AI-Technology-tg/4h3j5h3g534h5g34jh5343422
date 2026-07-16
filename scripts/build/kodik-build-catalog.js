@@ -163,6 +163,20 @@ function rowToCatalog(row, isSerial) {
         (md.title_en && String(md.title_en).trim()) ||
         (row.other_title && String(row.other_title).split('/')[0].trim()) ||
         '';
+    const posterSearchTitles = [
+        titleAlt,
+        md.title_en,
+        md.title,
+        row.title_orig,
+        row.other_title,
+        md.anime_title
+    ]
+        .flatMap((t) => String(t || '').split('/'))
+        .map((t) => t.trim())
+        .filter((t) => t.length > 1);
+    const uniquePosterSearch = [...new Set(posterSearchTitles.map((t) => t.toLowerCase()))].map(
+        (lower) => posterSearchTitles.find((t) => t.toLowerCase() === lower)
+    );
     const posterUrl = md.anime_poster_url || md.poster_url || '';
     const studio = Array.isArray(md.anime_studios) && md.anime_studios[0] ? md.anime_studios[0] : '';
     const description = cleanText(md.description || '');
@@ -178,6 +192,7 @@ function rowToCatalog(row, isSerial) {
         mal_id: mal,
         title,
         titleAlt,
+        _posterSearchTitles: uniquePosterSearch.filter((t) => t && t !== title),
         year,
         genres,
         episodes: isSerial ? (releasedEp > 0 ? `1-${releasedEp}` : '0') : '1',

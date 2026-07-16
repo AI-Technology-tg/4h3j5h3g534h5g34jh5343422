@@ -148,7 +148,15 @@
                 <div class="setting-item">
                     <div class="setting-info">
                         <div class="setting-label">Уведомления</div>
-                        <div class="setting-description">Получать уведомления о новых эпизодах и обновлениях</div>
+                        <div class="setting-description">Тосты на сайте, звук и push браузера — новые серии, ЛС и другое</div>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="reminkoOpenNotificationPrefsModal(); closeSettingsModal();">Настроить</button>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-label">Уведомления (быстро)</div>
+                        <div class="setting-description">Вкл/выкл все уведомления одним переключателем</div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="settingsNotificationsToggle" onchange="toggleNotificationsSetting(this.checked)" title="Уведомления">
@@ -210,6 +218,7 @@
     <script src="scripts/anime-stats.js"></script>
     <script src="scripts/manga-stats.js"></script>
     <script src="scripts/loading-phrases.js"></script>
+    <script src="scripts/notification-preferences.js"></script>
     <script src="scripts/notifications.js"></script>
     <script src="scripts/episode-notifications.js"></script>
     <script src="scripts/register.js"></script>

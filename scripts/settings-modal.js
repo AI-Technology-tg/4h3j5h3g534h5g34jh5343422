@@ -50,7 +50,14 @@ function openSettingsModal() {
     const recommendationsToggle = document.getElementById('settingsRecommendationsToggle');
     
     if (adsToggle) adsToggle.checked = settings.adsEnabled !== false;
-    if (notificationsToggle) notificationsToggle.checked = settings.notificationsEnabled !== false;
+    if (notificationsToggle) {
+        const prefs =
+            typeof reminkoGetNotificationPrefs === 'function'
+                ? reminkoGetNotificationPrefs()
+                : null;
+        notificationsToggle.checked =
+            prefs != null ? prefs.toastSite !== false : settings.notificationsEnabled !== false;
+    }
     if (recommendationsToggle) recommendationsToggle.checked = settings.showRecommendations !== false;
 
     syncAdultGenresToggle();
@@ -95,6 +102,12 @@ function toggleAdsSetting(enabled) {
 }
 
 function toggleNotificationsSetting(enabled) {
+    if (typeof reminkoGetNotificationPrefs === 'function' && typeof reminkoSaveNotificationPrefs === 'function') {
+        const prefs = reminkoGetNotificationPrefs();
+        prefs.toastSite = enabled;
+        if (!enabled) prefs.sound = false;
+        reminkoSaveNotificationPrefs(prefs, { silent: true });
+    }
     if (typeof saveSetting === 'function') {
         saveSetting('notificationsEnabled', enabled, { silent: true });
     } else {

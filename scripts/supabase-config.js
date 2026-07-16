@@ -243,6 +243,10 @@ function reminkoPathMatchesExtraRoute(pathname, key) {
             );
         case 'minko_ai':
             return file === 'minko-ai.html';
+        case 'calendar':
+            return p.includes('/catalog/calendar') || file === 'calendar.html';
+        case 'anime_4k':
+            return p.includes('/catalog/anime-4k') || file === 'anime-4k.html';
         case 'admin':
             return file === 'admin.html';
         case 'privacy':

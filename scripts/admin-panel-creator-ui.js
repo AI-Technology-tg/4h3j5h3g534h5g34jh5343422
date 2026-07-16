@@ -140,7 +140,7 @@ function switchTab(tabName) {
     } else if (tabName === 'anime4k') {
         void loadAnime4kAdminPanel();
     } else if (tabName === 'settings') {
-        void loadMaintenanceSettings();
+        void loadCreatorSettingsTab();
     }
 }
 
@@ -2135,10 +2135,14 @@ const MAINT_ROUTE_OPTIONS = [
     ['history', 'История просмотра'],
     ['favorites-manga', 'Избранное (манга)'],
     ['manga_catalog', 'Каталог манги'],
+    ['calendar', 'Календарь аниме'],
+    ['anime_4k', 'Каталог ≈4K'],
     ['minko_ai', 'Minko AI'],
     ['admin', 'Панель создателя'],
     ['support', 'Чат поддержки'],
     ['reader', 'Читалка манги'],
+    ['privacy', 'Политика конфиденциальности'],
+    ['terms', 'Условия использования'],
 ];
 
 function initMaintenanceSettingsSection() {
@@ -2206,6 +2210,211 @@ async function saveMaintenanceSettings() {
     if (statusEl) statusEl.textContent = 'Сохранено.';
     if (typeof showSuccess === 'function') showSuccess('Режим обновлён');
     await loadCreatorAuditLogsPanel();
+}
+
+function initCreatorSettingsSection() {
+    if (window.__reminkoCreatorSettingsBound) return;
+    window.__reminkoCreatorSettingsBound = true;
+
+    document.getElementById('settingsDeployMarkBtn')?.addEventListener('click', () => void touchSettingsDeployMark());
+    document.getElementById('settingsMinkoSaveBtn')?.addEventListener('click', () => void saveSettingsMinkoQuick());
+    document.getElementById('settingsGoMinkoTabBtn')?.addEventListener('click', () => switchTab('minkoServer'));
+    document.getElementById('settingsNetlifyHookSaveBtn')?.addEventListener('click', () => void saveSettingsNetlifyHook());
+    document.getElementById('settingsNetlifyDeployBtn')?.addEventListener('click', () => void triggerSettingsNetlifyDeploy());
+    document.getElementById('settingsChatAutomodSaveBtn')?.addEventListener('click', () => void saveSettingsChatAutomodShortcut());
+    document.getElementById('settingsGoModerationBtn')?.addEventListener('click', () => switchTab('moderation'));
+    document.getElementById('settingsGoNotificationsBtn')?.addEventListener('click', () => switchTab('notifications'));
+}
+
+async function loadCreatorSettingsTab() {
+    initMaintenanceSettingsSection();
+    initCreatorSettingsSection();
+    await loadMaintenanceSettings();
+    await loadSettingsDeployMark();
+    await loadSettingsMinkoQuick();
+    await loadSettingsNetlifyHook();
+    await loadSettingsChatAutomodShortcut();
+    renderSettingsSiteInfo();
+}
+
+function renderSettingsSiteInfo() {
+    const originEl = document.getElementById('settingsSiteOrigin');
+    const creatorEl = document.getElementById('settingsCreatorUserId');
+    if (originEl) {
+        originEl.textContent =
+            (window.APP_CONFIG && window.APP_CONFIG.siteOrigin) ||
+            window.location.origin ||
+            '—';
+    }
+    if (creatorEl) {
+        const id =
+            (window.APP_CONFIG && window.APP_CONFIG.siteCreatorUserId) ||
+            window.__reminkoSiteCreatorUserId ||
+            '—';
+        creatorEl.textContent = id || '— (задайте siteCreatorUserId в config)';
+    }
+}
+
+async function loadSettingsDeployMark() {
+    const statusEl = document.getElementById('settingsDeployMarkStatus');
+    if (!statusEl || !window.creatorAdminPanel) return;
+    statusEl.textContent = 'Загрузка…';
+    const r = await window.creatorAdminPanel.getDeployStatusMark();
+    if (r.error) {
+        statusEl.textContent = r.error;
+        return;
+    }
+    if (r.at) {
+        statusEl.textContent = 'Последняя отметка выката: ' + new Date(r.at).toLocaleString('ru-RU');
+    } else {
+        statusEl.textContent = 'Отметок выката пока не было.';
+    }
+}
+
+async function touchSettingsDeployMark() {
+    const statusEl = document.getElementById('settingsDeployMarkStatus');
+    if (!window.creatorAdminPanel) return;
+    if (statusEl) statusEl.textContent = 'Сохранение…';
+    const r = await window.creatorAdminPanel.touchDeployStatusMark();
+    if (!r.success) {
+        if (statusEl) statusEl.textContent = r.message || 'Ошибка';
+        showErrorSafe(r.message || 'Не удалось отметить выкат');
+        return;
+    }
+    if (typeof showSuccess === 'function') showSuccess('Выкат отмечен');
+    await loadSettingsDeployMark();
+    await loadCreatorAuditLogsPanel();
+}
+
+async function loadSettingsMinkoQuick() {
+    const statusEl = document.getElementById('settingsMinkoSaveStatus');
+    const en = document.getElementById('settingsMinkoEnabled');
+    const offExceptCreator = document.getElementById('settingsMinkoOfflineExceptCreator');
+    const msg = document.getElementById('settingsMinkoMessage');
+    if (!window.creatorAdminPanel) return;
+    if (statusEl) statusEl.textContent = '';
+
+    const bundle = await window.creatorAdminPanel.getMinkoAiServerBundle();
+    if (!bundle.ok) {
+        if (statusEl) statusEl.textContent = bundle.message || 'Ошибка загрузки';
+        return;
+    }
+    if (en) en.checked = !!bundle.public.chat_enabled;
+    if (offExceptCreator) offExceptCreator.checked = !!bundle.public.offline_except_creator;
+    if (msg) msg.value = bundle.public.maintenance_message || '';
+
+    const tabEn = document.getElementById('minkoSrvEnabled');
+    const tabOff = document.getElementById('minkoSrvOfflineExceptCreator');
+    const tabMsg = document.getElementById('minkoSrvMessage');
+    if (tabEn) tabEn.checked = !!bundle.public.chat_enabled;
+    if (tabOff) tabOff.checked = !!bundle.public.offline_except_creator;
+    if (tabMsg) tabMsg.value = bundle.public.maintenance_message || '';
+}
+
+async function saveSettingsMinkoQuick() {
+    const statusEl = document.getElementById('settingsMinkoSaveStatus');
+    const en = document.getElementById('settingsMinkoEnabled');
+    const offExceptCreator = document.getElementById('settingsMinkoOfflineExceptCreator');
+    const msg = document.getElementById('settingsMinkoMessage');
+    if (!window.creatorAdminPanel) return;
+
+    const r = await window.creatorAdminPanel.saveMinkoAiServerSettings(
+        !!en?.checked,
+        msg?.value || '',
+        !!offExceptCreator?.checked
+    );
+    if (statusEl) statusEl.textContent = r.success ? '✓ ' + r.message : '✗ ' + (r.message || 'Ошибка');
+    if (r.success && typeof showSuccess === 'function') showSuccess(r.message);
+    if (!r.success) showErrorSafe(r.message || 'Ошибка');
+    if (r.success) {
+        await loadSettingsMinkoQuick();
+        await loadCreatorAuditLogsPanel();
+    }
+}
+
+async function loadSettingsNetlifyHook() {
+    const input = document.getElementById('settingsNetlifyHookInput');
+    const statusEl = document.getElementById('settingsNetlifyStatus');
+    if (!window.creatorAdminPanel) return;
+    if (statusEl) statusEl.textContent = '';
+
+    const bundle = await window.creatorAdminPanel.getMinkoAiServerBundle();
+    if (!bundle.ok) {
+        if (statusEl) statusEl.textContent = bundle.message || 'Ошибка загрузки hook';
+        return;
+    }
+    if (input) input.value = bundle.secrets?.netlify_build_hook_url || '';
+}
+
+async function saveSettingsNetlifyHook() {
+    const input = document.getElementById('settingsNetlifyHookInput');
+    const statusEl = document.getElementById('settingsNetlifyStatus');
+    if (!window.creatorAdminPanel) return;
+    if (statusEl) statusEl.textContent = 'Сохранение…';
+
+    const r = await window.creatorAdminPanel.saveMinkoNetlifyBuildHook(input?.value || '');
+    if (statusEl) statusEl.textContent = r.success ? '✓ ' + r.message : '✗ ' + (r.message || 'Ошибка');
+    if (r.success && typeof showSuccess === 'function') showSuccess(r.message);
+    if (!r.success) showErrorSafe(r.message || 'Ошибка');
+}
+
+async function triggerSettingsNetlifyDeploy() {
+    const statusEl = document.getElementById('settingsNetlifyStatus');
+    if (!window.creatorAdminPanel) return;
+    if (statusEl) statusEl.textContent = 'Отправка запроса на деплой…';
+
+    const r = await window.creatorAdminPanel.triggerMinkoNetlifyDeploy();
+    if (statusEl) statusEl.textContent = r.success ? '✓ ' + r.message : '✗ ' + (r.message || 'Ошибка');
+    if (r.success && typeof showSuccess === 'function') showSuccess(r.message);
+    if (!r.success) showErrorSafe(r.message || 'Ошибка');
+}
+
+async function loadSettingsChatAutomodShortcut() {
+    const toggle = document.getElementById('settingsChatAutomodEnabled');
+    const statusEl = document.getElementById('settingsChatAutomodStatus');
+    if (!toggle || !window.creatorAdminPanel) return;
+    if (statusEl) statusEl.textContent = '';
+
+    const cfg = await window.creatorAdminPanel.getChatAutomodConfig();
+    if (!cfg.ok) {
+        if (statusEl) statusEl.textContent = cfg.message || 'Ошибка загрузки';
+        return;
+    }
+    toggle.checked = !!cfg.enabled;
+}
+
+async function saveSettingsChatAutomodShortcut() {
+    const toggle = document.getElementById('settingsChatAutomodEnabled');
+    const statusEl = document.getElementById('settingsChatAutomodStatus');
+    if (!toggle || !window.creatorAdminPanel) return;
+    if (statusEl) statusEl.textContent = 'Сохранение…';
+
+    const cfg = await window.creatorAdminPanel.getChatAutomodConfig();
+    if (!cfg.ok) {
+        if (statusEl) statusEl.textContent = cfg.message || 'Ошибка';
+        showErrorSafe(cfg.message || 'Ошибка');
+        return;
+    }
+
+    const rules = (cfg.rules || []).map((r) => ({
+        id: r.id,
+        is_active: !!r.is_active,
+        strike_weight: r.strike_weight,
+        mute_minutes: r.mute_minutes,
+    }));
+
+    const res = await window.creatorAdminPanel.saveChatAutomodConfig({
+        enabled: !!toggle.checked,
+        rules,
+    });
+    if (statusEl) statusEl.textContent = res.success ? '✓ ' + res.message : '✗ ' + (res.message || 'Ошибка');
+    if (res.success && typeof showSuccess === 'function') showSuccess(res.message);
+    if (!res.success) showErrorSafe(res.message || 'Ошибка');
+    if (res.success) {
+        const modToggle = document.getElementById('chatAutomodEnabledToggle');
+        if (modToggle) modToggle.checked = !!toggle.checked;
+        await loadCreatorAuditLogsPanel();
+    }
 }
 
 async function showUserActivity(userId) {
@@ -2441,6 +2650,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initModerationSection();
     initNotificationsSection();
     initMaintenanceSettingsSection();
+    initCreatorSettingsSection();
     initMinkoAiServerPanel();
     initGiveawaySection();
     initAnime4kSection();

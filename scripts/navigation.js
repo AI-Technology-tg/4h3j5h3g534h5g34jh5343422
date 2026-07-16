@@ -1196,6 +1196,32 @@ class NavigationManager {
         const notificationsBtn = document.getElementById('topNotificationsBtn');
         if (!notificationsBtn) return;
 
+        const notifyPrefsScriptPath = (() => {
+            const depth = (window.location.pathname.match(/\//g) || []).length - 1;
+            const prefix = depth > 0 ? '../'.repeat(depth) : '';
+            return prefix + 'scripts/notification-preferences.js';
+        })();
+
+        const ensureNotificationPrefsLoaded = () => {
+            if (typeof window.reminkoOpenNotificationPrefsModal === 'function') {
+                return Promise.resolve();
+            }
+            return new Promise((resolve) => {
+                const existing = document.querySelector('script[data-reminko-notify-prefs]');
+                if (existing) {
+                    existing.addEventListener('load', () => resolve(), { once: true });
+                    existing.addEventListener('error', () => resolve(), { once: true });
+                    return;
+                }
+                const s = document.createElement('script');
+                s.src = notifyPrefsScriptPath;
+                s.dataset.reminkoNotifyPrefs = '1';
+                s.onload = () => resolve();
+                s.onerror = () => resolve();
+                document.head.appendChild(s);
+            });
+        };
+
         const closeNotificationsUi = () => {
             const panel = document.getElementById('notificationsPanel');
             const backdrop = document.getElementById('notificationsBackdrop');
@@ -1234,6 +1260,7 @@ class NavigationManager {
                 </div>
                 <div class="notifications-footer" id="notificationsFooter">
                     <div class="notifications-footer-actions">
+                        <button type="button" class="notifications-foot-btn notifications-foot-btn--prefs" id="notificationsPrefsBtn">Настройки</button>
                         <button type="button" class="notifications-foot-btn notifications-foot-btn--secondary" id="notificationsMarkReadBtn">Все прочитаны</button>
                         <button type="button" class="notifications-foot-btn notifications-foot-btn--danger" id="notificationsClearAllBtn">Очистить</button>
                     </div>
@@ -1246,6 +1273,14 @@ class NavigationManager {
             panel.querySelector('#notificationsPanelCloseBtn')?.addEventListener('click', closeNotificationsUi);
             panel.querySelector('#notificationsMarkReadBtn')?.addEventListener('click', () => {
                 if (window.notificationService) void window.notificationService.markAllAsRead();
+            });
+            panel.querySelector('#notificationsPrefsBtn')?.addEventListener('click', () => {
+                closeNotificationsUi();
+                void ensureNotificationPrefsLoaded().then(() => {
+                    if (typeof window.reminkoOpenNotificationPrefsModal === 'function') {
+                        window.reminkoOpenNotificationPrefsModal();
+                    }
+                });
             });
             panel.querySelector('#notificationsClearAllBtn')?.addEventListener('click', () => {
                 if (

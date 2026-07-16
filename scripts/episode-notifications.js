@@ -167,6 +167,10 @@
     }
 
     async function areNotificationsEnabled(userId) {
+        if (typeof global.reminkoGetNotificationPrefs === 'function') {
+            const prefs = global.reminkoGetNotificationPrefs();
+            if (!prefs.toastSite && !prefs.browserPush) return false;
+        }
         if (typeof getUserData === 'function') {
             const ud = getUserData(userId);
             if (ud && ud.settings && ud.settings.notificationsEnabled === false) return false;
@@ -186,7 +190,75 @@
         return true;
     }
 
-    async function notifyNewEpisode(userId, payload) {
+    function isEpisodeNotifySourceEnabled(source) {
+        if (typeof global.reminkoGetNotificationPrefs !== 'function') return true;
+        const prefs = global.reminkoGetNotificationPrefs();
+        if (source === 'favorite') return prefs.newEpisodeFavorites !== false;
+        if (source === 'recent') return prefs.newEpisodeRecent !== false;
+        return true;
+    }
+
+    function getRecentAnimeIds(userId, maxTitles) {
+        if (typeof getWatchHistory !== 'function') return [];
+        const history = getWatchHistory(userId).filter(
+            (e) => e && e.type === 'anime' && e.animeId != null && !Number.isNaN(parseInt(e.animeId, 10))
+        );
+        if (!history.length) return [];
+
+        const grouped = {};
+        for (const entry of history) {
+            const id = parseInt(entry.animeId, 10);
+            const prev = grouped[id];
+            if (!prev || new Date(entry.watchedAt) > new Date(prev.watchedAt)) {
+                grouped[id] = entry;
+            }
+        }
+
+        const cap = maxTitles || 18;
+        return Object.values(grouped)
+            .sort((a, b) => new Date(b.watchedAt) - new Date(a.watchedAt))
+            .slice(0, cap)
+            .map((e) => e.animeId);
+    }
+
+    function showEpisodeAlert(payload, source) {
+        const ep = payload.lastEpisode;
+        const title = 'Новая серия';
+        const message = `${payload.title} — вышла серия ${ep}`;
+        const notifyType = source === 'recent' ? 'new_episode_recent' : 'new_episode_favorite';
+
+        if (
+            typeof global.reminkoIsNotifyTypeEnabled === 'function' &&
+            !global.reminkoIsNotifyTypeEnabled(notifyType)
+        ) {
+            if (typeof global.reminkoShowBrowserNotification === 'function') {
+                void global.reminkoShowBrowserNotification(title, message, {
+                    type: notifyType,
+                    link: payload.link,
+                    tag: 'reminko-ep-' + String(payload.animeId)
+                });
+            }
+            return;
+        }
+
+        if (_service && typeof _service.showNotification === 'function') {
+            _service.showNotification(
+                { title, message, type: 'new_episode', link: payload.link },
+                'new_episode',
+                { link: payload.link, withSound: true }
+            );
+        }
+
+        if (typeof global.reminkoShowBrowserNotification === 'function') {
+            void global.reminkoShowBrowserNotification(title, message, {
+                type: notifyType,
+                link: payload.link,
+                tag: 'reminko-ep-' + String(payload.animeId)
+            });
+        }
+    }
+
+    async function notifyNewEpisode(userId, payload, source) {
         if (!_service || typeof _service.createNotification !== 'function') return;
         const ep = payload.lastEpisode;
         const title = 'Новая серия';
@@ -195,7 +267,42 @@
             anime_id: payload.animeId,
             mal_id: payload.malId,
             episode_number: ep,
+            source: source || 'favorite'
         });
+    }
+
+    async function processAnimeIdsForEpisodes(userId, animeIds, source, map) {
+        let changed = false;
+        for (const rawId of animeIds) {
+            if (!isEpisodeNotifySourceEnabled(source)) continue;
+
+            const payload = buildNotifyPayload(rawId);
+            if (!payload) continue;
+
+            const key = String(payload.animeId);
+            const prev = map[key];
+
+            if (prev == null) {
+                map[key] = payload.lastEpisode;
+                changed = true;
+                continue;
+            }
+
+            const prevNum = parseInt(prev, 10);
+            if (!Number.isFinite(prevNum)) {
+                map[key] = payload.lastEpisode;
+                changed = true;
+                continue;
+            }
+
+            if (payload.lastEpisode > prevNum) {
+                showEpisodeAlert(payload, source);
+                await notifyNewEpisode(userId, payload, source);
+                map[key] = payload.lastEpisode;
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     async function checkNewEpisodes() {
@@ -219,37 +326,16 @@
                     .eq('user_id', user.id);
                 favoriteIds = (data || []).map((r) => r.anime_id);
             }
-            if (!favoriteIds.length) return;
+
+            const recentIds = getRecentAnimeIds(user.id, 18);
+            if (!favoriteIds.length && !recentIds.length) return;
 
             const { map } = getUserEpisodeMap(user.id);
             let changed = false;
 
-            for (const rawId of favoriteIds) {
-                const payload = buildNotifyPayload(rawId);
-                if (!payload) continue;
-
-                const key = String(payload.animeId);
-                const prev = map[key];
-
-                if (prev == null) {
-                    map[key] = payload.lastEpisode;
-                    changed = true;
-                    continue;
-                }
-
-                const prevNum = parseInt(prev, 10);
-                if (!Number.isFinite(prevNum)) {
-                    map[key] = payload.lastEpisode;
-                    changed = true;
-                    continue;
-                }
-
-                if (payload.lastEpisode > prevNum) {
-                    await notifyNewEpisode(user.id, payload);
-                    map[key] = payload.lastEpisode;
-                    changed = true;
-                }
-            }
+            changed =
+                (await processAnimeIdsForEpisodes(user.id, favoriteIds, 'favorite', map)) || changed;
+            changed = (await processAnimeIdsForEpisodes(user.id, recentIds, 'recent', map)) || changed;
 
             if (changed) saveUserEpisodeMap(user.id, map);
 

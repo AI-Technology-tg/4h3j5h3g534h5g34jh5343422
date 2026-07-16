@@ -1078,30 +1078,75 @@ function loadHeroWatchHistory() {
 
     for (const row of rows) {
         const a = row.anime;
-        const idNum = parseInt(a.id, 10);
         const href = `anime/view.html?id=${encodeURIComponent(a.id)}`;
-        const posterUrl = a.posterUrl || '';
         const gradient =
             typeof generateGradient === 'function'
                 ? generateGradient(a.id)
                 : 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
-        const posterStyle = posterUrl
-            ? `background-image:url('${String(posterUrl).replace(/'/g, "\\'")}');background-size:cover;background-position:center;`
-            : `background:${gradient};`;
+        const needsCountdown =
+            typeof reminkoAnimeNeedsEpisodeCountdown === 'function' &&
+            reminkoAnimeNeedsEpisodeCountdown(a);
         const card = document.createElement('div');
         card.className = 'home-hero-watch-card';
+        card.dataset.animeId = String(a.id);
 
         const item = document.createElement('a');
         item.className = 'home-hero-watch-item';
         item.href = href;
         item.title = a.title || 'Аниме';
-        item.innerHTML = `
-            <span class="home-hero-watch-poster" style="${posterStyle}"></span>
-            <span class="home-hero-watch-meta">
-                <span class="home-hero-watch-title">${a.title || 'Аниме'}</span>
-                <span class="home-hero-watch-ep">Серия ${row.episodeNumber}</span>
-            </span>
+
+        const posterWrap = document.createElement('span');
+        posterWrap.className = 'home-hero-watch-poster';
+        posterWrap.style.background = gradient;
+
+        const posterImg = document.createElement('img');
+        posterImg.className = 'home-hero-watch-poster-img';
+        posterImg.alt = '';
+        posterImg.decoding = 'async';
+        posterImg.referrerPolicy = 'no-referrer';
+        const knownPoster = a.posterUrl || '';
+        if (knownPoster) {
+            posterImg.src = knownPoster;
+        }
+        posterWrap.appendChild(posterImg);
+
+        if (needsCountdown) {
+            const countdownEl = document.createElement('span');
+            countdownEl.className = 'home-hero-watch-countdown jikan-card-countdown';
+            countdownEl.hidden = true;
+            countdownEl.setAttribute('aria-live', 'polite');
+            posterWrap.appendChild(countdownEl);
+        }
+
+        const meta = document.createElement('span');
+        meta.className = 'home-hero-watch-meta';
+        meta.innerHTML = `
+            <span class="home-hero-watch-title">${a.title || 'Аниме'}</span>
+            <span class="home-hero-watch-ep">Серия ${row.episodeNumber}</span>
         `;
+
+        item.appendChild(posterWrap);
+        item.appendChild(meta);
+
+        const malId = a.mal_id != null ? parseInt(a.mal_id, 10) : NaN;
+        if (Number.isFinite(malId) && malId > 0 && typeof attachJikanPosterFallback === 'function') {
+            attachJikanPosterFallback(posterImg, malId, a);
+        } else if (!knownPoster) {
+            void (async () => {
+                const searchTitles =
+                    typeof reminkoCollectPosterSearchTitles === 'function'
+                        ? reminkoCollectPosterSearchTitles(a, malId)
+                        : a.titleAlt
+                          ? [a.titleAlt, a.title]
+                          : [a.title];
+                if (typeof getAnimePosterFast !== 'function') return;
+                const url = await getAnimePosterFast(searchTitles);
+                const ph = typeof POSTER_PLACEHOLDER !== 'undefined' ? POSTER_PLACEHOLDER : '';
+                if (url && url !== ph && posterImg.isConnected) {
+                    posterImg.src = url;
+                }
+            })();
+        }
 
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
@@ -1123,6 +1168,53 @@ function loadHeroWatchHistory() {
     }
 
     if (typeof initPosterObserver === 'function') initPosterObserver();
+    void hydrateHeroWatchCountdowns(rows);
+}
+
+async function hydrateHeroWatchCountdowns(rows) {
+    if (!Array.isArray(rows) || !rows.length) return;
+    if (typeof reminkoResolveAnimeCountdownIso !== 'function') return;
+
+    const airing = rows.filter(
+        (row) =>
+            row?.anime &&
+            typeof reminkoAnimeNeedsEpisodeCountdown === 'function' &&
+            reminkoAnimeNeedsEpisodeCountdown(row.anime)
+    );
+    if (!airing.length) return;
+
+    for (const row of airing) {
+        const a = row.anime;
+        const card = document.querySelector(
+            `.home-hero-watch-card[data-anime-id="${CSS.escape(String(a.id))}"]`
+        );
+        if (!card) continue;
+        const countdownEl = card.querySelector('.home-hero-watch-countdown');
+        if (!countdownEl || countdownEl.getAttribute('data-countdown-iso')) continue;
+
+        const mal = a.mal_id != null ? parseInt(a.mal_id, 10) : NaN;
+        let shiki = null;
+        if (Number.isFinite(mal) && mal > 0 && window.shikimoriApi?.readCachedByMalId) {
+            shiki = window.shikimoriApi.readCachedByMalId(mal);
+        }
+
+        let iso = reminkoResolveAnimeCountdownIso(a, shiki);
+        if (!iso && Number.isFinite(mal) && mal > 0 && window.shikimoriApi?.enqueueFetchShikimoriByMalId) {
+            try {
+                shiki = await window.shikimoriApi.enqueueFetchShikimoriByMalId(
+                    mal,
+                    a.titleAlt || a.title || ''
+                );
+                iso = reminkoResolveAnimeCountdownIso(a, shiki);
+            } catch (_) {
+                /* ignore */
+            }
+        }
+
+        if (iso && typeof reminkoApplyCompactCountdown === 'function') {
+            reminkoApplyCompactCountdown(countdownEl, iso);
+        }
+    }
 }
 
 function loadRecentlyWatched() {

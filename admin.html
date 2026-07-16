@@ -488,7 +488,7 @@
                     </div>
                 </div>
 
-                <!-- Настройки: режим «В разработке» -->
+                <!-- Настройки сайта -->
                 <div class="admin-tab-content" id="tabSettings">
                     <div class="admin-section">
                         <h2>Режим «В разработке»</h2>
@@ -507,8 +507,98 @@
                             <h3>Дополнительно открыть для всех</h3>
                             <div id="maintExtraRoutes" class="settings-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.5rem 1rem; margin-top: 0.75rem;"></div>
                         </div>
-                        <button type="button" class="admin-btn" id="maintSaveBtn" style="margin-top: 1rem;">Сохранить</button>
+                        <button type="button" class="admin-btn" id="maintSaveBtn" style="margin-top: 1rem;">Сохранить режим</button>
                         <p id="maintSaveStatus" class="admin-inline-hint" style="margin-top: 0.75rem;"></p>
+                    </div>
+
+                    <div class="admin-section">
+                        <h2>Бета-баннер на главной</h2>
+                        <p class="admin-inline-hint" style="max-width: 52rem; line-height: 1.5;">
+                            Отметка свежего выката для внутреннего учёта и баннера «Сайт в бета-версии» на главной.
+                        </p>
+                        <div class="setting-card" style="margin-top: 1rem;">
+                            <p id="settingsDeployMarkStatus" class="admin-inline-hint" style="margin: 0 0 0.75rem;">Загрузка…</p>
+                            <button type="button" class="admin-btn" id="settingsDeployMarkBtn">Отметить свежий выкат</button>
+                        </div>
+                    </div>
+
+                    <div class="admin-section">
+                        <h2>Minko AI — быстрые переключатели</h2>
+                        <p class="admin-inline-hint" style="max-width: 52rem; line-height: 1.5;">
+                            То же состояние, что на вкладке «Сервер Minko AI». Можно выключить чат для всех без деплоя.
+                        </p>
+                        <div class="setting-card" style="margin-top: 1rem;">
+                            <label class="setting-item" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="settingsMinkoEnabled" checked />
+                                <span><strong>Minko AI включена</strong></span>
+                            </label>
+                            <label class="setting-item" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 0.55rem;">
+                                <input type="checkbox" id="settingsMinkoOfflineExceptCreator" />
+                                <span><strong>Офлайн для всех, кроме создателя</strong></span>
+                            </label>
+                        </div>
+                        <div class="setting-card" style="margin-top: 1rem;">
+                            <label for="settingsMinkoMessage" style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Сообщение при отключении</label>
+                            <textarea id="settingsMinkoMessage" class="filter-input" rows="2" style="width: 100%; max-width: 40rem; resize: vertical;" placeholder="Технические работы…"></textarea>
+                        </div>
+                        <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <button type="button" class="admin-btn" id="settingsMinkoSaveBtn">Сохранить Minko AI</button>
+                            <button type="button" class="admin-btn admin-btn-secondary" id="settingsGoMinkoTabBtn">Подробнее → Сервер Minko AI</button>
+                        </div>
+                        <p id="settingsMinkoSaveStatus" class="admin-inline-hint" style="margin-top: 0.75rem;"></p>
+                    </div>
+
+                    <div class="admin-section">
+                        <h2>Netlify — деплой сайта</h2>
+                        <p class="admin-inline-hint" style="max-width: 52rem; line-height: 1.5;">
+                            Build hook из Netlify → Site settings → Build &amp; deploy → Build hooks. URL хранится в Supabase (только для создателя).
+                        </p>
+                        <div class="setting-card" style="margin-top: 1rem;">
+                            <label for="settingsNetlifyHookInput" style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Build hook URL</label>
+                            <input type="url" id="settingsNetlifyHookInput" class="filter-input" style="width: 100%; max-width: 40rem;" placeholder="https://api.netlify.com/build_hooks/…" autocomplete="off">
+                        </div>
+                        <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <button type="button" class="admin-btn" id="settingsNetlifyHookSaveBtn">Сохранить hook</button>
+                            <button type="button" class="admin-btn admin-btn-secondary" id="settingsNetlifyDeployBtn">Запустить деплой</button>
+                        </div>
+                        <p id="settingsNetlifyStatus" class="admin-inline-hint" style="margin-top: 0.75rem;"></p>
+                    </div>
+
+                    <div class="admin-section">
+                        <h2>Автомодерация чата</h2>
+                        <p class="admin-inline-hint" style="max-width: 52rem; line-height: 1.5;">
+                            Главный переключатель серверной автомодерации. Правила и события — на вкладке «Модерация».
+                        </p>
+                        <div class="setting-card" style="margin-top: 1rem;">
+                            <label class="setting-item" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="settingsChatAutomodEnabled" />
+                                <span>Автомодерация включена</span>
+                            </label>
+                        </div>
+                        <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <button type="button" class="admin-btn" id="settingsChatAutomodSaveBtn">Сохранить</button>
+                            <button type="button" class="admin-btn admin-btn-secondary" id="settingsGoModerationBtn">Правила → Модерация</button>
+                        </div>
+                        <p id="settingsChatAutomodStatus" class="admin-inline-hint" style="margin-top: 0.75rem;"></p>
+                    </div>
+
+                    <div class="admin-section">
+                        <h2>Уведомления пользователям</h2>
+                        <p class="admin-inline-hint" style="max-width: 52rem; line-height: 1.5;">
+                            Рассылка в колокольчик и тосты на сайте — на отдельной вкладке.
+                        </p>
+                        <button type="button" class="admin-btn admin-btn-secondary" id="settingsGoNotificationsBtn">Перейти к уведомлениям</button>
+                    </div>
+
+                    <div class="admin-section">
+                        <h2>Служебная информация</h2>
+                        <div class="setting-card" style="margin-top: 1rem;">
+                            <dl class="settings-info-list" id="settingsSiteInfoList">
+                                <div><dt>Origin сайта</dt><dd id="settingsSiteOrigin">—</dd></div>
+                                <div><dt>ID создателя (config)</dt><dd id="settingsCreatorUserId">—</dd></div>
+                                <div><dt>Email создателя</dt><dd>creator@reminko.com</dd></div>
+                            </dl>
+                        </div>
                     </div>
                 </div>
 
