@@ -1921,9 +1921,13 @@ DECLARE
   profile_username TEXT;
   telegram_id_val TEXT;
 BEGIN
-  -- Анонимный вход (messages.html): профиль создаёт клиент через upsert
+  -- Анонимный вход (messages.html): профиль создаёт клиент через upsert после ввода имени
+  IF COALESCE(NEW.is_anonymous, false) = true THEN
+    RETURN NEW;
+  END IF;
+
   IF
-    (NEW.email IS NULL OR length(trim(NEW.email)) = 0)
+    (NEW.email IS NULL OR length(trim(coalesce(NEW.email, ''))) = 0)
     AND (
       COALESCE(NEW.raw_app_meta_data->>'provider', '') = 'anonymous'
       OR (NEW.raw_app_meta_data->'providers')::text ILIKE '%"anonymous"%'
@@ -1942,8 +1946,10 @@ BEGIN
     );
   ELSE
     profile_username := COALESCE(
-      NEW.raw_user_meta_data->>'username',
-      split_part(NEW.email, '@', 1)
+      NULLIF(trim(NEW.raw_user_meta_data->>'username'), ''),
+      NULLIF(trim(NEW.raw_user_meta_data->>'display_name'), ''),
+      NULLIF(trim(split_part(coalesce(NEW.email, ''), '@', 1)), ''),
+      'user_' || substring(replace(NEW.id::text, '-', '') from 1 for 8)
     );
   END IF;
 
@@ -2124,7 +2130,7 @@ GRANT SELECT ON public.profiles TO anon, authenticated;
 DROP FUNCTION IF EXISTS reset_daily_messages();
 
 -- ============================================
--- 10. РОЗЫГРЫШ: ПРЕДРЕГИСТРАЦИЯ
+-- 10. РОЗЫГРЫШ
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS public.giveaway_preregistrations (
@@ -2261,8 +2267,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.giveaway_prereg_save(TEXT, TEXT, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.giveaway_prereg_save(TEXT, TEXT, TEXT) TO authenticated;
+REVOKE ALL ON FUNCTION public.giveaway_prereg_save(TEXT, TEXT, TEXT) FROM PUBLIC, authenticated;
 
 CREATE OR REPLACE FUNCTION public.giveaway_prereg_my_status()
 RETURNS TABLE(
@@ -2302,8 +2307,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.giveaway_prereg_my_status() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.giveaway_prereg_my_status() TO authenticated;
+REVOKE ALL ON FUNCTION public.giveaway_prereg_my_status() FROM PUBLIC, authenticated;
 
 CREATE OR REPLACE FUNCTION public.giveaway_prereg_creator_list()
 RETURNS TABLE(
@@ -2344,6 +2348,169 @@ $$;
 
 REVOKE ALL ON FUNCTION public.giveaway_prereg_creator_list() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.giveaway_prereg_creator_list() TO authenticated;
+
+-- Участие: ник соцсети + реф-ссылка одним шагом
+DROP FUNCTION IF EXISTS public.giveaway_join();
+DROP FUNCTION IF EXISTS public.giveaway_creator_stats();
+
+CREATE OR REPLACE FUNCTION public.giveaway_join(
+  p_platform TEXT,
+  p_tiktok_handle TEXT DEFAULT NULL,
+  p_instagram_handle TEXT DEFAULT NULL
+)
+RETURNS TABLE(
+  ref_code TEXT,
+  share_path TEXT,
+  joined_at TIMESTAMPTZ,
+  platform TEXT,
+  tiktok_handle TEXT,
+  instagram_handle TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_code TEXT;
+  v_joined TIMESTAMPTZ;
+  v_starts_at TIMESTAMPTZ := TIMESTAMPTZ '2026-07-17 22:00:00+00';
+  v_ends_at TIMESTAMPTZ := TIMESTAMPTZ '2026-07-31 21:59:59+00';
+  v_platform TEXT;
+  v_tiktok TEXT;
+  v_instagram TEXT;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Требуется авторизация';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM public.giveaway_campaign WHERE id = 1 AND is_active = true) THEN
+    RAISE EXCEPTION 'Розыгрыш сейчас не активен';
+  END IF;
+
+  IF NOW() < v_starts_at THEN
+    RAISE EXCEPTION 'Участие откроется 18 июля 2026';
+  END IF;
+
+  IF NOW() > v_ends_at THEN
+    RAISE EXCEPTION 'Розыгрыш завершён';
+  END IF;
+
+  SELECT gp.ref_code, gp.joined_at INTO v_code, v_joined
+  FROM public.giveaway_participants gp
+  WHERE gp.user_id = v_uid;
+
+  IF v_code IS NOT NULL THEN
+    SELECT pr.platform, pr.tiktok_handle, pr.instagram_handle
+    INTO v_platform, v_tiktok, v_instagram
+    FROM public.giveaway_preregistrations pr
+    WHERE pr.user_id = v_uid;
+
+    RETURN QUERY SELECT v_code, '/r/' || v_code, v_joined, v_platform, v_tiktok, v_instagram;
+    RETURN;
+  END IF;
+
+  v_platform := lower(trim(coalesce(p_platform, '')));
+  IF v_platform NOT IN ('tiktok', 'instagram', 'both') THEN
+    RAISE EXCEPTION 'Выберите платформу: TikTok, Instagram или обе';
+  END IF;
+
+  v_tiktok := public.giveaway_normalize_social_handle(p_tiktok_handle);
+  v_instagram := public.giveaway_normalize_social_handle(p_instagram_handle);
+
+  IF v_platform = 'tiktok' AND v_tiktok IS NULL THEN
+    RAISE EXCEPTION 'Укажите ник TikTok (например @username)';
+  END IF;
+
+  IF v_platform = 'instagram' AND v_instagram IS NULL THEN
+    RAISE EXCEPTION 'Укажите ник Instagram (например @username)';
+  END IF;
+
+  IF v_platform = 'both' AND (v_tiktok IS NULL OR v_instagram IS NULL) THEN
+    RAISE EXCEPTION 'Укажите ники для TikTok и Instagram';
+  END IF;
+
+  IF v_platform = 'tiktok' THEN
+    v_instagram := NULL;
+  ELSIF v_platform = 'instagram' THEN
+    v_tiktok := NULL;
+  END IF;
+
+  INSERT INTO public.giveaway_preregistrations (
+    user_id, platform, tiktok_handle, instagram_handle, updated_at
+  ) VALUES (
+    v_uid, v_platform, v_tiktok, v_instagram, now()
+  )
+  ON CONFLICT (user_id) DO UPDATE SET
+    platform = EXCLUDED.platform,
+    tiktok_handle = EXCLUDED.tiktok_handle,
+    instagram_handle = EXCLUDED.instagram_handle,
+    updated_at = now();
+
+  LOOP
+    v_code := lower(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10));
+    EXIT WHEN NOT EXISTS (
+      SELECT 1 FROM public.giveaway_participants p WHERE p.ref_code = v_code
+    );
+  END LOOP;
+
+  INSERT INTO public.giveaway_participants AS gp (user_id, ref_code)
+  VALUES (v_uid, v_code)
+  RETURNING gp.joined_at INTO v_joined;
+
+  RETURN QUERY SELECT v_code, '/r/' || v_code, v_joined, v_platform, v_tiktok, v_instagram;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.giveaway_join(TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.giveaway_join(TEXT, TEXT, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.giveaway_creator_stats()
+RETURNS TABLE(
+  user_id UUID,
+  username TEXT,
+  email TEXT,
+  ref_code TEXT,
+  joined_at TIMESTAMPTZ,
+  unique_clicks BIGINT,
+  registrations BIGINT,
+  last_click_at TIMESTAMPTZ,
+  platform TEXT,
+  tiktok_handle TEXT,
+  instagram_handle TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_site_creator_user_id(auth.uid()) THEN
+    RAISE EXCEPTION 'Доступ только для создателя сайта';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    gp.user_id,
+    coalesce(p.username, '—') AS username,
+    coalesce(u.email::text, '—') AS email,
+    gp.ref_code,
+    gp.joined_at,
+    (SELECT COUNT(*)::BIGINT FROM public.giveaway_ref_clicks c WHERE c.ref_code = gp.ref_code),
+    (SELECT COUNT(*)::BIGINT FROM public.giveaway_ref_registrations r WHERE r.ref_code = gp.ref_code),
+    (SELECT MAX(c.created_at) FROM public.giveaway_ref_clicks c WHERE c.ref_code = gp.ref_code),
+    pr.platform,
+    pr.tiktok_handle,
+    pr.instagram_handle
+  FROM public.giveaway_participants gp
+  LEFT JOIN public.profiles p ON p.id = gp.user_id
+  LEFT JOIN auth.users u ON u.id = gp.user_id
+  LEFT JOIN public.giveaway_preregistrations pr ON pr.user_id = gp.user_id
+  ORDER BY 7 DESC, 6 DESC, gp.joined_at ASC;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.giveaway_creator_stats() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.giveaway_creator_stats() TO authenticated;
 
 -- ============================================
 -- ГОТОВО

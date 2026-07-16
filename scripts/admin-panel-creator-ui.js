@@ -1073,29 +1073,31 @@ async function anime4kAdminFetchAndUpsert(opts) {
 
 async function loadGiveawayAdminPanel() {
     const tbody = document.getElementById('giveawayAdminTableBody');
-    const preregTbody = document.getElementById('giveawayPreregAdminTableBody');
     const summary = document.getElementById('giveawayAdminSummary');
     const statusEl = document.getElementById('giveawayAdminStatus');
     if (!tbody || !window.creatorAdminPanel) return;
 
-    if (statusEl) statusEl.textContent = 'Загрузка…';
-    tbody.innerHTML = '<tr><td colspan="7">Загрузка…</td></tr>';
-    if (preregTbody) preregTbody.innerHTML = '<tr><td colspan="6">Загрузка…</td></tr>';
+    const platformLabel = (p) => {
+        if (p === 'tiktok') return 'TikTok';
+        if (p === 'instagram') return 'Instagram';
+        if (p === 'both') return 'TikTok + Instagram';
+        return '—';
+    };
+    const handleCell = (h) => (h ? `@${adminPanelEscapeHtml(h)}` : '—');
 
-    const [{ rows, error }, preregRes] = await Promise.all([
-        window.creatorAdminPanel.getGiveawayCreatorStats(),
-        window.creatorAdminPanel.getGiveawayPreregCreatorList()
-    ]);
+    if (statusEl) statusEl.textContent = 'Загрузка…';
+    tbody.innerHTML = '<tr><td colspan="10">Загрузка…</td></tr>';
+
+    const { rows, error } = await window.creatorAdminPanel.getGiveawayCreatorStats();
 
     if (error) {
         if (statusEl) statusEl.textContent = '';
-        tbody.innerHTML = `<tr><td colspan="7" style="color:#f87171;">${adminPanelEscapeHtml(error)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="color:#f87171;">${adminPanelEscapeHtml(error)}</td></tr>`;
         if (summary) summary.innerHTML = '';
     } else {
         const list = rows || [];
         const totalClicks = list.reduce((s, r) => s + (Number(r.unique_clicks) || 0), 0);
         const totalRegs = list.reduce((s, r) => s + (Number(r.registrations) || 0), 0);
-        const preregList = preregRes.rows || [];
 
         if (summary) {
             summary.innerHTML = `
@@ -1111,15 +1113,11 @@ async function loadGiveawayAdminPanel() {
                 <span class="admin-giveaway-stat-label">Всего регистраций</span>
                 <strong class="admin-giveaway-stat-value">${totalRegs}</strong>
             </div>
-            <div class="admin-giveaway-stat">
-                <span class="admin-giveaway-stat-label">Предрегистрация</span>
-                <strong class="admin-giveaway-stat-value">${preregList.length}</strong>
-            </div>
         `;
         }
 
         if (!list.length) {
-            tbody.innerHTML = '<tr><td colspan="7">Пока никто не нажал «Участвую».</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10">Пока никто не нажал «Участвовать».</td></tr>';
         } else {
             const origin = window.location.origin.replace(/\/$/, '');
             tbody.innerHTML = list
@@ -1134,6 +1132,9 @@ async function loadGiveawayAdminPanel() {
                     return `<tr>
                 <td>${adminPanelEscapeHtml(r.username || '—')}</td>
                 <td>${adminPanelEscapeHtml(r.email || '—')}</td>
+                <td>${adminPanelEscapeHtml(platformLabel(r.platform))}</td>
+                <td>${handleCell(r.tiktok_handle)}</td>
+                <td>${handleCell(r.instagram_handle)}</td>
                 <td><code>${adminPanelEscapeHtml(r.ref_code || '')}</code><br><a href="${shareUrl}" target="_blank" rel="noopener noreferrer">${adminPanelEscapeHtml(shareUrl)}</a></td>
                 <td>${adminPanelEscapeHtml(joined)}</td>
                 <td>${Number(r.unique_clicks) || 0}</td>
@@ -1146,42 +1147,6 @@ async function loadGiveawayAdminPanel() {
 
         if (statusEl) {
             statusEl.textContent = `Обновлено · ${list.length} участник(ов)`;
-        }
-    }
-
-    if (preregTbody) {
-        if (preregRes.error) {
-            preregTbody.innerHTML = `<tr><td colspan="6" style="color:#f87171;">${adminPanelEscapeHtml(preregRes.error)}</td></tr>`;
-        } else {
-            const preregList = preregRes.rows || [];
-            const platformLabel = (p) => {
-                if (p === 'tiktok') return 'TikTok';
-                if (p === 'instagram') return 'Instagram';
-                if (p === 'both') return 'TikTok + Instagram';
-                return '—';
-            };
-            const handleCell = (h) => (h ? `@${adminPanelEscapeHtml(h)}` : '—');
-
-            if (!preregList.length) {
-                preregTbody.innerHTML = '<tr><td colspan="6">Пока никто не предзарегистрировался.</td></tr>';
-            } else {
-                preregTbody.innerHTML = preregList
-                    .map((r) => {
-                        const when = r.updated_at || r.created_at;
-                        const dateStr = when
-                            ? new Date(when).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
-                            : '—';
-                        return `<tr>
-                <td>${adminPanelEscapeHtml(r.username || '—')}</td>
-                <td>${adminPanelEscapeHtml(r.email || '—')}</td>
-                <td>${adminPanelEscapeHtml(platformLabel(r.platform))}</td>
-                <td>${handleCell(r.tiktok_handle)}</td>
-                <td>${handleCell(r.instagram_handle)}</td>
-                <td>${adminPanelEscapeHtml(dateStr)}</td>
-            </tr>`;
-                    })
-                    .join('');
-            }
         }
     }
 }

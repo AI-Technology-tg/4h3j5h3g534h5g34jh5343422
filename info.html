@@ -326,85 +326,6 @@
                                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </a>
                             </article>
-
-                            <article class="gw-card gw-card--prereg" id="giveawayPreregBlock">
-                                <div class="gw-card__head">
-                                    <span class="gw-card__icon gw-card__icon--prereg" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 9a7 7 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                                    </span>
-                                    <div>
-                                        <h3 class="gw-card__title">Предрегистрация</h3>
-                                        <p class="gw-card__text">Зафиксируйте площадку публикации и ник аккаунта до начала конкурса.</p>
-                                    </div>
-                                </div>
-
-                                <div id="giveawayPreregLoginHint" class="gw-auth-hint" hidden>
-                                    <p>Требуется аккаунт Re-Minko для сохранения данных.</p>
-                                    <button type="button" class="gw-btn gw-btn--ghost" id="giveawayPreregOpenLoginBtn">Авторизация</button>
-                                </div>
-
-                                <div id="giveawayPreregForm" class="gw-prereg" hidden>
-                                    <div class="gw-prereg__platforms" role="radiogroup" aria-label="Платформа публикации">
-                                        <label class="gw-platform">
-                                            <input type="radio" name="giveawayPreregPlatform" value="tiktok" checked>
-                                            <span class="gw-platform__face">
-                                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 5.5a4.6 4.6 0 0 0 3 3V9a6.8 6.8 0 0 1-3-.7V15a4.5 4.5 0 1 1-4.5-4.5c.2 0 .5 0 .7.1v2.3a2.2 2.2 0 1 0 1.6 2.1V5.5h2.2z" fill="currentColor"/></svg>
-                                                TikTok
-                                            </span>
-                                        </label>
-                                        <label class="gw-platform">
-                                            <input type="radio" name="giveawayPreregPlatform" value="instagram">
-                                            <span class="gw-platform__face">
-                                                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor"/></svg>
-                                                Instagram
-                                            </span>
-                                        </label>
-                                        <label class="gw-platform">
-                                            <input type="radio" name="giveawayPreregPlatform" value="both">
-                                            <span class="gw-platform__face">Обе</span>
-                                        </label>
-                                    </div>
-
-                                    <div class="gw-prereg__fields" id="giveawayPreregFields" data-mode="single">
-                                        <label class="gw-field is-active" id="giveawayPreregTiktokWrap">
-                                            <span class="gw-field__label">
-                                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 5.5a4.6 4.6 0 0 0 3 3V9a6.8 6.8 0 0 1-3-.7V15a4.5 4.5 0 1 1-4.5-4.5c.2 0 .5 0 .7.1v2.3a2.2 2.2 0 1 0 1.6 2.1V5.5h2.2z" fill="currentColor"/></svg>
-                                                TikTok
-                                            </span>
-                                            <span class="gw-field__input">
-                                                <span class="gw-field__at">@</span>
-                                                <input type="text" id="giveawayPreregTiktok" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
-                                            </span>
-                                        </label>
-                                        <label class="gw-field" id="giveawayPreregInstagramWrap">
-                                            <span class="gw-field__label">
-                                                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
-                                                Instagram
-                                            </span>
-                                            <span class="gw-field__input">
-                                                <span class="gw-field__at">@</span>
-                                                <input type="text" id="giveawayPreregInstagram" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
-                                            </span>
-                                        </label>
-                                    </div>
-
-                                    <button type="button" class="gw-btn gw-btn--primary gw-btn--full" id="giveawayPreregSubmitBtn">
-                                        <span class="gw-btn__glow" aria-hidden="true"></span>
-                                        <span>Сохранить предрегистрацию</span>
-                                    </button>
-                                    <p id="giveawayPreregMsg" class="gw-form-msg" aria-live="polite"></p>
-                                </div>
-
-                                <div id="giveawayPreregDone" class="gw-prereg-done" hidden>
-                                    <p class="gw-prereg-done__kicker">Данные сохранены</p>
-                                    <div class="gw-prereg-done__grid" id="giveawayPreregDoneGrid"></div>
-                                    <button type="button" class="gw-btn gw-btn--ghost" id="giveawayPreregChangeBtn">Редактировать</button>
-                                </div>
-
-                                <p id="giveawayPreregClosed" class="gw-note gw-note--end" hidden>
-                                    Предрегистрация закрыта — конкурс завершён.
-                                </p>
-                            </article>
                         </div>
 
                         <div class="gw-stage" id="giveawayStageBlock">
@@ -416,9 +337,64 @@
                             <div id="giveawayJoinBlock" class="gw-join">
                                 <button type="button" class="gw-btn gw-btn--primary gw-btn--xl" id="giveawayJoinBtn">
                                     <span class="gw-btn__glow" aria-hidden="true"></span>
-                                    <span class="info-giveaway-join-btn__label">Участвовать в конкурсе</span>
+                                    <span class="info-giveaway-join-btn__label">Участвовать</span>
                                 </button>
                                 <p id="giveawayJoinMsg" class="gw-form-msg" aria-live="polite"></p>
+
+                                <div id="giveawayJoinForm" class="gw-prereg" hidden>
+                                    <p class="gw-card__text" style="margin:0 0 0.75rem;">Укажите платформу и ник — после подтверждения получите персональную реферальную ссылку.</p>
+                                    <div class="gw-prereg__platforms" role="radiogroup" aria-label="Платформа публикации">
+                                        <label class="gw-platform">
+                                            <input type="radio" name="giveawayJoinPlatform" value="tiktok" checked>
+                                            <span class="gw-platform__face">
+                                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 5.5a4.6 4.6 0 0 0 3 3V9a6.8 6.8 0 0 1-3-.7V15a4.5 4.5 0 1 1-4.5-4.5c.2 0 .5 0 .7.1v2.3a2.2 2.2 0 1 0 1.6 2.1V5.5h2.2z" fill="currentColor"/></svg>
+                                                TikTok
+                                            </span>
+                                        </label>
+                                        <label class="gw-platform">
+                                            <input type="radio" name="giveawayJoinPlatform" value="instagram">
+                                            <span class="gw-platform__face">
+                                                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor"/></svg>
+                                                Instagram
+                                            </span>
+                                        </label>
+                                        <label class="gw-platform">
+                                            <input type="radio" name="giveawayJoinPlatform" value="both">
+                                            <span class="gw-platform__face">Обе</span>
+                                        </label>
+                                    </div>
+
+                                    <div class="gw-prereg__fields" id="giveawayJoinFields" data-mode="single">
+                                        <label class="gw-field is-active" id="giveawayJoinTiktokWrap">
+                                            <span class="gw-field__label">
+                                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 5.5a4.6 4.6 0 0 0 3 3V9a6.8 6.8 0 0 1-3-.7V15a4.5 4.5 0 1 1-4.5-4.5c.2 0 .5 0 .7.1v2.3a2.2 2.2 0 1 0 1.6 2.1V5.5h2.2z" fill="currentColor"/></svg>
+                                                TikTok
+                                            </span>
+                                            <span class="gw-field__input">
+                                                <span class="gw-field__at">@</span>
+                                                <input type="text" id="giveawayJoinTiktok" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
+                                            </span>
+                                        </label>
+                                        <label class="gw-field" id="giveawayJoinInstagramWrap">
+                                            <span class="gw-field__label">
+                                                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                                                Instagram
+                                            </span>
+                                            <span class="gw-field__input">
+                                                <span class="gw-field__at">@</span>
+                                                <input type="text" id="giveawayJoinInstagram" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
+                                            </span>
+                                        </label>
+                                    </div>
+
+                                    <div class="gw-join-form-actions">
+                                        <button type="button" class="gw-btn gw-btn--primary gw-btn--full" id="giveawayJoinConfirmBtn">
+                                            <span class="gw-btn__glow" aria-hidden="true"></span>
+                                            <span>Подтвердить</span>
+                                        </button>
+                                        <button type="button" class="gw-btn gw-btn--ghost" id="giveawayJoinCancelBtn">Отмена</button>
+                                    </div>
+                                </div>
                             </div>
 
                             <div id="giveawayStatsBlock" class="gw-stats" hidden>
@@ -496,7 +472,7 @@
     <script src="scripts/loading.js"></script>
     <script src="scripts/giveaway.js?v=giveaway-1"></script>
     <script src="scripts/info-page.js"></script>
-    <script src="scripts/giveaway-info.js?v=giveaway-9"></script>
+    <script src="scripts/giveaway-info.js?v=giveaway-11"></script>
     <script src="scripts/apply-navigation.js?v=rem-theme-4"></script>
 </body>
 </html>

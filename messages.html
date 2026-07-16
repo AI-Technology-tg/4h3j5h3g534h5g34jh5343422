@@ -296,13 +296,34 @@
         function setMsgGuestErr(text) {
             const n = document.getElementById('msgV2GuestErr');
             if (!n) return;
-            if (text) {
-                n.textContent = text;
+            const msg =
+                text == null
+                    ? ''
+                    : typeof text === 'string'
+                      ? text
+                      : text.message || text.error_description || text.error || 'Ошибка. Попробуйте снова.';
+            if (msg && String(msg).trim() && String(msg).trim() !== '{}') {
+                n.textContent = String(msg).trim();
+                n.hidden = false;
+            } else if (msg && String(msg).trim() === '{}') {
+                n.textContent = 'Не удалось войти анонимно. Обновите страницу и попробуйте снова.';
                 n.hidden = false;
             } else {
                 n.textContent = '';
                 n.hidden = true;
             }
+        }
+
+        function formatGuestAuthError(error) {
+            const em = String((error && (error.message || error.msg || error.error_description)) || '').trim();
+            if (/database error (creating anonymous user|saving new user)|null value in column "username"/i.test(em)) {
+                return 'Сервер не смог создать гостевую сессию. Обновите страницу (Ctrl+F5) и попробуйте снова.';
+            }
+            if (/anonymous sign-ins|anonymous sign-ins are disabled|provider.*anonymous/i.test(em)) {
+                return 'Анонимный вход временно недоступен. Войдите через Telegram или email.';
+            }
+            if (em && em !== '{}') return em;
+            return 'Анонимный вход не сработал. Обновите страницу и попробуйте снова.';
         }
 
         function showMsgGuestGate() {
@@ -438,16 +459,7 @@
                     }
                     const { data, error } = await supabaseClient.auth.signInAnonymously();
                     if (error) {
-                        const em = String(error.message || '');
-                        if (/database error creating anonymous user|creating anonymous user/i.test(em)) {
-                            setMsgGuestErr(
-                                'Ошибка БД при создании анонима: обычно триггер на auth.users вставляет в profiles и падает из‑за NULL email. В SQL Editor поправьте функцию триггера (см. sql/fix_anonymous_user_auth_trigger.sql в проекте) или уберите NOT NULL с profiles.email для гостей.'
-                            );
-                        } else {
-                            setMsgGuestErr(
-                                em || 'Анонимный вход не сработал. Включите «Allow anonymous sign-ins» в Supabase (Auth → Providers).'
-                            );
-                        }
+                        setMsgGuestErr(formatGuestAuthError(error));
                         return;
                     }
                     let { data: sNext } = await supabaseClient.auth.getSession();
@@ -463,7 +475,10 @@
                     const { error: pe } = await supabaseClient
                         .from('profiles')
                         .upsert({ id: u.id, username: name, gender: 'male' }, { onConflict: 'id' });
-                    if (pe) console.warn('[messages] profile upsert:', pe);
+                    if (pe) {
+                        setMsgGuestErr(pe.message || 'Не удалось сохранить имя. Попробуйте другое.');
+                        return;
+                    }
                 } else {
                     const uid = s0.user.id;
                     const { error: u1 } = await supabaseClient.auth.updateUser({
