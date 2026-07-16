@@ -651,7 +651,7 @@
 
 /* Mobile preview: аккуратные фильтры без лишних полей у range и нормальная панель жанров. */
 @media (max-width: 900px) {
-    html.reminko-mobile-preview .catalog-filter-bar--anime .anime-fb-year {
+    .catalog-filter-bar--anime .anime-fb-year {
         width: 100%;
         padding: 0.62rem 0.72rem !important;
         border-radius: 14px !important;
@@ -660,7 +660,7 @@
         box-shadow: none !important;
     }
 
-    html.reminko-mobile-preview .catalog-filter-bar--anime .anime-fb-year-sliders {
+    .catalog-filter-bar--anime .anime-fb-year-sliders {
         display: grid !important;
         grid-template-columns: 1fr auto auto 1fr auto;
         align-items: center !important;
@@ -668,8 +668,8 @@
         gap: 0.34rem !important;
     }
 
-    html.reminko-mobile-preview .filter-year-slider,
-    html.reminko-mobile-preview .catalog-filter-bar--anime .anime-fb-range {
+    .filter-year-slider,
+    .catalog-filter-bar--anime .anime-fb-range {
         width: 100% !important;
         min-width: 0 !important;
         height: 22px !important;
@@ -684,8 +684,8 @@
         outline: 0 !important;
     }
 
-    html.reminko-mobile-preview .filter-year-slider::-webkit-slider-runnable-track,
-    html.reminko-mobile-preview .catalog-filter-bar--anime .anime-fb-range::-webkit-slider-runnable-track {
+    .filter-year-slider::-webkit-slider-runnable-track,
+    .catalog-filter-bar--anime .anime-fb-range::-webkit-slider-runnable-track {
         height: 3px !important;
         border-radius: 999px !important;
         background: rgba(227, 0, 255, 0.45) !important;
@@ -693,8 +693,8 @@
         box-shadow: none !important;
     }
 
-    html.reminko-mobile-preview .filter-year-slider::-moz-range-track,
-    html.reminko-mobile-preview .catalog-filter-bar--anime .anime-fb-range::-moz-range-track {
+    .filter-year-slider::-moz-range-track,
+    .catalog-filter-bar--anime .anime-fb-range::-moz-range-track {
         height: 3px !important;
         border-radius: 999px !important;
         background: rgba(227, 0, 255, 0.45) !important;
@@ -702,8 +702,8 @@
         box-shadow: none !important;
     }
 
-    html.reminko-mobile-preview .filter-year-slider::-webkit-slider-thumb,
-    html.reminko-mobile-preview .catalog-filter-bar--anime .anime-fb-range::-webkit-slider-thumb {
+    .filter-year-slider::-webkit-slider-thumb,
+    .catalog-filter-bar--anime .anime-fb-range::-webkit-slider-thumb {
         width: 15px !important;
         height: 15px !important;
         margin-top: -6px !important;
@@ -712,8 +712,8 @@
         box-shadow: none !important;
     }
 
-    html.reminko-mobile-preview .filter-year-slider::-moz-range-thumb,
-    html.reminko-mobile-preview .catalog-filter-bar--anime .anime-fb-range::-moz-range-thumb {
+    .filter-year-slider::-moz-range-thumb,
+    .catalog-filter-bar--anime .anime-fb-range::-moz-range-thumb {
         width: 15px !important;
         height: 15px !important;
         border: 2px solid rgba(255, 255, 255, 0.82) !important;
@@ -721,7 +721,7 @@
         box-shadow: none !important;
     }
 
-    html.reminko-mobile-preview .catalog-filter-bar--anime #filterGenrePanel.filter-select-panel {
+    .catalog-filter-bar--anime #filterGenrePanel.filter-select-panel {
         position: fixed !important;
         left: 50% !important;
         right: auto !important;
@@ -742,7 +742,7 @@
         overscroll-behavior: contain;
     }
 
-    html.reminko-mobile-preview #filterGenrePanel .filter-mobile-panel-head {
+    #filterGenrePanel .filter-mobile-panel-head {
         position: sticky;
         top: -0.72rem;
         z-index: 2;
@@ -757,13 +757,13 @@
         border-radius: 22px 22px 0 0;
     }
 
-    html.reminko-mobile-preview #filterGenrePanel .filter-mobile-panel-head strong {
+    #filterGenrePanel .filter-mobile-panel-head strong {
         color: #f8fafc;
         font-size: 0.92rem;
         line-height: 1;
     }
 
-    html.reminko-mobile-preview #filterGenrePanel .filter-panel-close {
+    #filterGenrePanel .filter-panel-close {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -779,13 +779,13 @@
         box-shadow: none !important;
     }
 
-    html.reminko-mobile-preview .catalog-filter-bar--anime #filterGenrePanel .filter-genres-grid {
+    .catalog-filter-bar--anime #filterGenrePanel .filter-genres-grid {
         display: grid !important;
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
         gap: 0.34rem !important;
     }
 
-    html.reminko-mobile-preview .catalog-filter-bar--anime #filterGenrePanel .filter-option {
+    .catalog-filter-bar--anime #filterGenrePanel .filter-option {
         min-width: 0 !important;
         min-height: 32px !important;
         padding: 0.36rem 0.38rem !important;
@@ -799,14 +799,14 @@
         overflow: hidden;
     }
 
-    html.reminko-mobile-preview .catalog-filter-bar--anime #filterGenrePanel .filter-option span {
+    .catalog-filter-bar--anime #filterGenrePanel .filter-option span {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    html.reminko-mobile-preview .catalog-filter-bar--anime #filterGenrePanel .filter-option input[type='checkbox'] {
+    .catalog-filter-bar--anime #filterGenrePanel .filter-option input[type='checkbox'] {
         width: 12px !important;
         height: 12px !important;
         flex: 0 0 12px !important;
@@ -816,12 +816,12 @@
 }
 
 @media (max-width: 380px) {
-    html.reminko-mobile-preview .catalog-filter-bar--anime #filterGenrePanel .filter-genres-grid {
+    .catalog-filter-bar--anime #filterGenrePanel .filter-genres-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
         gap: 0.28rem !important;
     }
 
-    html.reminko-mobile-preview .catalog-filter-bar--anime #filterGenrePanel .filter-option {
+    .catalog-filter-bar--anime #filterGenrePanel .filter-option {
         font-size: 0.58rem !important;
         padding: 0.32rem 0.28rem !important;
     }

@@ -35,7 +35,7 @@
 
 /* Только тестовая мобильная версия: Rem крупнее и прижата к правому нижнему краю. */
 @media (max-width: 900px) {
-    html.reminko-mobile-preview #live2d-widget.live2d-widget-container {
+    #live2d-widget.live2d-widget-container {
         position: fixed !important;
         right: -96px !important;
         bottom: -186px !important;
@@ -50,20 +50,20 @@
         transform-origin: right bottom !important;
     }
 
-    html.reminko-mobile-preview #live2d-widget.live2d-widget-container #live2dcanvas,
-    html.reminko-mobile-preview #live2d-widget.live2d-widget-container canvas {
+    #live2d-widget.live2d-widget-container #live2dcanvas,
+    #live2d-widget.live2d-widget-container canvas {
         max-width: none !important;
         max-height: none !important;
         image-rendering: auto !important;
     }
 
-    html.reminko-mobile-preview #live2d-widget .live2d-widget-dialog-container {
+    #live2d-widget .live2d-widget-dialog-container {
         display: none !important;
     }
 }
 
 @media (max-width: 420px) {
-    html.reminko-mobile-preview #live2d-widget.live2d-widget-container {
+    #live2d-widget.live2d-widget-container {
         right: -106px !important;
         bottom: -186px !important;
     }

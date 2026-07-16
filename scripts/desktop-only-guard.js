@@ -1,6 +1,5 @@
 /**
- * Раньше сайт блокировал телефоны и планшеты. Сейчас мобильные устройства
- * допускаются на сайт и получают класс мобильного preview-оформления.
+ * Мобильная вёрстка включена для всех телефонов и узких экранов (≤900px).
  */
 (function reminkoGtmBoot(w, d, s, l, i) {
     if (w.__reminkoGtmBoot) return;
@@ -120,8 +119,7 @@
     var PHONE_MAX_LONG_SIDE = 1000;
     var PHONE_MAX_SHORT_SIDE = 540;
     var MOBILE_PREVIEW_CLASS = 'reminko-mobile-preview';
-    var MOBILE_PREVIEW_ENDPOINT = '/.netlify/functions/mobile-preview-access';
-    var mobilePreviewAccessPromise = null;
+    var MOBILE_LAYOUT_MQ = '(max-width: 900px)';
 
     function isLikelySearchOrPreviewBot(userAgent) {
         var ua = userAgent || '';
@@ -287,72 +285,12 @@
         return false;
     }
 
-    function scheduleAsyncMobileRecheck() {
+    function isNarrowViewport() {
         try {
-            if (!navigator.userAgentData || typeof navigator.userAgentData.getHighEntropyValues !== 'function') {
-                return;
-            }
-            navigator.userAgentData
-                .getHighEntropyValues(['mobile', 'platform'])
-                .then(function (values) {
-                    if (!values) return;
-                    if (isLikelyRealDesktop(navigator.userAgent || '')) return;
-                    if (values.mobile === true) {
-                        maybeMountWallForMobilePreview();
-                        return;
-                    }
-                    var platform = String(values.platform || '');
-                    if (/Android|iOS/i.test(platform)) {
-                        maybeMountWallForMobilePreview();
-                        return;
-                    }
-                    if (hasPhoneLikeHardware()) maybeMountWallForMobilePreview();
-                })
-                .catch(function () {
-                    /* ignore */
-                });
+            return window.matchMedia && window.matchMedia(MOBILE_LAYOUT_MQ).matches;
         } catch (_) {
-            /* ignore */
+            return false;
         }
-    }
-
-    function getSiteRootPrefix() {
-        var list = document.querySelectorAll('script[src*="desktop-only-guard"]');
-        var el = list[list.length - 1];
-        if (el && el.src) {
-            return el.src.replace(/\/scripts\/[^/]+$/, '/');
-        }
-        var path = (window.location && window.location.pathname) || '';
-        if (
-            path.indexOf('/catalog/') !== -1 ||
-            path.indexOf('/anime/') !== -1 ||
-            path.indexOf('/manga/') !== -1
-        ) {
-            return '../';
-        }
-        return '';
-    }
-
-    function isLikelyTvDevice(userAgent) {
-        var ua = userAgent || navigator.userAgent || '';
-        if (/ReMinkoTV/i.test(ua)) return true;
-        if (
-            /Android TV|Google TV|GoogleTV|AFT[A-Z0-9]|BRAVIA|SmartTV|Smart TV|Tizen|webOS|AppleTV|CrKey|Chromecast|HbbTV|NetCast|Opera TV|TV Safari|MiTV|Shield Android TV/i.test(
-                ua
-            )
-        ) {
-            return true;
-        }
-        if (/Android/i.test(ua)) {
-            var sides = getScreenSides();
-            if (sides.max >= 960 && sides.min >= 540 && !hasPhoneLikeHardware()) return true;
-        }
-        return false;
-    }
-
-    function resolvePublicUrl(relativePath) {
-        var root = getSiteRootPrefix();
-        return root + String(relativePath || '').replace(/^\//, '');
     }
 
     function markMobilePreviewAllowed() {
@@ -373,165 +311,27 @@
         }
     }
 
-    function isGitHubPagesMobilePreview() {
-        try {
-            var host = String(window.location.hostname || '').toLowerCase();
-            var path = String(window.location.pathname || '');
-            return host === 'ai-technology-tg.github.io' && path.indexOf('/23dsf7dsf6sfsdf6sd/') === 0;
-        } catch (_) {
-            return false;
-        }
-    }
-
-    function checkMobilePreviewAccess() {
-        if (mobilePreviewAccessPromise) return mobilePreviewAccessPromise;
-        if (isGitHubPagesMobilePreview()) {
+    function syncMobileLayout() {
+        if (shouldBlockMobileBrowsing() || isNarrowViewport()) {
             markMobilePreviewAllowed();
-            mobilePreviewAccessPromise = Promise.resolve(true);
-            return mobilePreviewAccessPromise;
         }
-        mobilePreviewAccessPromise = fetch(MOBILE_PREVIEW_ENDPOINT, {
-            method: 'GET',
-            cache: 'no-store',
-            credentials: 'omit'
-        })
-            .then(function (res) {
-                if (!res || !res.ok) return false;
-                return res.json();
-            })
-            .then(function (data) {
-                if (data && data.allowed === true) {
-                    markMobilePreviewAllowed();
-                    return true;
-                }
-                return false;
-            })
-            .catch(function () {
-                return false;
-            });
-        return mobilePreviewAccessPromise;
-    }
-
-    function maybeMountWallForMobilePreview() {
-        checkMobilePreviewAccess().then(function (allowed) {
-            if (!allowed) mountWall();
-        });
-    }
-
-    function checkApkAvailable(relativePath) {
-        var url = resolvePublicUrl(relativePath);
-        return fetch(url, { method: 'HEAD', cache: 'no-store' })
-            .then(function (res) {
-                return !!(res && res.ok);
-            })
-            .catch(function () {
-                return false;
-            });
-    }
-
-    function openTelegramAppNews() {
-        var url = 'https://telegram.me/re_minko';
-        try {
-            window.open(url, '_blank', 'noopener,noreferrer');
-        } catch (_) {
-            window.location.href = url;
-        }
-    }
-
-    function triggerApkDownload(relativePath, filename) {
-        var url = resolvePublicUrl(relativePath);
-        try {
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = filename || '';
-            a.rel = 'noopener';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-        } catch (_) {
-            window.location.href = url;
-        }
-    }
-
-    function mountWall() {
-        if (document.getElementById('reminko-desktop-only-wall')) return;
-
-        var root = getSiteRootPrefix();
-        var androidImg = root + 'Fons/androids.png';
-
-        var css =
-            '#reminko-desktop-only-wall{position:fixed;inset:0;z-index:2147483647;' +
-            'display:flex;align-items:center;justify-content:center;padding:1.25rem;' +
-            'box-sizing:border-box;background:#0a0a12;color:#e2e8f0;' +
-            'font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;' +
-            'text-align:center;-webkit-text-size-adjust:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}' +
-            '#reminko-desktop-only-wall *{box-sizing:border-box;}' +
-            '#reminko-desktop-only-wall .reminko-dow-card{max-width:22rem;width:100%;' +
-            'margin:0 auto;padding:1.5rem 1.25rem 1.35rem;border-radius:1rem;' +
-            'background:linear-gradient(145deg,rgba(91,33,182,0.35),rgba(15,15,28,0.95));' +
-            'border:1px solid rgba(167,139,250,0.35);box-shadow:0 12px 40px rgba(0,0,0,0.5);}' +
-            '#reminko-desktop-only-wall .reminko-dow-android{width:min(72vw,180px);height:min(72vw,180px);margin:0 auto 1.15rem;' +
-            'display:block;object-fit:contain;border-radius:1rem;}' +
-            '#reminko-desktop-only-wall p{margin:0;font-size:1rem;line-height:1.5;color:#e2e8f0;}';
-
-        var st = document.createElement('style');
-        st.textContent = css;
-        (document.head || document.documentElement).appendChild(st);
-
-        var wall = document.createElement('div');
-        wall.id = 'reminko-desktop-only-wall';
-        wall.setAttribute('role', 'alertdialog');
-        wall.setAttribute('aria-modal', 'true');
-        wall.setAttribute('aria-labelledby', 'reminko-dow-title');
-        wall.innerHTML =
-            '<div class="reminko-dow-card">' +
-            '<img class="reminko-dow-android" src="' +
-            androidImg +
-            '" alt="Re-Minko для Android" width="180" height="180" decoding="async" />' +
-            '<p id="reminko-dow-title">Мы все еще работаем над приложением для телефона</p>' +
-            '</div>';
-
-        (document.body || document.documentElement).appendChild(wall);
-        if (document.body) {
-            document.body.style.overflow = 'hidden';
-        }
-
-        try {
-            var rootEl = document.documentElement;
-            if (rootEl) rootEl.style.overflow = 'hidden';
-        } catch (_) {
-            /* ignore */
-        }
-    }
-
-    function getPcHintBaseUrl() {
-        var list = document.querySelectorAll('script[src*="desktop-only-guard"]');
-        var el = list[list.length - 1];
-        if (el && el.src) {
-            var base = el.src.replace(/\/[^/]+$/, '/');
-            return base + '../Fons/mobile-pc-hint/';
-        }
-        var path = (window.location && window.location.pathname) || '';
-        if (
-            path.indexOf('/catalog/') !== -1 ||
-            path.indexOf('/anime/') !== -1 ||
-            path.indexOf('/manga/') !== -1
-        ) {
-            return '../Fons/mobile-pc-hint/';
-        }
-        return 'Fons/mobile-pc-hint/';
     }
 
     function boot() {
-        if (shouldBlockMobileBrowsing()) {
-            markMobilePreviewAllowed();
-            return;
-        }
+        syncMobileLayout();
         try {
-            if (isGitHubPagesMobilePreview()) markMobilePreviewAllowed();
+            var mq = window.matchMedia(MOBILE_LAYOUT_MQ);
+            if (mq) {
+                if (typeof mq.addEventListener === 'function') {
+                    mq.addEventListener('change', syncMobileLayout);
+                } else if (typeof mq.addListener === 'function') {
+                    mq.addListener(syncMobileLayout);
+                }
+            }
         } catch (_) {
             /* ignore */
         }
+        window.addEventListener('orientationchange', syncMobileLayout, { passive: true });
     }
 
     if (document.body) boot();

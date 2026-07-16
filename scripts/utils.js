@@ -31,6 +31,20 @@ function reminkoResolveAssetUrl(url) {
 }
 window.reminkoResolveAssetUrl = reminkoResolveAssetUrl;
 
+/** Узкий экран или мобильная вёрстка (≤900px). */
+function reminkoIsMobileLayout() {
+    try {
+        if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) return true;
+    } catch (_) {
+        /* ignore */
+    }
+    return !!(
+        document.documentElement &&
+        document.documentElement.classList.contains('reminko-mobile-preview')
+    );
+}
+window.reminkoIsMobileLayout = reminkoIsMobileLayout;
+
 /** Jikan API: повтор при 429 и временных 502/503/504 (общий для всего сайта). */
 const REMINKO_JIKAN_RETRY_STATUSES = new Set([429, 502, 503, 504]);
 const REMINKO_JIKAN_MAX_ATTEMPTS = 3;
@@ -218,8 +232,8 @@ function reminkoEnhanceHorizontalDragScroll(container, opts) {
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
         if (
-            document.documentElement &&
-            document.documentElement.classList.contains('reminko-mobile-preview') &&
+            typeof reminkoIsMobileLayout === 'function' &&
+            reminkoIsMobileLayout() &&
             Math.abs(dy) > Math.abs(dx) + 6
         ) {
             drag = false;
