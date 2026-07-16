@@ -1,9 +1,9 @@
 // Общий компонент навигации для всех страниц
 // Автоматически определяет текущую страницу и применяет активный класс
 
-const REMINKO_ONLINE_BOOST = { min: 323, max: 1243 };
-const REMINKO_ONLINE_STORAGE_KEY = 'reminko_online_display_v1';
-const REMINKO_ONLINE_BIAS_KEY = 'reminko_online_bias_v1';
+const REMINKO_ONLINE_BOOST = { min: 134, max: 324 };
+const REMINKO_ONLINE_STORAGE_KEY = 'reminko_online_display_v2';
+const REMINKO_ONLINE_BIAS_KEY = 'reminko_online_bias_v2';
 
 /** Целевое «онлайн» по времени суток — плавно, без рандома на каждый тик. */
 function reminkoComputeBoostedOnlineTarget(date = new Date()) {
@@ -28,7 +28,7 @@ function reminkoComputeBoostedOnlineTarget(date = new Date()) {
     try {
         const raw = sessionStorage.getItem(REMINKO_ONLINE_BIAS_KEY);
         if (raw == null) {
-            bias = Math.floor(Math.random() * 29) - 11;
+            bias = Math.floor(Math.random() * 13) - 6;
             sessionStorage.setItem(REMINKO_ONLINE_BIAS_KEY, String(bias));
         } else {
             bias = Number(raw) || 0;
