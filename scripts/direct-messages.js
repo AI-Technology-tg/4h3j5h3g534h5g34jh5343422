@@ -171,13 +171,47 @@ const DirectMessagesService = {
             }
 
             const conversations = Object.values(convMap);
+
+            let creatorId = null;
             if (typeof reminkoEnsureSiteCreatorUserIdCached === 'function') {
-                await reminkoEnsureSiteCreatorUserIdCached();
+                creatorId = await reminkoEnsureSiteCreatorUserIdCached();
+            } else if (window.__reminkoSiteCreatorUserId) {
+                creatorId = window.__reminkoSiteCreatorUserId;
+            } else if (window.APP_CONFIG?.siteCreatorUserId) {
+                creatorId = window.APP_CONFIG.siteCreatorUserId;
             }
-            const profileMap = await this.getProfilesMap(conversations.map((c) => c.userId));
+
+            const profileIds = conversations.map((c) => c.userId);
+            if (creatorId && !profileIds.some((id) => String(id) === String(creatorId))) {
+                profileIds.push(creatorId);
+            }
+            const profileMap = await this.getProfilesMap(profileIds);
             for (const conv of conversations) {
                 conv.profile = profileMap[conv.userId] || null;
             }
+
+            if (creatorId) {
+                const cid = String(creatorId);
+                const hasCreator = conversations.some((c) => String(c.userId) === cid);
+                if (!hasCreator) {
+                    const creatorProfile =
+                        profileMap[cid] || (await this.getProfile(cid)) || null;
+                    conversations.push({
+                        userId: cid,
+                        lastMessage: {
+                            id: 'stub-creator',
+                            message: '',
+                            created_at: new Date(0).toISOString(),
+                            sender_id: userId,
+                            receiver_id: cid
+                        },
+                        unreadCount: 0,
+                        profile: creatorProfile,
+                        isCreatorSlot: true
+                    });
+                }
+            }
+
             conversations.sort(
                 (a, b) => new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at)
             );

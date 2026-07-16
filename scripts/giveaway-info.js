@@ -62,11 +62,19 @@
         var notStartedNote = $('giveawayNotStartedNote');
         var countdown = $('giveawayCountdownInner');
         var joinBtn = $('giveawayJoinBtn');
+        var joinBlock = $('giveawayJoinBlock');
+        var joinForm = $('giveawayJoinForm');
+        var confirmBtn = $('giveawayJoinConfirmBtn');
+        var cancelBtn = $('giveawayJoinCancelBtn');
         var kicker = $('giveawayTimerKicker');
 
         if (endedNote) endedNote.hidden = !ended;
         if (notStartedNote) notStartedNote.hidden = started || ended;
         if (countdown) countdown.hidden = ended;
+
+        if (joinBlock) {
+            joinBlock.classList.toggle('is-active-phase', active);
+        }
 
         if (kicker) {
             if (ended) kicker.textContent = 'Конкурс завершён';
@@ -76,10 +84,27 @@
 
         if (joinBtn) {
             joinBtn.disabled = !active;
+            joinBtn.hidden = false;
             if (ended) joinBtn.title = 'Конкурс завершён';
             else if (!started) joinBtn.title = 'Участие откроется 18 июля 2026';
             else joinBtn.title = '';
         }
+
+        if (!active) {
+            hideJoinForm();
+        }
+
+        if (joinForm) {
+            joinForm.querySelectorAll('input, button').forEach(function (el) {
+                if (el.id === 'giveawayJoinConfirmBtn' || el.id === 'giveawayJoinCancelBtn') {
+                    el.disabled = !active;
+                } else if (el.type === 'text' || el.type === 'radio') {
+                    el.disabled = !active;
+                }
+            });
+        }
+        if (confirmBtn) confirmBtn.disabled = !active;
+        if (cancelBtn) cancelBtn.disabled = !active;
     }
 
     function ruUnit(n, one, few, many) {
@@ -229,10 +254,13 @@
     }
 
     function showJoinForm() {
+        if (!isGiveawayActive()) return;
         var btn = $('giveawayJoinBtn');
         var form = $('giveawayJoinForm');
+        var block = $('giveawayJoinBlock');
         if (btn) btn.hidden = true;
         if (form) form.hidden = false;
+        if (block) block.classList.add('is-form-open');
         applyJoinPlatformFields();
         showMsg($('giveawayJoinMsg'), '', true);
     }
@@ -240,8 +268,10 @@
     function hideJoinForm() {
         var btn = $('giveawayJoinBtn');
         var form = $('giveawayJoinForm');
-        if (btn) btn.hidden = false;
+        var block = $('giveawayJoinBlock');
+        if (btn && isGiveawayActive()) btn.hidden = false;
         if (form) form.hidden = true;
+        if (block) block.classList.remove('is-form-open');
     }
 
     async function isLoggedIn() {
@@ -266,6 +296,8 @@
         if (!logged) {
             joinBlock.hidden = false;
             if (statsBlock) statsBlock.hidden = true;
+            hideJoinForm();
+            applyGiveawayPhaseUi();
             return;
         }
 
@@ -297,11 +329,15 @@
             } else {
                 joinBlock.hidden = false;
                 if (statsBlock) statsBlock.hidden = true;
+                hideJoinForm();
             }
         } catch (_) {
             joinBlock.hidden = false;
             if (statsBlock) statsBlock.hidden = true;
+            hideJoinForm();
         }
+
+        applyGiveawayPhaseUi();
     }
 
     async function onJoinClick() {

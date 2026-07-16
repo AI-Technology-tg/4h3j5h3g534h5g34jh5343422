@@ -429,7 +429,7 @@ async function reminkoResolveSiteCreatorUserId(supabaseClient) {
             .maybeSingle();
         if (!flagged.error && flagged.data?.id) return flagged.data.id;
     } catch (_) { /* колонка может отсутствовать */ }
-    for (const pattern of ['dubina', '%dubina%']) {
+    for (const pattern of ['subarik', 'dubina', '%subarik%', '%dubina%']) {
         try {
             const q =
                 pattern.includes('%')

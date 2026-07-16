@@ -349,6 +349,18 @@
 .friends-v2-name {
     font-weight: 800;
     font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+.friends-v2-creator-badge {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    border-radius: 5px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
 }
 .friends-v2-link {
     color: inherit;

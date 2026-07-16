@@ -264,6 +264,25 @@
             return `<div class="friends-v2-avatar-initial" style="background:${col}22;color:${col}">${ini}</div>`;
         }
 
+        function friendsCreatorBadgeHtml(user) {
+            if (typeof reminkoIsSiteCreatorProfile !== 'function' || !reminkoIsSiteCreatorProfile(user)) {
+                return '';
+            }
+            if (typeof reminkoTeamRoleBadgeHtml === 'function') {
+                return reminkoTeamRoleBadgeHtml('creator', 'friends-v2-creator-badge');
+            }
+            return '';
+        }
+
+        function friendsNameHtml(user, link) {
+            const name = escapeHtml((user && user.username) || 'Пользователь');
+            const badge = friendsCreatorBadgeHtml(user);
+            if (link && user && user.id) {
+                return `<a href="profile.html?user=${encodeURIComponent(user.id)}" class="friends-v2-link">${name}</a>${badge}`;
+            }
+            return `${name}${badge}`;
+        }
+
         function statusLine(user) {
             const on = checkIfOnline(user.last_online);
             const act = user.current_activity;
@@ -445,7 +464,7 @@
             <div class="friends-v2-glow-card friends-v2-row" data-profile="${u.id}">
               <div class="friends-v2-avatar-wrap">${av}<span class="friends-v2-online-dot ${on ? 'on' : 'off'}"></span></div>
               <div class="friends-v2-row-main">
-                <div class="friends-v2-name">${escapeHtml(u.username || 'Пользователь')}</div>
+                <div class="friends-v2-name">${friendsNameHtml(u, false)}</div>
                 <div class="friends-v2-status">${escapeHtml(statusLine(u))}</div>
               </div>
               <button type="button" class="friends-v2-icon-btn" data-msg="${u.id}" title="Написать" aria-label="Написать">
@@ -494,7 +513,7 @@
                 ${friendsAvatarHtml(u)}
               </div>
               <div class="friends-v2-row-main">
-                <div class="friends-v2-name">${escapeHtml(u.username || 'Пользователь')}</div>
+                <div class="friends-v2-name">${friendsNameHtml(u, false)}</div>
                 <div class="friends-v2-status">Хочет в друзья</div>
               </div>
               <div class="friends-v2-request-actions">
@@ -528,7 +547,7 @@
                 ${friendsAvatarHtml(u)}
               </div>
               <div class="friends-v2-row-main">
-                <div class="friends-v2-name"><a href="profile.html?user=${encodeURIComponent(u.id)}" class="friends-v2-link">${escapeHtml(u.username || 'Пользователь')}</a></div>
+                <div class="friends-v2-name">${friendsNameHtml(u, true)}</div>
                 <div class="friends-v2-status">Заявка отправлена</div>
               </div>
               <button type="button" class="friends-v2-btn-outline" data-cancel="${r.id}">Отменить</button>

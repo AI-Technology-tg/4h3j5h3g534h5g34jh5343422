@@ -271,6 +271,21 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.msg-v2-creator-badge,
+.msg-v2-header-name .msg-v2-creator-badge {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    border-radius: 5px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.msg-v2-header-name-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+}
 .msg-v2-item-pin {
     flex-shrink: 0;
     color: var(--mv-primary);

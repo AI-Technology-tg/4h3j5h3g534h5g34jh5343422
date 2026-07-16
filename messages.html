@@ -254,7 +254,13 @@
 
         function sortConversations(list) {
             const pinned = getPinnedOrder();
+            const creatorId = siteCreatorUserIdResolved ? String(siteCreatorUserIdResolved) : null;
             return list.slice().sort((a, b) => {
+                const aCreator = creatorId && String(a.userId) === creatorId;
+                const bCreator = creatorId && String(b.userId) === creatorId;
+                if (aCreator && !bCreator) return -1;
+                if (!aCreator && bCreator) return 1;
+
                 const ap = pinned.indexOf(String(a.userId));
                 const bp = pinned.indexOf(String(b.userId));
                 const aP = ap >= 0;
@@ -264,6 +270,25 @@
                 if (aP && bP) return ap - bp;
                 return new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at);
             });
+        }
+
+        function dmCreatorBadgeHtml() {
+            if (typeof reminkoTeamRoleBadgeHtml === 'function') {
+                return reminkoTeamRoleBadgeHtml('creator', 'msg-v2-creator-badge');
+            }
+            const src =
+                typeof reminkoResolveAssetUrl === 'function'
+                    ? reminkoResolveAssetUrl('Fons/creator znak.png')
+                    : 'Fons/creator znak.png';
+            return (
+                '<img class="msg-v2-creator-badge" src="' +
+                escapeHtml(src) +
+                '" alt="Создатель" title="Создатель сайта" loading="lazy" decoding="async">'
+            );
+        }
+
+        function dmCreatorBadgeForUser(userId, profile) {
+            return dmIsCreatorUser(userId, profile) ? dmCreatorBadgeHtml() : '';
         }
 
         function hasCreatorQuery() {
@@ -810,26 +835,13 @@
 
         async function refreshConversationsFromServer(filter) {
             const f = filter != null ? filter : lastConvFilter;
+            if (!siteCreatorUserIdResolved && typeof reminkoEnsureSiteCreatorUserIdCached === 'function') {
+                siteCreatorUserIdResolved = await reminkoEnsureSiteCreatorUserIdCached();
+                window.__reminkoSiteCreatorUserId = siteCreatorUserIdResolved || null;
+            }
             let conversations = await DirectMessagesService.getConversations();
             if (guestCreatorMode && siteCreatorUserIdResolved) {
                 conversations = conversations.filter((c) => c.userId === siteCreatorUserIdResolved);
-                if (conversations.length === 0) {
-                    const p = await DirectMessagesService.getProfile(siteCreatorUserIdResolved);
-                    conversations = [
-                        {
-                            userId: siteCreatorUserIdResolved,
-                            lastMessage: {
-                                id: 'stub',
-                                message: ' ',
-                                created_at: new Date().toISOString(),
-                                sender_id: currentUserId,
-                                receiver_id: siteCreatorUserIdResolved
-                            },
-                            unreadCount: 0,
-                            profile: p
-                        }
-                    ];
-                }
             }
             cachedConversations = conversations;
             renderConversations(conversations, f);
@@ -889,15 +901,18 @@
                     previewText = (previewText ? previewText + ' · ' : '') + '📎 Вложение';
                 }
                 let preview = (isMine ? 'Вы: ' : '') + truncate(previewText, 42);
-                if (lastMsg.id === 'stub' || !String(lastMsg.message || '').trim()) {
-                    preview = 'Новый чат';
+                if (lastMsg.id === 'stub' || lastMsg.id === 'stub-creator' || !String(lastMsg.message || '').trim()) {
+                    preview = 'Написать сообщение';
                 }
                 if (isWatching && !isMine) preview = '📺 Смотрит: ' + (activity.title || '');
                 const time = formatShortTime(lastMsg.created_at);
 
                 const isPinned = pinned.includes(String(conv.userId));
                 const col = hashColor(conv.userId);
-                const name = escapeHtml(profile.username || 'Пользователь');
+                const creatorBadge = dmCreatorBadgeForUser(conv.userId, profile);
+                const isCreatorPinned =
+                    siteCreatorUserIdResolved && String(conv.userId) === String(siteCreatorUserIdResolved);
+                const name = escapeHtml(profile.username || (isCreatorPinned ? 'Subarik' : 'Пользователь'));
                 const initials = escapeHtml(userInitials(profile.username));
 
                 const div = document.createElement('div');
@@ -919,7 +934,7 @@
                     <div class="msg-v2-item-body">
                         <div class="msg-v2-item-top">
                             <div class="msg-v2-item-name-row">
-                                <span class="msg-v2-item-name">${name}</span>
+                                <span class="msg-v2-item-name">${name}</span>${creatorBadge}
                                 ${isPinned ? '<span class="msg-v2-item-pin" title="Закреплён"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16h14v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a2 2 0 0 0-2-2H11a2 2 0 0 0-2 2z"></path></svg></span>' : ''}
                             </div>
                             <span class="msg-v2-item-time">${time}</span>
@@ -1018,7 +1033,14 @@
             }
 
             document.getElementById('msgV2HeaderName').innerHTML =
-                '<a href="' + profileUrl + '">' + escapeHtml(profile?.username || 'Пользователь') + '</a>';
+                '<span class="msg-v2-header-name-row">' +
+                '<a href="' +
+                profileUrl +
+                '">' +
+                escapeHtml(profile?.username || 'Пользователь') +
+                '</a>' +
+                dmCreatorBadgeForUser(userId, profile) +
+                '</span>';
 
             setPeerTypingStatus(profile);
 

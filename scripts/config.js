@@ -39,7 +39,9 @@ const APP_CONFIG = {
      */
     siteCreatorUserId: (() => {
         const v = window.APP_CONFIG?.siteCreatorUserId;
-        return typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v.trim()) ? v.trim() : null;
+        if (typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v.trim())) return v.trim();
+        // Subarik — запасной UUID, если config.local.js не задан
+        return 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb';
     })(),
 
     // Supabase настройки

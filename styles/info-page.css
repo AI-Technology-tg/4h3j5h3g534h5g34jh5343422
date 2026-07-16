@@ -1150,6 +1150,25 @@
     gap: 0.85rem;
 }
 
+.gw-prereg[hidden],
+#giveawayJoinForm[hidden] {
+    display: none !important;
+}
+
+.gw-join.is-form-open #giveawayJoinBtn {
+    display: none;
+}
+
+.gw-join:not(.is-active-phase) .gw-prereg,
+.gw-join:not(.is-active-phase) #giveawayJoinForm {
+    display: none !important;
+}
+
+.gw-join:not(.is-active-phase) .gw-prereg input,
+.gw-join:not(.is-active-phase) .gw-prereg button {
+    pointer-events: none;
+}
+
 .gw-prereg__platforms {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
