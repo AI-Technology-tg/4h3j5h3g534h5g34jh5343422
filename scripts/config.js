@@ -19,6 +19,11 @@ function _isPlaceholderMinkoChatProxyUrl(url) {
 // Если есть window.APP_CONFIG от config.local.js, используем его значения
 const APP_CONFIG = {
     /**
+     * Меняйте при каждом деплое: пользователи получат свежие HTML/JS без Ctrl+F5.
+     * Должно совпадать с REMINKO_ASSET_VERSION в scripts/desktop-only-guard.js.
+     */
+    assetVersion: '20260718a',
+    /**
      * Публичный URL сайта без слэша в конце (для ссылок из JS). На проде задайте в config.local.js.
      * Должен совпадать с доменом в canonical (index.html) и sitemap.xml.
      */
@@ -264,6 +269,15 @@ const APP_CONFIG = {
 
 // Экспортируем конфигурацию
 window.APP_CONFIG = APP_CONFIG;
+
+function reminkoAssetVersion() {
+    return (
+        (typeof window !== 'undefined' && window.REMINKO_ASSET_VERSION) ||
+        APP_CONFIG.assetVersion ||
+        '1'
+    );
+}
+window.reminkoAssetVersion = reminkoAssetVersion;
 
 // Для обратной совместимости
 if (typeof SUPABASE_URL === 'undefined') {

@@ -83,8 +83,12 @@
         }
 
         if (joinBtn) {
-            joinBtn.disabled = !active;
+            joinBtn.disabled = false;
+            joinBtn.setAttribute('aria-disabled', active ? 'false' : 'true');
             joinBtn.hidden = false;
+            joinBtn.classList.toggle('is-phase-waiting', !started && !ended);
+            joinBtn.classList.toggle('is-phase-ended', ended);
+            joinBtn.classList.toggle('is-phase-active', active);
             if (ended) joinBtn.title = 'Конкурс завершён';
             else if (!started) joinBtn.title = 'Участие откроется 18 июля 2026';
             else joinBtn.title = '';
@@ -448,7 +452,8 @@
         initGiveawayCountdown();
         activateGiveawayPanelAnimation();
 
-        $('giveawayJoinBtn')?.addEventListener('click', function () {
+        $('giveawayJoinBtn')?.addEventListener('click', function (e) {
+            e.preventDefault();
             void onJoinClick();
         });
         $('giveawayJoinConfirmBtn')?.addEventListener('click', function () {

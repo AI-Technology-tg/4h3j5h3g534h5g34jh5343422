@@ -1085,6 +1085,24 @@
     cursor: not-allowed;
 }
 
+.gw-btn[aria-disabled='true'] {
+    opacity: 0.58;
+    cursor: not-allowed;
+}
+
+#giveawayJoinBtn {
+    position: relative;
+    z-index: 2;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 3rem;
+}
+
+#giveawayJoinBtn.is-phase-active {
+    opacity: 1;
+    cursor: pointer;
+}
+
 .gw-btn--ghost {
     background: rgba(255, 255, 255, 0.03);
 }

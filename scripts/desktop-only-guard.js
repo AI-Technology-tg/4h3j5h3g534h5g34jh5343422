@@ -1,6 +1,37 @@
 /**
  * Мобильная вёрстка включена для всех телефонов и узких экранов (≤900px).
+ * REMINKO_ASSET_VERSION — меняйте при каждом деплое (см. APP_CONFIG.assetVersion).
  */
+(function reminkoAssetVersionGate() {
+    if (typeof window === 'undefined' || window.__reminkoAssetVersionGate) return;
+    window.__reminkoAssetVersionGate = true;
+
+    var V = '20260718a';
+    window.REMINKO_ASSET_VERSION = V;
+    var KEY = 'reminko_asset_v';
+
+    try {
+        var prev = localStorage.getItem(KEY);
+        if (prev && prev !== V) {
+            localStorage.setItem(KEY, V);
+            try {
+                sessionStorage.removeItem('reminko_online_display_v2');
+                sessionStorage.removeItem('reminko_online_bias_v2');
+            } catch (_) {
+                /* ignore */
+            }
+            var u = new URL(window.location.href);
+            if (u.searchParams.get('_av') !== V) {
+                u.searchParams.set('_av', V);
+                window.location.replace(u.toString());
+                return;
+            }
+        }
+        if (!prev) localStorage.setItem(KEY, V);
+    } catch (_) {
+        /* ignore */
+    }
+})();
 (function reminkoGtmBoot(w, d, s, l, i) {
     if (w.__reminkoGtmBoot) return;
     w.__reminkoGtmBoot = true;

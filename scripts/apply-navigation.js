@@ -12,8 +12,13 @@
         }
         if (!cur || !cur.src) return;
         var base = cur.src.replace(/[^/]+$/, '');
+        var av =
+            (typeof window.reminkoAssetVersion === 'function' && window.reminkoAssetVersion()) ||
+            window.REMINKO_ASSET_VERSION ||
+            (window.APP_CONFIG && window.APP_CONFIG.assetVersion) ||
+            '1';
         var s = document.createElement('script');
-        s.src = base + 'giveaway.js?v=giveaway-1';
+        s.src = base + 'giveaway.js?v=' + encodeURIComponent(av);
         s.async = true;
         (document.head || document.documentElement).appendChild(s);
     } catch (e) {
@@ -32,8 +37,13 @@
         }
         if (!cur || !cur.src) return;
         var base = cur.src.replace(/[^/]+$/, '');
+        var av =
+            (typeof window.reminkoAssetVersion === 'function' && window.reminkoAssetVersion()) ||
+            window.REMINKO_ASSET_VERSION ||
+            (window.APP_CONFIG && window.APP_CONFIG.assetVersion) ||
+            'rem-theme-4';
         var s = document.createElement('script');
-        s.src = base + 'theme-transform-boot.js?v=rem-theme-4';
+        s.src = base + 'theme-transform-boot.js?v=' + encodeURIComponent(av);
         s.async = false;
         (document.head || document.documentElement).appendChild(s);
     } catch (e) {
