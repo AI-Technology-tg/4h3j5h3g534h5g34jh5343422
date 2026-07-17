@@ -1,6 +1,31 @@
 // Универсальный скрипт для применения навигации ко всем страницам
 // Добавляется в конец body перед закрывающим тегом
 
+(function injectEmailConfirmScript() {
+    if (typeof window === 'undefined' || window.__reminkoEmailConfirmInjected) return;
+    window.__reminkoEmailConfirmInjected = true;
+    try {
+        var cur = document.currentScript;
+        if (!cur || !cur.src) {
+            var list = document.querySelectorAll('script[src*="apply-navigation"]');
+            cur = list[list.length - 1];
+        }
+        if (!cur || !cur.src) return;
+        var base = cur.src.replace(/[^/]+$/, '');
+        var av =
+            (typeof window.reminkoAssetVersion === 'function' && window.reminkoAssetVersion()) ||
+            window.REMINKO_ASSET_VERSION ||
+            (window.APP_CONFIG && window.APP_CONFIG.assetVersion) ||
+            '1';
+        var s = document.createElement('script');
+        s.src = base + 'email-confirm.js?v=' + encodeURIComponent(av);
+        s.async = false;
+        (document.head || document.documentElement).appendChild(s);
+    } catch (e) {
+        console.warn('[Email confirm] inject:', e);
+    }
+})();
+
 (function injectRemGiveawayScript() {
     if (typeof window === 'undefined' || window.__reminkoGiveawayInjected) return;
     window.__reminkoGiveawayInjected = true;

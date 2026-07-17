@@ -2,6 +2,9 @@
 // Модалки (#emailConfirmModal и др.) создаются динамически в navigation.js — используем делегирование на document.
 
 (function () {
+    if (typeof window !== 'undefined' && window.__reminkoEmailConfirmBound) return;
+    if (typeof window !== 'undefined') window.__reminkoEmailConfirmBound = true;
+
     async function handleEmailConfirmSubmit() {
         const emailConfirmError = document.getElementById('emailConfirmError');
         const emailConfirmModal = document.getElementById('emailConfirmModal');
@@ -393,6 +396,16 @@
     document.addEventListener('input', (e) => {
         if (e.target && e.target.id === 'emailConfirmCode') {
             e.target.value = e.target.value.replace(/\D/g, '');
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.keyCode !== 13) return;
+        const modal = document.getElementById('emailConfirmModal');
+        if (!modal || !modal.classList.contains('active')) return;
+        if (e.target && e.target.id === 'emailConfirmCode') {
+            e.preventDefault();
+            void handleEmailConfirmSubmit();
         }
     });
 })();
