@@ -76,17 +76,16 @@
         }
     }
 
+    function kodikAnnouncedFilter() {
+        return global.ReminkoKodikAnnouncedFilter || null;
+    }
+
     function isKodikAnnouncedRowActive(row) {
-        if (!row) return false;
-        const at = Date.parse(row.next_at || row.nextAt || '');
-        if (!Number.isFinite(at) || at <= Date.now()) return false;
-        const ep = parseInt(row.next_episode, 10) || 1;
-        if (ep > 1) return false;
-        const aired = parseInt(row.episodes_aired, 10);
-        if (Number.isFinite(aired) && aired > 0) return false;
-        const st = String(row.status || '').toLowerCase();
-        if (st === 'released' || st === 'finished') return false;
-        return true;
+        const filter = kodikAnnouncedFilter();
+        if (!filter || !row) return false;
+        const mal = parseInt(row.mal_id, 10);
+        const meta = Number.isFinite(mal) && mal > 0 ? catalogByMalMap().get(mal) : null;
+        return filter.isKodikAnnouncedRow(row, meta);
     }
 
     async function loadCalendarMalIds() {
@@ -476,12 +475,16 @@
     }
 
     function pickAnnouncedCatalogSerialSupplement(existingMals) {
+        const filter = kodikAnnouncedFilter();
         const out = [];
         for (const anime of _catalog) {
             if (!anime || anime.type !== 'Сериал' || anime.isKodikCatalog === false) continue;
             const mal = parseInt(anime.mal_id, 10);
             if (!Number.isFinite(mal) || mal <= 0 || existingMals.has(mal)) continue;
             if (anime.status !== 'Анонс' || kodikReleasedEpisodes(anime) > 0) continue;
+            if (filter && filter.isKidsCartoonRow({ mal_id: mal, title_ru: anime.title }, anime)) {
+                continue;
+            }
             out.push({ ...anime, isKodikCatalogAnnounced: true });
         }
         return out;

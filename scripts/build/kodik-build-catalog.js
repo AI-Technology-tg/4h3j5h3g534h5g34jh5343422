@@ -12,6 +12,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const announcedFilter = require('../kodik-announced-filter.js');
 
 const ROOT = path.resolve(__dirname, '../..');
 const DUMP_DIR = path.join(ROOT, 'kodik base');
@@ -319,45 +320,7 @@ function normalizeCalendarRow(row) {
     };
 }
 
-function isKodikAnnouncedCalendarRow(row, nowMs) {
-    if (!row || typeof row !== 'object') return false;
-    const at = Date.parse(
-        row.next_episode_at || row.next_at || row.nextEpisodeAt || row.date || ''
-    );
-    if (!Number.isFinite(at) || at <= nowMs) return false;
-    const ep = parseInt(row.next_episode ?? row.nextEpisode, 10) || 1;
-    if (ep > 1) return false;
-    const aired = parseInt(row.episodes_aired, 10);
-    if (Number.isFinite(aired) && aired > 0) return false;
-    const st = String(row.status || '').toLowerCase();
-    if (st === 'released' || st === 'finished') return false;
-    return true;
-}
-
-function buildCalendarFile() {
-    const calPath = path.join(DUMP_DIR, 'calendar.json');
-    if (!fs.existsSync(calPath)) {
-        console.warn('Нет calendar.json — пропуск kodik-calendar.json');
-        return { items: [], catalogMal: new Set() };
-    }
-    const raw = JSON.parse(fs.readFileSync(calPath, 'utf8'));
-    const arr = Array.isArray(raw) ? raw : [];
-    const items = [];
-    for (const row of arr) {
-        const normalized = normalizeCalendarRow(row);
-        if (normalized) items.push(normalized);
-    }
-    fs.mkdirSync(path.dirname(OUT_CALENDAR), { recursive: true });
-    fs.writeFileSync(
-        OUT_CALENDAR,
-        JSON.stringify({ builtAt: new Date().toISOString(), count: items.length, items }),
-        'utf8'
-    );
-    console.log(`Календарь: ${items.length} тайтлов → ${OUT_CALENDAR}`);
-    return { items, raw: arr };
-}
-
-function buildAnnouncedFile(calendarPayload, catalogMalIds) {
+function buildAnnouncedFile(calendarPayload, catalogMalIds, catalogItems) {
     const calPath = path.join(DUMP_DIR, 'calendar.json');
     if (!fs.existsSync(calPath)) {
         console.warn('Нет calendar.json — пропуск kodik-announced.json');
@@ -367,11 +330,17 @@ function buildAnnouncedFile(calendarPayload, catalogMalIds) {
     const arr = Array.isArray(raw) ? raw : [];
     const nowMs = Date.now();
     const items = [];
+    const metaByMal = new Map();
+    for (const item of catalogItems || []) {
+        const mal = parseInt(item.mal_id, 10);
+        if (Number.isFinite(mal) && mal > 0) metaByMal.set(mal, item);
+    }
 
     for (const row of arr) {
-        if (!isKodikAnnouncedCalendarRow(row, nowMs)) continue;
         const normalized = normalizeCalendarRow(row);
         if (!normalized) continue;
+        const meta = metaByMal.get(normalized.mal_id) || null;
+        if (!announcedFilter.isKodikAnnouncedRow(normalized, meta, nowMs)) continue;
         const kind = String(row.kind || normalized.kind || '').toLowerCase();
         const isFilm = kind === 'movie' || kind === 'mv' || kind === 'film';
         items.push({
@@ -389,7 +358,7 @@ function buildAnnouncedFile(calendarPayload, catalogMalIds) {
             builtAt: new Date().toISOString(),
             source: 'kodik base/calendar.json',
             criteria:
-                'Kodik calendar: будущая дата, next_episode ≤ 1, episodes_aired = 0, не released',
+                'Kodik calendar: status anons, премьера (ep≤1, aired=0), без детских мультсериалов',
             count: items.length,
             serialCount: items.filter((i) => i.type === 'Сериал').length,
             filmCount: items.filter((i) => i.type === 'Фильм').length,
@@ -402,6 +371,29 @@ function buildAnnouncedFile(calendarPayload, catalogMalIds) {
     console.log(
         `Анонсы Kodik: ${items.length} (сериалы ${payload.meta.serialCount}, фильмы ${payload.meta.filmCount}) → ${OUT_ANNOUNCED}`
     );
+}
+
+function buildCalendarFile() {
+    const calPath = path.join(DUMP_DIR, 'calendar.json');
+    if (!fs.existsSync(calPath)) {
+        console.warn('Нет calendar.json — пропуск kodik-calendar.json');
+        return { items: [], raw: [] };
+    }
+    const raw = JSON.parse(fs.readFileSync(calPath, 'utf8'));
+    const arr = Array.isArray(raw) ? raw : [];
+    const items = [];
+    for (const row of arr) {
+        const normalized = normalizeCalendarRow(row);
+        if (normalized) items.push(normalized);
+    }
+    fs.mkdirSync(path.dirname(OUT_CALENDAR), { recursive: true });
+    fs.writeFileSync(
+        OUT_CALENDAR,
+        JSON.stringify({ builtAt: new Date().toISOString(), count: items.length, items }),
+        'utf8'
+    );
+    console.log(`Календарь: ${items.length} тайтлов → ${OUT_CALENDAR}`);
+    return { items, raw: arr };
 }
 
 function main() {
@@ -432,7 +424,7 @@ function main() {
         catalog.map((item) => parseInt(item.mal_id, 10)).filter((mal) => Number.isFinite(mal) && mal > 0)
     );
     const calendarPayload = buildCalendarFile();
-    buildAnnouncedFile(calendarPayload, catalogMalIds);
+    buildAnnouncedFile(calendarPayload, catalogMalIds, catalog);
 }
 
 main();
