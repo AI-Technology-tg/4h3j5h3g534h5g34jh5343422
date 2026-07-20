@@ -291,11 +291,30 @@ function normalizeCalendarRow(row) {
         row.release_at ||
         row.releaseAt ||
         null;
+    if (!nextAt) return null;
+
+    const anime = row.anime || {};
+    let posterUrl = row.posterUrl || '';
+    const imgPath = anime.image && anime.image.original ? String(anime.image.original) : '';
+    if (!posterUrl && imgPath && !imgPath.toLowerCase().includes('missing_')) {
+        posterUrl = imgPath.startsWith('http')
+            ? imgPath
+            : `https://shikimori.io${imgPath.startsWith('/') ? imgPath : `/${imgPath}`}`;
+    }
+
+    const episodesAired = parseInt(row.episodes_aired ?? anime.episodes_aired, 10);
+
     return {
         mal_id: mal,
         next_episode: Number.isFinite(nextEpisode) ? nextEpisode : null,
         next_at: nextAt,
-        title_ru: row.title_ru || row.title || row.anime?.russian || row.anime?.title || '',
+        title_ru: row.title_ru || row.title || anime.russian || anime.title || anime.name || '',
+        title_en: row.title_en || anime.name || '',
+        kind: row.kind || anime.kind || '',
+        status: row.status || anime.status || '',
+        episodes_aired: Number.isFinite(episodesAired) ? episodesAired : null,
+        score: parseFloat(row.score ?? anime.score) || 0,
+        posterUrl: posterUrl || '',
     };
 }
 

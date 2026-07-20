@@ -5,12 +5,14 @@
     'use strict';
 
     const KODIK_HOME_LIMIT = 56;
+    const KODIK_ANNOUNCED_LIMIT = 120;
     const KODIK_POPULAR_LIMIT = 50;
     const POPULAR_YEAR_FROM = 2022;
     const POPULAR_YEAR_TO = 2026;
     const POPULAR_MIN_RATING = 7.7;
     let _catalog = [];
     let _calendarItems = [];
+    let _kodikCalendarItems = [];
     let _calendarMalIds = new Set();
     let _inited = false;
     let _initPromise = null;
@@ -56,6 +58,9 @@
 
     async function loadCalendarMalIds() {
         try {
+            if (typeof global.reminkoLoadCalendarData === 'function') {
+                _kodikCalendarItems = (await global.reminkoLoadCalendarData()) || [];
+            }
             if (typeof global.reminkoLoadAllCalendarData === 'function') {
                 await global.reminkoLoadAllCalendarData();
             } else if (typeof global.reminkoLoadCalendarData === 'function') {
@@ -63,6 +68,8 @@
             }
             if (typeof global.reminkoMergedCalendarItems === 'function') {
                 _calendarItems = global.reminkoMergedCalendarItems();
+            } else if (_kodikCalendarItems.length) {
+                _calendarItems = _kodikCalendarItems;
             } else if (typeof global.reminkoLoadCalendarData === 'function') {
                 _calendarItems = (await global.reminkoLoadCalendarData()) || [];
             }
@@ -74,6 +81,7 @@
             _calendarMalIds = set;
         } catch (_) {
             _calendarItems = [];
+            _kodikCalendarItems = [];
             _calendarMalIds = new Set();
         }
     }
@@ -374,6 +382,20 @@
         return k === 'movie' || k === 'mv' || k === 'film';
     }
 
+    /** Премьера из календаря Kodik: будущая 1-я серия / фильм, ещё не вышло. */
+    function isKodikCalendarPremiereRow(row) {
+        if (!row) return false;
+        const at = Date.parse(row.next_at || row.nextAt || '');
+        if (!Number.isFinite(at) || at <= Date.now()) return false;
+        const ep = parseInt(row.next_episode, 10) || 1;
+        if (ep > 1) return false;
+        const aired = parseInt(row.episodes_aired, 10);
+        if (Number.isFinite(aired) && aired > 0) return false;
+        const st = String(row.status || '').toLowerCase();
+        if (st === 'released' || st === 'finished') return false;
+        return true;
+    }
+
     function calendarRowMatchesMedia(row, mediaType) {
         const m = normalizeMediaType(mediaType);
         const isFilm = isCalendarRowFilm(row);
@@ -383,17 +405,14 @@
     function virtualAnimeFromCalendarRow(row) {
         const mal = parseInt(row.mal_id, 10);
         const isFilm = isCalendarRowFilm(row);
-        const ep = parseInt(row.next_episode, 10) || 1;
-        const isAnn = row.status === 'anons' || ep <= 1;
         return {
-            id: `shiki-cal-${mal}`,
+            id: `kodik-cal-${mal}`,
             mal_id: mal,
-            shiki_id: row.shiki_id || null,
             title: row.title_ru || '—',
             titleAlt: row.title_en || row.title_ru || '',
             type: isFilm ? 'Фильм' : 'Сериал',
-            status: isAnn ? 'Анонс' : 'Онгоинг',
-            isCalendarAnnounced: isAnn,
+            status: 'Анонс',
+            isCalendarAnnounced: true,
             rating: row.score || 0,
             genres: [],
             posterUrl:
@@ -403,17 +422,34 @@
         };
     }
 
+    function pickAnnouncedCalendarExtras(mediaType, existingMals) {
+        const m = normalizeMediaType(mediaType);
+        const out = [];
+        for (const row of _kodikCalendarItems || []) {
+            if (!isKodikCalendarPremiereRow(row)) continue;
+            const mal = parseInt(row.mal_id, 10);
+            if (!Number.isFinite(mal) || mal <= 0 || existingMals.has(mal)) continue;
+            if (!calendarRowMatchesMedia(row, m)) continue;
+            out.push(virtualAnimeFromCalendarRow(row));
+        }
+        return out;
+    }
+
     function pickAnnounced(all, mediaType) {
-        const list = all.filter((a) => matchMedia(a, mediaType) && isKodikHomeAnnounced(a));
+        const fromCatalog = all.filter((a) => matchMedia(a, mediaType) && isKodikHomeAnnounced(a));
+        const existingMals = new Set(
+            fromCatalog.map((a) => parseInt(a.mal_id, 10)).filter((mal) => Number.isFinite(mal) && mal > 0)
+        );
+        const list = fromCatalog.concat(pickAnnouncedCalendarExtras(mediaType, existingMals));
         list.sort((a, b) => {
-            const ac = mergedCalendarRowForMal(a.mal_id) || a._calendar;
-            const bc = mergedCalendarRowForMal(b.mal_id) || b._calendar;
+            const ac = a._calendarRow || mergedCalendarRowForMal(a.mal_id) || a._calendar;
+            const bc = b._calendarRow || mergedCalendarRowForMal(b.mal_id) || b._calendar;
             const at = ac && (ac.next_at || ac.nextAt) ? Date.parse(ac.next_at || ac.nextAt) || Infinity : Infinity;
             const bt = bc && (bc.next_at || bc.nextAt) ? Date.parse(bc.next_at || bc.nextAt) || Infinity : Infinity;
             if (at !== bt) return at - bt;
             return (b.rating || 0) - (a.rating || 0);
         });
-        return list.slice(0, KODIK_HOME_LIMIT);
+        return list.slice(0, KODIK_ANNOUNCED_LIMIT);
     }
 
     async function hydrateAnnouncedPosterForCard(img, anime) {
