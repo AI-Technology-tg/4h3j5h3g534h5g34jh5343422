@@ -389,10 +389,19 @@
 
     function pickKnownPosterUrl(anime) {
         if (!anime) return '';
+        const mal = parseInt(anime.mal_id, 10);
+        const calPoster =
+            (typeof global.reminkoCalendarRowForMal === 'function' && Number.isFinite(mal) && mal > 0
+                ? global.reminkoCalendarRowForMal(mal)?.posterUrl
+                : '') ||
+            anime._calendarRow?.posterUrl ||
+            anime._calendar?.posterUrl ||
+            '';
         const candidates = [
             jikanPosterFromAnime(anime._jikan),
             jikanPosterFromAnime(anime._jikanRaw),
             jikanPosterFromAnime(anime),
+            calPoster,
             anime.posterUrl,
             shikimoriPosterUrlFromPath(anime.image?.original)
         ];
@@ -536,24 +545,13 @@
             return known;
         }
 
-        try {
-            if (typeof global.jikanFetchPosterByMalId === 'function') {
-                const u = await global.jikanFetchPosterByMalId(mal);
-                if (u && !isShikimoriPlaceholderPoster(u)) {
-                    writeMalPosterCache(mal, u);
-                    return u;
-                }
-            }
-            if (typeof global.jikanFetchAnimeFullByMalId === 'function') {
-                const full = await global.jikanFetchAnimeFullByMalId(mal);
-                const u = jikanPosterFromAnime(full);
-                if (u && !isShikimoriPlaceholderPoster(u)) {
-                    writeMalPosterCache(mal, u);
-                    return u;
-                }
-            }
-        } catch (_) {
-            /* ignore */
+        const calOnly =
+            typeof global.reminkoCalendarRowForMal === 'function'
+                ? global.reminkoCalendarRowForMal(mal)?.posterUrl
+                : '';
+        if (calOnly && !isShikimoriPlaceholderPoster(calOnly)) {
+            writeMalPosterCache(mal, calOnly);
+            return calOnly;
         }
 
         if (global.shikimoriApi?.readCachedByMalId) {
@@ -579,6 +577,42 @@
                     /* ignore */
                 }
             }
+        }
+
+        if (global.shikimoriApi?.enqueueFetchShikimoriByMalId) {
+            try {
+                const sh = await global.shikimoriApi.enqueueFetchShikimoriByMalId(
+                    mal,
+                    searchTitles[0] || ''
+                );
+                const u = shikimoriPosterUrlFromPath(sh?.image?.original);
+                if (u) {
+                    writeMalPosterCache(mal, u);
+                    return u;
+                }
+            } catch (_) {
+                /* ignore */
+            }
+        }
+
+        try {
+            if (typeof global.jikanFetchPosterByMalId === 'function') {
+                const u = await global.jikanFetchPosterByMalId(mal);
+                if (u && !isShikimoriPlaceholderPoster(u)) {
+                    writeMalPosterCache(mal, u);
+                    return u;
+                }
+            }
+            if (typeof global.jikanFetchAnimeFullByMalId === 'function') {
+                const full = await global.jikanFetchAnimeFullByMalId(mal);
+                const u = jikanPosterFromAnime(full);
+                if (u && !isShikimoriPlaceholderPoster(u)) {
+                    writeMalPosterCache(mal, u);
+                    return u;
+                }
+            }
+        } catch (_) {
+            /* ignore */
         }
 
         return '';
@@ -653,6 +687,7 @@
         }
     }
 
+    global.shikimoriPosterUrlFromPath = shikimoriPosterUrlFromPath;
     global.fetchJikanAnnouncedList = fetchJikanAnnouncedList;
     global.getJikanAnnouncedCachedSync = getJikanAnnouncedCachedSync;
     global.filterJikanAnnouncedForHome = filterJikanAnnouncedForHome;

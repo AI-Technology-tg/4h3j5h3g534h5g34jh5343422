@@ -148,7 +148,98 @@
             const cached = global.readMalPosterCache(mal);
             if (cached) return cached;
         }
+        if (typeof global.reminkoCalendarRowForMal === 'function') {
+            const cal = global.reminkoCalendarRowForMal(mal);
+            if (cal?.posterUrl && String(cal.posterUrl).trim()) {
+                return String(cal.posterUrl).trim();
+            }
+        }
         return '';
+    }
+
+    function isValidHomePosterUrl(url) {
+        const u = String(url || '').trim();
+        if (!u || u.startsWith('data:')) return false;
+        if (
+            typeof global.isShikimoriPlaceholderPoster === 'function' &&
+            global.isShikimoriPlaceholderPoster(u)
+        ) {
+            return false;
+        }
+        if (
+            typeof global.isShikimoriDirectMalPoster === 'function' &&
+            global.isShikimoriDirectMalPoster(u)
+        ) {
+            return false;
+        }
+        return true;
+    }
+
+    function resolveKodikHomePosterUrl(anime) {
+        if (!anime) return '';
+        const mal = parseInt(anime.mal_id, 10);
+        const candidates = [];
+        if (anime.posterUrl) candidates.push(String(anime.posterUrl).trim());
+        const row = anime._calendarRow || mergedCalendarRowForMal(anime.mal_id);
+        if (row?.posterUrl) candidates.push(String(row.posterUrl).trim());
+        if (Number.isFinite(mal) && mal > 0) {
+            candidates.push(malPosterUrl(mal));
+            if (global.shikimoriApi?.readCachedByMalId) {
+                const sh = global.shikimoriApi.readCachedByMalId(mal);
+                if (sh?.image?.original && typeof global.shikimoriPosterUrlFromPath === 'function') {
+                    candidates.push(global.shikimoriPosterUrlFromPath(sh.image.original));
+                }
+            }
+        }
+        for (const u of candidates) {
+            if (isValidHomePosterUrl(u)) return u;
+        }
+        return '';
+    }
+
+    function animeContextForKodikHomeCard(anime) {
+        if (!anime) return null;
+        const mal = parseInt(anime.mal_id, 10);
+        const cal = anime._calendarRow || mergedCalendarRowForMal(anime.mal_id);
+        return {
+            ...anime,
+            mal_id: mal,
+            posterUrl: resolveKodikHomePosterUrl(anime) || anime.posterUrl || '',
+            _calendarRow: cal || anime._calendarRow,
+        };
+    }
+
+    function applyShikiPosterToKodikCard(card, malId, sh) {
+        if (!card || !sh?.image?.original) return;
+        const u =
+            typeof global.shikimoriPosterUrlFromPath === 'function'
+                ? global.shikimoriPosterUrlFromPath(sh.image.original)
+                : '';
+        if (!isValidHomePosterUrl(u)) return;
+        const img = card.querySelector('.jikan-card-poster img');
+        if (!img) return;
+        img.classList.remove('is-poster-missing');
+        img.src = u;
+        if (typeof global.writeMalPosterCache === 'function') {
+            global.writeMalPosterCache(malId, u);
+        }
+    }
+
+    function applyShikimoriToKodikHomeStrip(container, items) {
+        if (!container || !global.shikimoriApi?.enqueueFetchShikimoriByMalId) return;
+        const seen = new Set();
+        for (const anime of items || []) {
+            const mal = parseInt(anime?.mal_id, 10);
+            if (!Number.isFinite(mal) || mal <= 0 || seen.has(mal)) continue;
+            seen.add(mal);
+            const card = container.querySelector(`.kodik-home-card[data-mal-id="${mal}"]`);
+            if (!card) continue;
+            const searchTitle = anime.titleAlt || anime.title || '';
+            void global.shikimoriApi
+                .enqueueFetchShikimoriByMalId(mal, searchTitle)
+                .then((sh) => applyShikiPosterToKodikCard(card, mal, sh))
+                .catch(() => {});
+        }
     }
 
     function jikanRawFromKodikHomeAnime(anime) {
@@ -633,15 +724,7 @@
         card.dataset.id = String(anime.id);
         if (anime.mal_id != null) card.dataset.malId = String(anime.mal_id);
 
-        const imgUrl =
-            anime.posterUrl &&
-            typeof global.isShikimoriPlaceholderPoster === 'function' &&
-            !global.isShikimoriPlaceholderPoster(anime.posterUrl)
-                ? anime.posterUrl
-                : anime.posterUrl &&
-                    typeof global.isShikimoriPlaceholderPoster !== 'function'
-                  ? anime.posterUrl
-                  : '';
+        const imgUrl = resolveKodikHomePosterUrl(anime);
         const score = anime.rating ? Number(anime.rating).toFixed(1) : '—';
         const title = anime.title || anime.titleAlt || '—';
         const status = statusLabel(anime);
@@ -677,7 +760,11 @@
         if (posterImg) {
             posterImg.alt = title;
             if (anime.mal_id != null && typeof global.attachJikanPosterFallback === 'function') {
-                global.attachJikanPosterFallback(posterImg, anime.mal_id, anime._jikanRaw || anime);
+                global.attachJikanPosterFallback(
+                    posterImg,
+                    anime.mal_id,
+                    animeContextForKodikHomeCard(anime)
+                );
             }
         }
 
@@ -693,7 +780,7 @@
         return card;
     }
 
-    async function hydrateKodikHomePosters(container) {
+    async function hydrateKodikHomePosters(container, items) {
         if (!container) return;
         const imgs = container.querySelectorAll('img[data-poster-fallback]');
         for (const img of imgs) {
@@ -705,7 +792,14 @@
                 if (Number.isFinite(norm) && norm > 0) malId = String(norm);
             }
             if (typeof global.attachJikanPosterFallback === 'function') {
-                global.attachJikanPosterFallback(img, malId, null);
+                const cardAnime = Array.isArray(items)
+                    ? items.find((a) => parseInt(a?.mal_id, 10) === parseInt(malId, 10))
+                    : null;
+                global.attachJikanPosterFallback(
+                    img,
+                    malId,
+                    cardAnime ? animeContextForKodikHomeCard(cardAnime) : { mal_id: parseInt(malId, 10) }
+                );
             }
         }
     }
@@ -728,7 +822,8 @@
             container.appendChild(createKodikHomeCard(anime));
         }
 
-        void hydrateKodikHomePosters(container);
+        void hydrateKodikHomePosters(container, items);
+        applyShikimoriToKodikHomeStrip(container, items);
 
         if (typeof global.reminkoStartLiveCountdown === 'function') {
             container.querySelectorAll('.jikan-card-countdown[data-countdown-iso]').forEach((el) => {

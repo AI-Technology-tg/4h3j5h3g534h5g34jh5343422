@@ -752,6 +752,20 @@ function applyShikiPatchToCards(container, anime, sh) {
             t.setAttribute('title', sh.russian);
         }
         if (ep && epText) ep.textContent = epText;
+        if (sh?.image?.original) {
+            const u =
+                typeof shikimoriPosterUrlFromPath === 'function'
+                    ? shikimoriPosterUrlFromPath(sh.image.original)
+                    : '';
+            if (u && typeof isShikimoriPlaceholderPoster === 'function' && !isShikimoriPlaceholderPoster(u)) {
+                const img = c.querySelector('.jikan-card-poster img');
+                if (img) {
+                    img.classList.remove('is-poster-missing');
+                    img.src = u;
+                    if (typeof writeMalPosterCache === 'function') writeMalPosterCache(anime.mal_id, u);
+                }
+            }
+        }
     });
 }
 
