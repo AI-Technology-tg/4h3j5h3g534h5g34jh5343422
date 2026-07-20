@@ -403,31 +403,6 @@
         };
     }
 
-    function pickShikimoriAnnouncedExtras(all, mediaType, excludeMal) {
-        if (
-            typeof global.reminkoMergedCalendarItems !== 'function' ||
-            typeof global.reminkoSplitCalendarRows !== 'function'
-        ) {
-            return [];
-        }
-        const metaByMal = catalogByMalMap();
-        const merged = global.reminkoMergedCalendarItems();
-        const { announced } = global.reminkoSplitCalendarRows(merged, metaByMal);
-        const now = Date.now();
-        const out = [];
-        for (const row of announced) {
-            const mal = parseInt(row.mal_id, 10);
-            if (!Number.isFinite(mal) || mal <= 0) continue;
-            if (excludeMal.has(mal)) continue;
-            if (!calendarRowMatchesMedia(row, mediaType)) continue;
-            const t = Date.parse(row.next_at || row.nextAt);
-            if (!Number.isFinite(t) || t <= now) continue;
-            if (metaByMal.has(mal)) continue;
-            out.push(virtualAnimeFromCalendarRow(row));
-        }
-        return out;
-    }
-
     function pickAnnounced(all, mediaType) {
         const list = all.filter((a) => matchMedia(a, mediaType) && isKodikHomeAnnounced(a));
         list.sort((a, b) => {
@@ -439,78 +414,6 @@
             return (b.rating || 0) - (a.rating || 0);
         });
         return list.slice(0, KODIK_HOME_LIMIT);
-    }
-
-    function pickAnnouncedForHome(all, mediaType) {
-        const metaByMal = catalogByMalMap();
-        const byMal = new Map();
-        const now = Date.now();
-
-        if (
-            typeof global.reminkoMergedCalendarItems === 'function' &&
-            typeof global.reminkoSplitCalendarRows === 'function'
-        ) {
-            const merged = global.reminkoMergedCalendarItems();
-            const { announced: calRows } = global.reminkoSplitCalendarRows(merged, metaByMal);
-            for (const row of calRows) {
-                if (!calendarRowMatchesMedia(row, mediaType)) continue;
-                const t = Date.parse(row.next_at || row.nextAt);
-                if (!Number.isFinite(t) || t <= now) continue;
-                const mal = parseInt(row.mal_id, 10);
-                if (!Number.isFinite(mal) || mal <= 0) continue;
-
-                const catalogMeta = metaByMal.get(mal);
-                if (
-                    catalogMeta &&
-                    matchMedia(catalogMeta, mediaType) &&
-                    isKodikHomeAnnounced(catalogMeta)
-                ) {
-                    byMal.set(mal, {
-                        ...catalogMeta,
-                        _calendarRow: row,
-                        isCalendarAnnounced: true,
-                    });
-                } else {
-                    byMal.set(mal, virtualAnimeFromCalendarRow(row));
-                }
-            }
-        }
-
-        for (const a of all) {
-            if (!a || !matchMedia(a, mediaType) || !isKodikHomeAnnounced(a)) continue;
-            const mal = parseInt(a.mal_id, 10);
-            if (!Number.isFinite(mal) || mal <= 0) continue;
-            if (!byMal.has(mal)) {
-                byMal.set(mal, a);
-                continue;
-            }
-            const existing = byMal.get(mal);
-            if (!existing.posterUrl && a.posterUrl) {
-                byMal.set(mal, {
-                    ...existing,
-                    posterUrl: a.posterUrl,
-                    titleAlt: existing.titleAlt || a.titleAlt || '',
-                    _posterSearchTitles: a._posterSearchTitles || existing._posterSearchTitles,
-                });
-            }
-        }
-
-        const list = [...byMal.values()];
-        list.sort((a, b) => {
-            const ac = mergedCalendarRowForMal(a.mal_id) || a._calendarRow || a._calendar;
-            const bc = mergedCalendarRowForMal(b.mal_id) || b._calendarRow || b._calendar;
-            const at =
-                ac && (ac.next_at || ac.nextAt) ? Date.parse(ac.next_at || ac.nextAt) || Infinity : Infinity;
-            const bt =
-                bc && (bc.next_at || bc.nextAt) ? Date.parse(bc.next_at || bc.nextAt) || Infinity : Infinity;
-            if (at !== bt) return at - bt;
-            return (b.rating || 0) - (a.rating || 0);
-        });
-        return list.slice(0, KODIK_HOME_LIMIT);
-    }
-
-    function pickAnnouncedMerged(all, mediaType) {
-        return pickAnnouncedForHome(all, mediaType);
     }
 
     async function hydrateAnnouncedPosterForCard(img, anime) {
@@ -974,7 +877,7 @@
         if (more && cfg.moreHref) more.href = cfg.moreHref(m);
     }
 
-    async function renderAnnouncedSection(media) {
+    function renderAnnouncedSection(media) {
         const m = normalizeMediaType(media);
         const section = document.getElementById('kodikHomeAnnounced');
         if (section) {
@@ -987,16 +890,7 @@
             }
         }
 
-        await loadCalendarMalIds();
-        const items = pickAnnouncedForHome(_catalog, m);
-        if (items.length) {
-            renderSectionGrid('kodikAnnouncedGrid', items);
-            return;
-        }
-
-        if (typeof global.loadAnnouncedHomeSection === 'function') {
-            await global.loadAnnouncedHomeSection(m);
-        }
+        renderSectionGrid('kodikAnnouncedGrid', pickAnnounced(_catalog, m));
     }
 
     async function renderAllSections(defaultMedia) {
