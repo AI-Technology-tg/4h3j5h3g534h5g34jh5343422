@@ -22,7 +22,7 @@ const APP_CONFIG = {
      * Меняйте при каждом деплое: пользователи получат свежие HTML/JS без Ctrl+F5.
      * Должно совпадать с REMINKO_ASSET_VERSION в scripts/desktop-only-guard.js.
      */
-    assetVersion: '20260718b',
+    assetVersion: '20260720a',
     /**
      * Публичный URL сайта без слэша в конце (для ссылок из JS). На проде задайте в config.local.js.
      * Должен совпадать с доменом в canonical (index.html) и sitemap.xml.
