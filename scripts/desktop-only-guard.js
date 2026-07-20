@@ -1,12 +1,12 @@
-/**
- * Мобильная вёрстка включена для всех телефонов и узких экранов (≤900px).
- * REMINKO_ASSET_VERSION — меняйте при каждом деплое (см. APP_CONFIG.assetVersion).
+﻿/**
+ * РњРѕР±РёР»СЊРЅР°СЏ РІС‘СЂСЃС‚РєР° РІРєР»СЋС‡РµРЅР° РґР»СЏ РІСЃРµС… С‚РµР»РµС„РѕРЅРѕРІ Рё СѓР·РєРёС… СЌРєСЂР°РЅРѕРІ (в‰¤900px).
+ * REMINKO_ASSET_VERSION вЂ” РјРµРЅСЏР№С‚Рµ РїСЂРё РєР°Р¶РґРѕРј РґРµРїР»РѕРµ (СЃРј. APP_CONFIG.assetVersion).
  */
 (function reminkoAssetVersionGate() {
     if (typeof window === 'undefined' || window.__reminkoAssetVersionGate) return;
     window.__reminkoAssetVersionGate = true;
 
-    var V = '20260720f';
+    var V = '20260720g';
     window.REMINKO_ASSET_VERSION = V;
     var KEY = 'reminko_asset_v';
 
@@ -180,7 +180,7 @@
         return false;
     }
 
-    /** Android / iOS в Client Hints — даже при «Версии для ПК» в Chrome. */
+    /** Android / iOS РІ Client Hints вЂ” РґР°Р¶Рµ РїСЂРё В«Р’РµСЂСЃРёРё РґР»СЏ РџРљВ» РІ Chrome. */
     function hasMobilePlatformHintSync() {
         try {
             var platform = navigator.userAgentData && navigator.userAgentData.platform;
@@ -204,8 +204,8 @@
     }
 
     /**
-     * Настоящий ПК/ноутбук: десктопный UA + нет mobile-hints + большой экран или мышь.
-     * Не путать с телефоном в режиме «Версия для ПК» (там UA десктопный, но hints/экран — нет).
+     * РќР°СЃС‚РѕСЏС‰РёР№ РџРљ/РЅРѕСѓС‚Р±СѓРє: РґРµСЃРєС‚РѕРїРЅС‹Р№ UA + РЅРµС‚ mobile-hints + Р±РѕР»СЊС€РѕР№ СЌРєСЂР°РЅ РёР»Рё РјС‹С€СЊ.
+     * РќРµ РїСѓС‚Р°С‚СЊ СЃ С‚РµР»РµС„РѕРЅРѕРј РІ СЂРµР¶РёРјРµ В«Р’РµСЂСЃРёСЏ РґР»СЏ РџРљВ» (С‚Р°Рј UA РґРµСЃРєС‚РѕРїРЅС‹Р№, РЅРѕ hints/СЌРєСЂР°РЅ вЂ” РЅРµС‚).
      */
     function isLikelyRealDesktop(userAgent) {
         var ua = userAgent || '';
@@ -249,7 +249,7 @@
         };
     }
 
-    /** Физический экран телефона + тач — срабатывает даже при десктопном UA. */
+    /** Р¤РёР·РёС‡РµСЃРєРёР№ СЌРєСЂР°РЅ С‚РµР»РµС„РѕРЅР° + С‚Р°С‡ вЂ” СЃСЂР°Р±Р°С‚С‹РІР°РµС‚ РґР°Р¶Рµ РїСЂРё РґРµСЃРєС‚РѕРїРЅРѕРј UA. */
     function hasPhoneLikeHardware() {
         var sides = getScreenSides();
         if (sides.max <= 0 || sides.min <= 0) return false;
@@ -274,7 +274,7 @@
         }
 
         if (coarse && noHover && touch >= 1) return true;
-        // «Версия для ПК» в Chrome: UA десктопный, но экран телефона и тач остаются
+        // В«Р’РµСЂСЃРёСЏ РґР»СЏ РџРљВ» РІ Chrome: UA РґРµСЃРєС‚РѕРїРЅС‹Р№, РЅРѕ СЌРєСЂР°РЅ С‚РµР»РµС„РѕРЅР° Рё С‚Р°С‡ РѕСЃС‚Р°СЋС‚СЃСЏ
         if (touch >= 1 && sides.max <= PHONE_MAX_LONG_SIDE) return true;
 
         return false;

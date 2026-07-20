@@ -1,31 +1,31 @@
-// Конфигурация приложения
-// ВАЖНО: Не коммитьте этот файл с реальными секретами в публичный репозиторий!
-// Используйте переменные окружения или отдельный файл config.local.js
+﻿// РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ РїСЂРёР»РѕР¶РµРЅРёСЏ
+// Р’РђР–РќРћ: РќРµ РєРѕРјРјРёС‚СЊС‚Рµ СЌС‚РѕС‚ С„Р°Р№Р» СЃ СЂРµР°Р»СЊРЅС‹РјРё СЃРµРєСЂРµС‚Р°РјРё РІ РїСѓР±Р»РёС‡РЅС‹Р№ СЂРµРїРѕР·РёС‚РѕСЂРёР№!
+// РСЃРїРѕР»СЊР·СѓР№С‚Рµ РїРµСЂРµРјРµРЅРЅС‹Рµ РѕРєСЂСѓР¶РµРЅРёСЏ РёР»Рё РѕС‚РґРµР»СЊРЅС‹Р№ С„Р°Р№Р» config.local.js
 // 
-// Для локальной разработки создайте config.local.js в корне проекта:
+// Р”Р»СЏ Р»РѕРєР°Р»СЊРЅРѕР№ СЂР°Р·СЂР°Р±РѕС‚РєРё СЃРѕР·РґР°Р№С‚Рµ config.local.js РІ РєРѕСЂРЅРµ РїСЂРѕРµРєС‚Р°:
 // window.APP_CONFIG = { supabase: { url: '...', anonKey: '...' }, ... }
 
-/** Ссылки-заглушки из примеров: иначе перекрывают авто-URL того же домена на Netlify */
+/** РЎСЃС‹Р»РєРё-Р·Р°РіР»СѓС€РєРё РёР· РїСЂРёРјРµСЂРѕРІ: РёРЅР°С‡Рµ РїРµСЂРµРєСЂС‹РІР°СЋС‚ Р°РІС‚Рѕ-URL С‚РѕРіРѕ Р¶Рµ РґРѕРјРµРЅР° РЅР° Netlify */
 function _isPlaceholderMinkoChatProxyUrl(url) {
     const s = String(url || '').trim().toLowerCase();
     if (!s) return true;
     if (s.includes('your-netlify-subdomain')) return true;
-    if (s.includes('ваш-поддомен') || s.includes('ваш-сайт')) return true;
-    if (s.includes('<ваш') || s.includes('xxxx.netlify.app')) return true;
+    if (s.includes('РІР°С€-РїРѕРґРґРѕРјРµРЅ') || s.includes('РІР°С€-СЃР°Р№С‚')) return true;
+    if (s.includes('<РІР°С€') || s.includes('xxxx.netlify.app')) return true;
     return false;
 }
 
-// Конфигурация по умолчанию (для разработки)
-// Если есть window.APP_CONFIG от config.local.js, используем его значения
+// РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ (РґР»СЏ СЂР°Р·СЂР°Р±РѕС‚РєРё)
+// Р•СЃР»Рё РµСЃС‚СЊ window.APP_CONFIG РѕС‚ config.local.js, РёСЃРїРѕР»СЊР·СѓРµРј РµРіРѕ Р·РЅР°С‡РµРЅРёСЏ
 const APP_CONFIG = {
     /**
-     * Меняйте при каждом деплое: пользователи получат свежие HTML/JS без Ctrl+F5.
-     * Должно совпадать с REMINKO_ASSET_VERSION в scripts/desktop-only-guard.js.
+     * РњРµРЅСЏР№С‚Рµ РїСЂРё РєР°Р¶РґРѕРј РґРµРїР»РѕРµ: РїРѕР»СЊР·РѕРІР°С‚РµР»Рё РїРѕР»СѓС‡Р°С‚ СЃРІРµР¶РёРµ HTML/JS Р±РµР· Ctrl+F5.
+     * Р”РѕР»Р¶РЅРѕ СЃРѕРІРїР°РґР°С‚СЊ СЃ REMINKO_ASSET_VERSION РІ scripts/desktop-only-guard.js.
      */
-    assetVersion: '20260720f',
+    assetVersion: '20260720g',
     /**
-     * Публичный URL сайта без слэша в конце (для ссылок из JS). На проде задайте в config.local.js.
-     * Должен совпадать с доменом в canonical (index.html) и sitemap.xml.
+     * РџСѓР±Р»РёС‡РЅС‹Р№ URL СЃР°Р№С‚Р° Р±РµР· СЃР»СЌС€Р° РІ РєРѕРЅС†Рµ (РґР»СЏ СЃСЃС‹Р»РѕРє РёР· JS). РќР° РїСЂРѕРґРµ Р·Р°РґР°Р№С‚Рµ РІ config.local.js.
+     * Р”РѕР»Р¶РµРЅ СЃРѕРІРїР°РґР°С‚СЊ СЃ РґРѕРјРµРЅРѕРј РІ canonical (index.html) Рё sitemap.xml.
      */
     siteOrigin:
         typeof window.APP_CONFIG?.siteOrigin === 'string' && window.APP_CONFIG.siteOrigin.trim()
@@ -38,49 +38,49 @@ const APP_CONFIG = {
               : 'https://re-minko-anime.com',
 
     /**
-     * UUID профиля Создателя в Supabase (auth.users / profiles) для гостевого «Написать Создателю».
-     * Без него UUID ищется по profiles.is_site_creator = true, если в БД есть такая запись.
-     * Задайте в config.local.js для гарантированного совпадения.
+     * UUID РїСЂРѕС„РёР»СЏ РЎРѕР·РґР°С‚РµР»СЏ РІ Supabase (auth.users / profiles) РґР»СЏ РіРѕСЃС‚РµРІРѕРіРѕ В«РќР°РїРёСЃР°С‚СЊ РЎРѕР·РґР°С‚РµР»СЋВ».
+     * Р‘РµР· РЅРµРіРѕ UUID РёС‰РµС‚СЃСЏ РїРѕ profiles.is_site_creator = true, РµСЃР»Рё РІ Р‘Р” РµСЃС‚СЊ С‚Р°РєР°СЏ Р·Р°РїРёСЃСЊ.
+     * Р—Р°РґР°Р№С‚Рµ РІ config.local.js РґР»СЏ РіР°СЂР°РЅС‚РёСЂРѕРІР°РЅРЅРѕРіРѕ СЃРѕРІРїР°РґРµРЅРёСЏ.
      */
     siteCreatorUserId: (() => {
         const v = window.APP_CONFIG?.siteCreatorUserId;
         if (typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v.trim())) return v.trim();
-        // Subarik — запасной UUID, если config.local.js не задан
+        // Subarik вЂ” Р·Р°РїР°СЃРЅРѕР№ UUID, РµСЃР»Рё config.local.js РЅРµ Р·Р°РґР°РЅ
         return 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb';
     })(),
 
-    // Supabase настройки
+    // Supabase РЅР°СЃС‚СЂРѕР№РєРё
     supabase: {
         url: window.APP_CONFIG?.supabase?.url || 'https://ipsawgtsicxwkkkipchp.supabase.co',
-        // Публичный ключ: sb_publishable_… или legacy anon JWT. sb_secret_ / service_role — только на сервере.
+        // РџСѓР±Р»РёС‡РЅС‹Р№ РєР»СЋС‡: sb_publishable_вЂ¦ РёР»Рё legacy anon JWT. sb_secret_ / service_role вЂ” С‚РѕР»СЊРєРѕ РЅР° СЃРµСЂРІРµСЂРµ.
         anonKey:
             window.APP_CONFIG?.supabase?.anonKey ||
             'sb_publishable_dcESewUuxxhwdhag8VqsDg_NklGox9v'
     },
 
-    // Kodik: встраивание через Kodik API (kodik-api.com/search), не через kodik.info/find-player.
+    // Kodik: РІСЃС‚СЂР°РёРІР°РЅРёРµ С‡РµСЂРµР· Kodik API (kodik-api.com/search), РЅРµ С‡РµСЂРµР· kodik.info/find-player.
     kodik: {
-        /** Основной плеер (ссылки из API ведут на kodikplayer.com) */
+        /** РћСЃРЅРѕРІРЅРѕР№ РїР»РµРµСЂ (СЃСЃС‹Р»РєРё РёР· API РІРµРґСѓС‚ РЅР° kodikplayer.com) */
         playerOrigin:
             (window.APP_CONFIG?.kodik?.playerOrigin || 'https://kodikplayer.com').replace(
                 /\/$/,
                 ''
             ),
-        /** Плеер для соцсетей */
+        /** РџР»РµРµСЂ РґР»СЏ СЃРѕС†СЃРµС‚РµР№ */
         socialPlayerOrigin:
             (window.APP_CONFIG?.kodik?.socialPlayerOrigin || 'https://kodikonline.com').replace(
                 /\/$/,
                 ''
             ),
-        /** API Kodik (домен запросов) */
+        /** API Kodik (РґРѕРјРµРЅ Р·Р°РїСЂРѕСЃРѕРІ) */
         apiOrigin:
             (window.APP_CONFIG?.kodik?.apiOrigin || 'https://kodik-api.com').replace(/\/$/, ''),
         /**
-         * Токен Kodik API — только config.local.js (локальная разработка).
-         * На проде: Netlify env KODIK_API_TOKEN + прокси apiProxyUrl (токен не в файлах).
+         * РўРѕРєРµРЅ Kodik API вЂ” С‚РѕР»СЊРєРѕ config.local.js (Р»РѕРєР°Р»СЊРЅР°СЏ СЂР°Р·СЂР°Р±РѕС‚РєР°).
+         * РќР° РїСЂРѕРґРµ: Netlify env KODIK_API_TOKEN + РїСЂРѕРєСЃРё apiProxyUrl (С‚РѕРєРµРЅ РЅРµ РІ С„Р°Р№Р»Р°С…).
          */
         /**
-         * Прокси Kodik на Netlify (/.netlify/functions/kodik-proxy). На проде без apiToken в config.local.js.
+         * РџСЂРѕРєСЃРё Kodik РЅР° Netlify (/.netlify/functions/kodik-proxy). РќР° РїСЂРѕРґРµ Р±РµР· apiToken РІ config.local.js.
          */
         apiProxyUrl:
             typeof window.APP_CONFIG?.kodik?.apiProxyUrl === 'string' &&
@@ -90,33 +90,33 @@ const APP_CONFIG = {
         useKodikProxy:
             window.APP_CONFIG?.kodik?.useKodikProxy !== false,
         /**
-         * Компактный каталог из дампа Kodik (сборка: node scripts/build/kodik-build-catalog.js)
+         * РљРѕРјРїР°РєС‚РЅС‹Р№ РєР°С‚Р°Р»РѕРі РёР· РґР°РјРїР° Kodik (СЃР±РѕСЂРєР°: node scripts/build/kodik-build-catalog.js)
          */
         catalogPath:
             typeof window.APP_CONFIG?.kodik?.catalogPath === 'string' &&
             window.APP_CONFIG.kodik.catalogPath.trim()
                 ? window.APP_CONFIG.kodik.catalogPath.trim()
                 : 'data/kodik-anime-catalog.json',
-        /** Папка с сырыми дампами Kodik (обновление раз в час с kodik-api.com) */
+        /** РџР°РїРєР° СЃ СЃС‹СЂС‹РјРё РґР°РјРїР°РјРё Kodik (РѕР±РЅРѕРІР»РµРЅРёРµ СЂР°Р· РІ С‡Р°СЃ СЃ kodik-api.com) */
         dumpDir: window.APP_CONFIG?.kodik?.dumpDir || 'kodik base',
         apiToken:
             typeof window.APP_CONFIG?.kodik?.apiToken === 'string'
                 ? window.APP_CONFIG.kodik.apiToken.trim()
                 : '',
         /**
-         * Опционально: переопределение для scripts/kodik-change-domains.js
+         * РћРїС†РёРѕРЅР°Р»СЊРЅРѕ: РїРµСЂРµРѕРїСЂРµРґРµР»РµРЅРёРµ РґР»СЏ scripts/kodik-change-domains.js
          * (fromDomains, toDomain, onDomReady)
          */
         domainReplace: window.APP_CONFIG?.kodik?.domainReplace,
         /**
-         * Загрузка change-domains.min.js с kodik-add.com (подмена старых доменов в ссылках плеера).
-         * По умолчанию выключено.
+         * Р—Р°РіСЂСѓР·РєР° change-domains.min.js СЃ kodik-add.com (РїРѕРґРјРµРЅР° СЃС‚Р°СЂС‹С… РґРѕРјРµРЅРѕРІ РІ СЃСЃС‹Р»РєР°С… РїР»РµРµСЂР°).
+         * РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РІС‹РєР»СЋС‡РµРЅРѕ.
          */
         loadChangeDomainsScript:
             window.APP_CONFIG?.kodik?.loadChangeDomainsScript === true
     },
 
-    /** Shikimori REST — на проде через /.netlify/functions/shikimori-proxy (CORS) */
+    /** Shikimori REST вЂ” РЅР° РїСЂРѕРґРµ С‡РµСЂРµР· /.netlify/functions/shikimori-proxy (CORS) */
     shikimori: {
         apiProxyUrl:
             typeof window.APP_CONFIG?.shikimori?.apiProxyUrl === 'string' &&
@@ -127,8 +127,8 @@ const APP_CONFIG = {
     },
 
     /**
-     * Alloha TV — iframe-плеер. На проде: ALLOHA_API_TOKEN в Netlify + прокси alloha-proxy.
-     * Локально: alloha.apiToken в config.local.js.
+     * Alloha TV вЂ” iframe-РїР»РµРµСЂ. РќР° РїСЂРѕРґРµ: ALLOHA_API_TOKEN РІ Netlify + РїСЂРѕРєСЃРё alloha-proxy.
+     * Р›РѕРєР°Р»СЊРЅРѕ: alloha.apiToken РІ config.local.js.
      */
     alloha: {
         apiProxyUrl:
@@ -143,7 +143,7 @@ const APP_CONFIG = {
                 : ''
     },
 
-    /** Каталог русской манги ReManga (сборка: node scripts/build/remanga-build-catalog.js) */
+    /** РљР°С‚Р°Р»РѕРі СЂСѓСЃСЃРєРѕР№ РјР°РЅРіРё ReManga (СЃР±РѕСЂРєР°: node scripts/build/remanga-build-catalog.js) */
     remanga: {
         catalogPath:
             typeof window.APP_CONFIG?.remanga?.catalogPath === 'string' &&
@@ -155,8 +155,8 @@ const APP_CONFIG = {
     },
     
     /**
-     * URL прокси чата Minko (POST /chat). На проде — Netlify из папки minko-netlify-proxy; иначе localhost.
-     * Переопределите в config.local.js, если другой поддомен Netlify.
+     * URL РїСЂРѕРєСЃРё С‡Р°С‚Р° Minko (POST /chat). РќР° РїСЂРѕРґРµ вЂ” Netlify РёР· РїР°РїРєРё minko-netlify-proxy; РёРЅР°С‡Рµ localhost.
+     * РџРµСЂРµРѕРїСЂРµРґРµР»РёС‚Рµ РІ config.local.js, РµСЃР»Рё РґСЂСѓРіРѕР№ РїРѕРґРґРѕРјРµРЅ Netlify.
      */
     minkoChatProxy: (() => {
         const raw =
@@ -169,7 +169,7 @@ const APP_CONFIG = {
             const h = window.location?.hostname || '';
             const proto = window.location?.protocol || '';
             const isLocal = h === 'localhost' || h === '127.0.0.1';
-            // Один деплой на Netlify: POST /chat на том же origin (корневой netlify.toml).
+            // РћРґРёРЅ РґРµРїР»РѕР№ РЅР° Netlify: POST /chat РЅР° С‚РѕРј Р¶Рµ origin (РєРѕСЂРЅРµРІРѕР№ netlify.toml).
             if (!isLocal && h && (proto === 'https:' || proto === 'http:')) {
                 const origin = window.location.origin.replace(/\/$/, '');
                 if (origin) return `${origin}/chat`;
@@ -178,16 +178,16 @@ const APP_CONFIG = {
         return 'http://localhost:3334/chat';
     })(),
 
-    /** POST генерации аватара (OpenAI через прокси BOT). По умолчанию тот же хост, что и чат, путь /avatar */
+    /** POST РіРµРЅРµСЂР°С†РёРё Р°РІР°С‚Р°СЂР° (OpenAI С‡РµСЂРµР· РїСЂРѕРєСЃРё BOT). РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ С‚РѕС‚ Р¶Рµ С…РѕСЃС‚, С‡С‚Рѕ Рё С‡Р°С‚, РїСѓС‚СЊ /avatar */
     minkoAvatarProxy:
         typeof window.APP_CONFIG?.minkoAvatarProxy === 'string' && window.APP_CONFIG.minkoAvatarProxy.trim()
             ? window.APP_CONFIG.minkoAvatarProxy.trim()
             : null,
 
     /**
-     * POST/GET генерации аватара через Grok (xAI) на Netlify.
-     * По умолчанию: /.netlify/functions/minko-avatar-grok на том же origin (не localhost).
-     * На localhost задайте полный URL деплоя в config.local.js.
+     * POST/GET РіРµРЅРµСЂР°С†РёРё Р°РІР°С‚Р°СЂР° С‡РµСЂРµР· Grok (xAI) РЅР° Netlify.
+     * РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ: /.netlify/functions/minko-avatar-grok РЅР° С‚РѕРј Р¶Рµ origin (РЅРµ localhost).
+     * РќР° localhost Р·Р°РґР°Р№С‚Рµ РїРѕР»РЅС‹Р№ URL РґРµРїР»РѕСЏ РІ config.local.js.
      */
     minkoAvatarGrokUrl: (() => {
         const raw =
@@ -219,17 +219,17 @@ const APP_CONFIG = {
     })(),
 
     /**
-     * Опционально: URL для проверки «картиночного» прокси (Grok) в статусе чата.
-     * На проде localhost:3333 не пингуем; задайте публичный health, если нужен точный флаг.
+     * РћРїС†РёРѕРЅР°Р»СЊРЅРѕ: URL РґР»СЏ РїСЂРѕРІРµСЂРєРё В«РєР°СЂС‚РёРЅРѕС‡РЅРѕРіРѕВ» РїСЂРѕРєСЃРё (Grok) РІ СЃС‚Р°С‚СѓСЃРµ С‡Р°С‚Р°.
+     * РќР° РїСЂРѕРґРµ localhost:3333 РЅРµ РїРёРЅРіСѓРµРј; Р·Р°РґР°Р№С‚Рµ РїСѓР±Р»РёС‡РЅС‹Р№ health, РµСЃР»Рё РЅСѓР¶РµРЅ С‚РѕС‡РЅС‹Р№ С„Р»Р°Рі.
      */
     minkoGrokHealth:
         typeof window.APP_CONFIG?.minkoGrokHealth === 'string' && window.APP_CONFIG.minkoGrokHealth.trim()
             ? window.APP_CONFIG.minkoGrokHealth.trim()
             : null,
 
-    // Minko AI использует только Grok через локальный прокси
+    // Minko AI РёСЃРїРѕР»СЊР·СѓРµС‚ С‚РѕР»СЊРєРѕ Grok С‡РµСЂРµР· Р»РѕРєР°Р»СЊРЅС‹Р№ РїСЂРѕРєСЃРё
 
-    // Настройки окружения
+    // РќР°СЃС‚СЂРѕР№РєРё РѕРєСЂСѓР¶РµРЅРёСЏ
     environment: {
         isDev: window.location.hostname === 'localhost' || 
                window.location.hostname === '127.0.0.1' ||
@@ -239,9 +239,9 @@ const APP_CONFIG = {
     },
 
     /**
-     * Рекламные блоки Яндекса (РСЯ) для отдельных страниц.
-     * ID блоков вида R-A-12345678-1 из кабинета РСЯ → Конструктор → Код блока.
-     * Задаётся в config.local.js: window.APP_CONFIG.yandexRtb = { infoPageBlockIds: ['R-A-...'] };
+     * Р РµРєР»Р°РјРЅС‹Рµ Р±Р»РѕРєРё РЇРЅРґРµРєСЃР° (Р РЎРЇ) РґР»СЏ РѕС‚РґРµР»СЊРЅС‹С… СЃС‚СЂР°РЅРёС†.
+     * ID Р±Р»РѕРєРѕРІ РІРёРґР° R-A-12345678-1 РёР· РєР°Р±РёРЅРµС‚Р° Р РЎРЇ в†’ РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ в†’ РљРѕРґ Р±Р»РѕРєР°.
+     * Р—Р°РґР°С‘С‚СЃСЏ РІ config.local.js: window.APP_CONFIG.yandexRtb = { infoPageBlockIds: ['R-A-...'] };
      */
     yandexRtb: {
         infoPageBlockIds: Array.isArray(window.APP_CONFIG?.yandexRtb?.infoPageBlockIds)
@@ -252,10 +252,10 @@ const APP_CONFIG = {
     },
 
     /**
-     * ≈4K: лимит размера одного файла для загрузки в Supabase Storage (байты).
-     * На Free тарифе глобальный лимит Supabase — 50 MB (bucket 5 GB не помогает).
-     * После Pro: Dashboard → Storage → Settings → Global file size limit (до 5 GB),
-     * затем в config.local.js: anime4k: { maxUploadBytes: 5368709120 }
+     * в‰€4K: Р»РёРјРёС‚ СЂР°Р·РјРµСЂР° РѕРґРЅРѕРіРѕ С„Р°Р№Р»Р° РґР»СЏ Р·Р°РіСЂСѓР·РєРё РІ Supabase Storage (Р±Р°Р№С‚С‹).
+     * РќР° Free С‚Р°СЂРёС„Рµ РіР»РѕР±Р°Р»СЊРЅС‹Р№ Р»РёРјРёС‚ Supabase вЂ” 50 MB (bucket 5 GB РЅРµ РїРѕРјРѕРіР°РµС‚).
+     * РџРѕСЃР»Рµ Pro: Dashboard в†’ Storage в†’ Settings в†’ Global file size limit (РґРѕ 5 GB),
+     * Р·Р°С‚РµРј РІ config.local.js: anime4k: { maxUploadBytes: 5368709120 }
      */
     anime4k: {
         maxUploadBytes:
@@ -267,7 +267,7 @@ const APP_CONFIG = {
     
 };
 
-// Экспортируем конфигурацию
+// Р­РєСЃРїРѕСЂС‚РёСЂСѓРµРј РєРѕРЅС„РёРіСѓСЂР°С†РёСЋ
 window.APP_CONFIG = APP_CONFIG;
 
 function reminkoAssetVersion() {
@@ -279,7 +279,7 @@ function reminkoAssetVersion() {
 }
 window.reminkoAssetVersion = reminkoAssetVersion;
 
-// Для обратной совместимости
+// Р”Р»СЏ РѕР±СЂР°С‚РЅРѕР№ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё
 if (typeof SUPABASE_URL === 'undefined') {
     window.SUPABASE_URL = APP_CONFIG.supabase.url;
     window.SUPABASE_ANON_KEY = APP_CONFIG.supabase.anonKey;

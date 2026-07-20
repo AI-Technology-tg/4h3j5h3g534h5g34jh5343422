@@ -1,5 +1,5 @@
 /**
- * Главная: анонсы — Jikan; выходит и популярное — Kodik. Переключатель Сериалы|Фильмы.
+ * Главная: анонсы — календарь Kodik (data/kodik-announced.json); выходит и популярное — каталог Kodik.
  */
 (function (global) {
     'use strict';
@@ -13,6 +13,7 @@
     let _catalog = [];
     let _calendarItems = [];
     let _kodikCalendarItems = [];
+    let _kodikAnnouncedItems = [];
     let _calendarMalIds = new Set();
     let _inited = false;
     let _initPromise = null;
@@ -53,7 +54,39 @@
         if (base && !base.includes('localhost') && !String(global.location?.protocol).startsWith('file')) {
             return base.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
         }
-        return path.replace(/^\//, '');
+        const depth =
+            global.location && global.location.pathname
+                ? (global.location.pathname.match(/\//g) || []).length - 1
+                : 0;
+        const prefix = depth > 0 ? '../'.repeat(depth) : '';
+        return prefix + path.replace(/^\//, '');
+    }
+
+    async function loadKodikAnnouncedItems() {
+        try {
+            const res = await fetch(catalogUrl('data/kodik-announced.json'), {
+                credentials: 'omit',
+                cache: 'default',
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            _kodikAnnouncedItems = Array.isArray(data?.items) ? data.items : [];
+        } catch (_) {
+            _kodikAnnouncedItems = [];
+        }
+    }
+
+    function isKodikAnnouncedRowActive(row) {
+        if (!row) return false;
+        const at = Date.parse(row.next_at || row.nextAt || '');
+        if (!Number.isFinite(at) || at <= Date.now()) return false;
+        const ep = parseInt(row.next_episode, 10) || 1;
+        if (ep > 1) return false;
+        const aired = parseInt(row.episodes_aired, 10);
+        if (Number.isFinite(aired) && aired > 0) return false;
+        const st = String(row.status || '').toLowerCase();
+        if (st === 'released' || st === 'finished') return false;
+        return true;
     }
 
     async function loadCalendarMalIds() {
@@ -121,20 +154,22 @@
     function calendarRowForMal(malId) {
         const mal = parseInt(malId, 10);
         if (Number.isNaN(mal)) return null;
-        return _calendarItems.find((r) => parseInt(r.mal_id, 10) === mal) || null;
+        return _kodikCalendarItems.find((r) => parseInt(r.mal_id, 10) === mal) || null;
     }
 
-    /**
-     * Анонс: сериал без ни одной вышедшей серии (или явный статус «Анонс»).
-     * Фильм: только статус «Анонс» (в Kodik у фильмов нет счётчика серий).
-     */
+    function kodikAnnouncedRowForMal(malId) {
+        const mal = parseInt(malId, 10);
+        if (Number.isNaN(mal)) return null;
+        return _kodikAnnouncedItems.find((r) => parseInt(r.mal_id, 10) === mal) || null;
+    }
+
     function isKodikHomeAnnounced(anime) {
         if (!anime) return false;
-        if (anime.isCalendarAnnounced) return true;
-        if (anime.status === 'Анонс') return true;
-        if (anime.type === 'Фильм') return anime.status === 'Анонс';
-        const released = kodikReleasedEpisodes(anime);
-        return released === 0;
+        if (anime.isKodikCalendarAnnounced || anime.isCalendarAnnounced) return true;
+        if (anime.status === 'Анонс' && anime.type === 'Сериал' && kodikReleasedEpisodes(anime) === 0) {
+            return true;
+        }
+        return false;
     }
 
     /** Выходит: онгоинг и уже есть ≥1 серия; не анонс; не завершённый тайтл с ошибочным статусом. */
@@ -152,15 +187,17 @@
     function malPosterUrl(malId) {
         const mal = parseInt(malId, 10);
         if (Number.isNaN(mal) || mal <= 0) return '';
+        const kodikAnn = kodikAnnouncedRowForMal(mal);
+        if (kodikAnn?.posterUrl && String(kodikAnn.posterUrl).trim()) {
+            return String(kodikAnn.posterUrl).trim();
+        }
+        const kodikCal = calendarRowForMal(mal);
+        if (kodikCal?.posterUrl && String(kodikCal.posterUrl).trim()) {
+            return String(kodikCal.posterUrl).trim();
+        }
         if (typeof global.readMalPosterCache === 'function') {
             const cached = global.readMalPosterCache(mal);
             if (cached) return cached;
-        }
-        if (typeof global.reminkoCalendarRowForMal === 'function') {
-            const cal = global.reminkoCalendarRowForMal(mal);
-            if (cal?.posterUrl && String(cal.posterUrl).trim()) {
-                return String(cal.posterUrl).trim();
-            }
         }
         return '';
     }
@@ -188,7 +225,10 @@
         const mal = parseInt(anime.mal_id, 10);
         const candidates = [];
         if (anime.posterUrl) candidates.push(String(anime.posterUrl).trim());
-        const row = anime._calendarRow || mergedCalendarRowForMal(anime.mal_id);
+        const row =
+            anime._calendarRow ||
+            (anime.isKodikCalendarAnnounced ? kodikAnnouncedRowForMal(anime.mal_id) : null) ||
+            (anime.isKodikCalendarAnnounced ? null : mergedCalendarRowForMal(anime.mal_id));
         if (row?.posterUrl) candidates.push(String(row.posterUrl).trim());
         if (Number.isFinite(mal) && mal > 0) {
             candidates.push(malPosterUrl(mal));
@@ -208,7 +248,10 @@
     function animeContextForKodikHomeCard(anime) {
         if (!anime) return null;
         const mal = parseInt(anime.mal_id, 10);
-        const cal = anime._calendarRow || mergedCalendarRowForMal(anime.mal_id);
+        const cal =
+            anime._calendarRow ||
+            (anime.isKodikCalendarAnnounced ? kodikAnnouncedRowForMal(anime.mal_id) : null) ||
+            mergedCalendarRowForMal(anime.mal_id);
         const searchTitles = Array.isArray(anime._posterSearchTitles)
             ? [...anime._posterSearchTitles]
             : [];
@@ -378,22 +421,10 @@
     }
 
     function isCalendarRowFilm(row) {
-        const k = String(row && row.kind ? row.kind : '').toLowerCase();
-        return k === 'movie' || k === 'mv' || k === 'film';
-    }
-
-    /** Премьера из календаря Kodik: будущая 1-я серия / фильм, ещё не вышло. */
-    function isKodikCalendarPremiereRow(row) {
         if (!row) return false;
-        const at = Date.parse(row.next_at || row.nextAt || '');
-        if (!Number.isFinite(at) || at <= Date.now()) return false;
-        const ep = parseInt(row.next_episode, 10) || 1;
-        if (ep > 1) return false;
-        const aired = parseInt(row.episodes_aired, 10);
-        if (Number.isFinite(aired) && aired > 0) return false;
-        const st = String(row.status || '').toLowerCase();
-        if (st === 'released' || st === 'finished') return false;
-        return true;
+        if (row.type === 'Фильм') return true;
+        const k = String(row.kind || '').toLowerCase();
+        return k === 'movie' || k === 'mv' || k === 'film';
     }
 
     function calendarRowMatchesMedia(row, mediaType) {
@@ -402,53 +433,93 @@
         return m === 'film' ? isFilm : !isFilm;
     }
 
-    function virtualAnimeFromCalendarRow(row) {
+    function announcedCardFromKodikRow(row, catMap) {
         const mal = parseInt(row.mal_id, 10);
+        const calRow = {
+            mal_id: mal,
+            next_episode: row.next_episode,
+            next_at: row.next_at,
+            title_ru: row.title_ru,
+            title_en: row.title_en,
+            kind: row.kind,
+            status: row.status,
+            episodes_aired: row.episodes_aired,
+            posterUrl: row.posterUrl || '',
+            score: row.score || 0,
+        };
+        const catalogItem = Number.isFinite(mal) && mal > 0 ? catMap.get(mal) : null;
+        if (catalogItem && catalogItem.isKodikCatalog !== false) {
+            return {
+                ...catalogItem,
+                title: row.title_ru || catalogItem.title,
+                titleAlt: row.title_en || catalogItem.titleAlt || catalogItem.title,
+                posterUrl: calRow.posterUrl || catalogItem.posterUrl || '',
+                status: 'Анонс',
+                isKodikCalendarAnnounced: true,
+                _calendarRow: calRow,
+            };
+        }
         const isFilm = isCalendarRowFilm(row);
         return {
-            id: `kodik-cal-${mal}`,
+            id: `kodik-ann-${mal}`,
             mal_id: mal,
             title: row.title_ru || '—',
             titleAlt: row.title_en || row.title_ru || '',
             type: isFilm ? 'Фильм' : 'Сериал',
             status: 'Анонс',
-            isCalendarAnnounced: true,
+            isKodikCalendarAnnounced: true,
             rating: row.score || 0,
             genres: [],
-            posterUrl:
-                (row.posterUrl && String(row.posterUrl).trim()) ||
-                (Number.isFinite(mal) && mal > 0 ? malPosterUrl(mal) : ''),
-            _calendarRow: row
+            posterUrl: calRow.posterUrl || '',
+            _calendarRow: calRow,
         };
     }
 
-    function pickAnnouncedCalendarExtras(mediaType, existingMals) {
-        const m = normalizeMediaType(mediaType);
+    function pickAnnouncedCatalogSerialSupplement(existingMals) {
         const out = [];
-        for (const row of _kodikCalendarItems || []) {
-            if (!isKodikCalendarPremiereRow(row)) continue;
-            const mal = parseInt(row.mal_id, 10);
+        for (const anime of _catalog) {
+            if (!anime || anime.type !== 'Сериал' || anime.isKodikCatalog === false) continue;
+            const mal = parseInt(anime.mal_id, 10);
             if (!Number.isFinite(mal) || mal <= 0 || existingMals.has(mal)) continue;
-            if (!calendarRowMatchesMedia(row, m)) continue;
-            out.push(virtualAnimeFromCalendarRow(row));
+            if (anime.status !== 'Анонс' || kodikReleasedEpisodes(anime) > 0) continue;
+            out.push({ ...anime, isKodikCatalogAnnounced: true });
         }
         return out;
     }
 
-    function pickAnnounced(all, mediaType) {
-        const fromCatalog = all.filter((a) => matchMedia(a, mediaType) && isKodikHomeAnnounced(a));
+    function pickAnnounced(_all, mediaType) {
+        const m = normalizeMediaType(mediaType);
+        const catMap = catalogByMalMap();
+        const list = [];
+
+        for (const row of _kodikAnnouncedItems || []) {
+            if (!isKodikAnnouncedRowActive(row)) continue;
+            if (!calendarRowMatchesMedia(row, m)) continue;
+            list.push(announcedCardFromKodikRow(row, catMap));
+        }
+
         const existingMals = new Set(
-            fromCatalog.map((a) => parseInt(a.mal_id, 10)).filter((mal) => Number.isFinite(mal) && mal > 0)
+            list.map((a) => parseInt(a.mal_id, 10)).filter((mal) => Number.isFinite(mal) && mal > 0)
         );
-        const list = fromCatalog.concat(pickAnnouncedCalendarExtras(mediaType, existingMals));
+
+        if (m === 'serial') {
+            for (const extra of pickAnnouncedCatalogSerialSupplement(existingMals)) {
+                list.push(extra);
+                existingMals.add(extra.mal_id);
+            }
+        }
+
         list.sort((a, b) => {
-            const ac = a._calendarRow || mergedCalendarRowForMal(a.mal_id) || a._calendar;
-            const bc = b._calendarRow || mergedCalendarRowForMal(b.mal_id) || b._calendar;
-            const at = ac && (ac.next_at || ac.nextAt) ? Date.parse(ac.next_at || ac.nextAt) || Infinity : Infinity;
-            const bt = bc && (bc.next_at || bc.nextAt) ? Date.parse(bc.next_at || bc.nextAt) || Infinity : Infinity;
+            const ac = a._calendarRow || kodikAnnouncedRowForMal(a.mal_id);
+            const bc = b._calendarRow || kodikAnnouncedRowForMal(b.mal_id);
+            const at =
+                ac && (ac.next_at || ac.nextAt) ? Date.parse(ac.next_at || ac.nextAt) || Infinity : Infinity;
+            const bt =
+                bc && (bc.next_at || bc.nextAt) ? Date.parse(bc.next_at || bc.nextAt) || Infinity : Infinity;
             if (at !== bt) return at - bt;
             return (b.rating || 0) - (a.rating || 0);
         });
+
         return list.slice(0, KODIK_ANNOUNCED_LIMIT);
     }
 
@@ -663,7 +734,9 @@
             return Number.isFinite(y) && y > 0 ? String(y) : '';
         }
         const cal =
-            mergedCalendarRowForMal(anime.mal_id) ||
+            anime._calendarRow ||
+            kodikAnnouncedRowForMal(anime.mal_id) ||
+            (anime.isKodikCalendarAnnounced ? null : mergedCalendarRowForMal(anime.mal_id)) ||
             anime._calendar ||
             (anime.mal_id != null ? calendarRowForMal(anime.mal_id) : null);
         const nextAt = cal && (cal.next_at || cal.nextAt);
@@ -741,7 +814,7 @@
     function navigateKodikCard(anime) {
         try {
             global.sessionStorage.setItem('previousUrl', global.location.href);
-            if (anime.isCalendarAnnounced && anime.mal_id != null) {
+            if ((anime.isKodikCalendarAnnounced || anime.isCalendarAnnounced) && anime.mal_id != null) {
                 const mal = parseInt(anime.mal_id, 10);
                 if (Number.isFinite(mal) && mal > 0) {
                     const raw = jikanRawFromKodikHomeAnime(anime);
@@ -922,7 +995,7 @@
             setSectionMediaUi(section, m);
             const more = section.querySelector('.section-more-link');
             if (more) {
-                more.href = `catalog/anime.html?status=Анонс&type=${m === 'film' ? 'Фильм' : 'Сериал'}`;
+                more.href = 'catalog/calendar.html';
             }
         }
 
@@ -981,6 +1054,8 @@
 
         _initPromise = (async () => {
             bindKodikHomeToggleDelegation();
+
+            await loadKodikAnnouncedItems();
 
             if (typeof global.KodikCatalogStore?.load === 'function') {
                 try {

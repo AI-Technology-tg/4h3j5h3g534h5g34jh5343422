@@ -17,6 +17,7 @@ const ROOT = path.resolve(__dirname, '../..');
 const DUMP_DIR = path.join(ROOT, 'kodik base');
 const OUT_FILE = path.join(ROOT, 'data', 'kodik-anime-catalog.json');
 const OUT_CALENDAR = path.join(ROOT, 'data', 'kodik-calendar.json');
+const OUT_ANNOUNCED = path.join(ROOT, 'data', 'kodik-announced.json');
 const KODIK_ID_BASE = 20_000_000;
 const KODIK_ID_FILM_BASE = 20_500_000;
 const KODIK_ID_NO_MAL_BASE = 21_000_000;
@@ -318,11 +319,26 @@ function normalizeCalendarRow(row) {
     };
 }
 
+function isKodikAnnouncedCalendarRow(row, nowMs) {
+    if (!row || typeof row !== 'object') return false;
+    const at = Date.parse(
+        row.next_episode_at || row.next_at || row.nextEpisodeAt || row.date || ''
+    );
+    if (!Number.isFinite(at) || at <= nowMs) return false;
+    const ep = parseInt(row.next_episode ?? row.nextEpisode, 10) || 1;
+    if (ep > 1) return false;
+    const aired = parseInt(row.episodes_aired, 10);
+    if (Number.isFinite(aired) && aired > 0) return false;
+    const st = String(row.status || '').toLowerCase();
+    if (st === 'released' || st === 'finished') return false;
+    return true;
+}
+
 function buildCalendarFile() {
     const calPath = path.join(DUMP_DIR, 'calendar.json');
     if (!fs.existsSync(calPath)) {
         console.warn('Нет calendar.json — пропуск kodik-calendar.json');
-        return;
+        return { items: [], catalogMal: new Set() };
     }
     const raw = JSON.parse(fs.readFileSync(calPath, 'utf8'));
     const arr = Array.isArray(raw) ? raw : [];
@@ -338,6 +354,54 @@ function buildCalendarFile() {
         'utf8'
     );
     console.log(`Календарь: ${items.length} тайтлов → ${OUT_CALENDAR}`);
+    return { items, raw: arr };
+}
+
+function buildAnnouncedFile(calendarPayload, catalogMalIds) {
+    const calPath = path.join(DUMP_DIR, 'calendar.json');
+    if (!fs.existsSync(calPath)) {
+        console.warn('Нет calendar.json — пропуск kodik-announced.json');
+        return;
+    }
+    const raw = calendarPayload?.raw || JSON.parse(fs.readFileSync(calPath, 'utf8'));
+    const arr = Array.isArray(raw) ? raw : [];
+    const nowMs = Date.now();
+    const items = [];
+
+    for (const row of arr) {
+        if (!isKodikAnnouncedCalendarRow(row, nowMs)) continue;
+        const normalized = normalizeCalendarRow(row);
+        if (!normalized) continue;
+        const kind = String(row.kind || normalized.kind || '').toLowerCase();
+        const isFilm = kind === 'movie' || kind === 'mv' || kind === 'film';
+        items.push({
+            ...normalized,
+            kind: kind || normalized.kind || '',
+            type: isFilm ? 'Фильм' : 'Сериал',
+            inCatalog: catalogMalIds.has(normalized.mal_id),
+        });
+    }
+
+    items.sort((a, b) => Date.parse(a.next_at) - Date.parse(b.next_at));
+
+    const payload = {
+        meta: {
+            builtAt: new Date().toISOString(),
+            source: 'kodik base/calendar.json',
+            criteria:
+                'Kodik calendar: будущая дата, next_episode ≤ 1, episodes_aired = 0, не released',
+            count: items.length,
+            serialCount: items.filter((i) => i.type === 'Сериал').length,
+            filmCount: items.filter((i) => i.type === 'Фильм').length,
+        },
+        items,
+    };
+
+    fs.mkdirSync(path.dirname(OUT_ANNOUNCED), { recursive: true });
+    fs.writeFileSync(OUT_ANNOUNCED, JSON.stringify(payload), 'utf8');
+    console.log(
+        `Анонсы Kodik: ${items.length} (сериалы ${payload.meta.serialCount}, фильмы ${payload.meta.filmCount}) → ${OUT_ANNOUNCED}`
+    );
 }
 
 function main() {
@@ -363,7 +427,12 @@ function main() {
 
     const mb = (fs.statSync(OUT_FILE).size / 1024 / 1024).toFixed(2);
     console.log(`Готово: ${catalog.length} тайтлов → ${OUT_FILE} (${mb} MB)`);
-    buildCalendarFile();
+
+    const catalogMalIds = new Set(
+        catalog.map((item) => parseInt(item.mal_id, 10)).filter((mal) => Number.isFinite(mal) && mal > 0)
+    );
+    const calendarPayload = buildCalendarFile();
+    buildAnnouncedFile(calendarPayload, catalogMalIds);
 }
 
 main();
