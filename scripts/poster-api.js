@@ -161,6 +161,38 @@ function fetchFromJikan(title, type = 'anime') {
     });
 }
 
+// ==================== ANILIST BY MAL ID ====================
+const _anilistPosterByMalMem = new Map();
+
+async function fetchAnilistPosterByMalId(malId) {
+    const mal = parseInt(malId, 10);
+    if (!Number.isFinite(mal) || mal <= 0) return '';
+    if (_anilistPosterByMalMem.has(mal)) return _anilistPosterByMalMem.get(mal) || '';
+
+    const query =
+        'query ($idMal: Int) { Media(idMal: $idMal, type: ANIME) { coverImage { extraLarge large medium } } }';
+    try {
+        const res = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            credentials: 'omit',
+            body: JSON.stringify({ query, variables: { idMal: mal } })
+        });
+        if (!res.ok) {
+            _anilistPosterByMalMem.set(mal, '');
+            return '';
+        }
+        const json = await res.json();
+        const img = json?.data?.Media?.coverImage;
+        const url = img?.extraLarge || img?.large || img?.medium || '';
+        _anilistPosterByMalMem.set(mal, url || '');
+        return url || '';
+    } catch (_) {
+        _anilistPosterByMalMem.set(mal, '');
+        return '';
+    }
+}
+
 // ==================== ГЛАВНАЯ ФУНКЦИЯ ====================
 /**
  * Получить постер - сначала Kitsu (быстрый), потом Jikan (резервный)
@@ -277,6 +309,7 @@ async function batchLoadPosters(items, type = 'anime', concurrency = 6) {
 
 // ==================== ЭКСПОРТ ====================
 window.getPosterFromCacheV3 = getPosterFromCacheV3;
+window.fetchAnilistPosterByMalId = fetchAnilistPosterByMalId;
 window.getPosterFast = getPosterFast;
 window.getAnimePosterFast = getAnimePosterFast;
 window.getMangaPosterFast = getMangaPosterFast;

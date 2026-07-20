@@ -450,6 +450,7 @@
             mal_id: mal,
             shiki_id: a.id,
             title_ru: a.russian || a.name || '',
+            title_en: a.name || '',
             next_at: iso,
             next_episode: nextEp,
             status: a.status || '',

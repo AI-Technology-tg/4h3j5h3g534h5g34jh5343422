@@ -6,7 +6,7 @@
     if (typeof window === 'undefined' || window.__reminkoAssetVersionGate) return;
     window.__reminkoAssetVersionGate = true;
 
-    var V = '20260720b';
+    var V = '20260720c';
     window.REMINKO_ASSET_VERSION = V;
     var KEY = 'reminko_asset_v';
 

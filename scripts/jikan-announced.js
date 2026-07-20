@@ -595,6 +595,18 @@
             }
         }
 
+        if (typeof global.fetchAnilistPosterByMalId === 'function') {
+            try {
+                const u = await global.fetchAnilistPosterByMalId(mal);
+                if (u && !isShikimoriPlaceholderPoster(u)) {
+                    writeMalPosterCache(mal, u);
+                    return u;
+                }
+            } catch (_) {
+                /* ignore */
+            }
+        }
+
         try {
             if (typeof global.jikanFetchPosterByMalId === 'function') {
                 const u = await global.jikanFetchPosterByMalId(mal);
@@ -652,8 +664,11 @@
 
         void (async () => {
             const url = await fetchPosterUrlForMal(mal, anime);
-            if (!url || !img.isConnected) {
-                if (img.isConnected) img.classList.add('is-poster-missing');
+            if (!img.isConnected) return;
+            if (!url) {
+                if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                    img.classList.add('is-poster-missing');
+                }
                 return;
             }
             img.classList.remove('is-poster-missing');

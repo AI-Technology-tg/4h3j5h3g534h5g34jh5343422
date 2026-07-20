@@ -201,11 +201,19 @@
         if (!anime) return null;
         const mal = parseInt(anime.mal_id, 10);
         const cal = anime._calendarRow || mergedCalendarRowForMal(anime.mal_id);
+        const searchTitles = Array.isArray(anime._posterSearchTitles)
+            ? [...anime._posterSearchTitles]
+            : [];
+        if (cal?.title_en) searchTitles.push(cal.title_en);
+        if (cal?.title_ru) searchTitles.push(cal.title_ru);
+        if (anime.titleAlt) searchTitles.push(anime.titleAlt);
         return {
             ...anime,
             mal_id: mal,
             posterUrl: resolveKodikHomePosterUrl(anime) || anime.posterUrl || '',
+            titleAlt: anime.titleAlt || cal?.title_en || cal?.title_ru || anime.title || '',
             _calendarRow: cal || anime._calendarRow,
+            _posterSearchTitles: searchTitles.length ? searchTitles : anime._posterSearchTitles,
         };
     }
 
@@ -380,8 +388,9 @@
         return {
             id: `shiki-cal-${mal}`,
             mal_id: mal,
+            shiki_id: row.shiki_id || null,
             title: row.title_ru || '—',
-            titleAlt: row.title_ru || '',
+            titleAlt: row.title_en || row.title_ru || '',
             type: isFilm ? 'Фильм' : 'Сериал',
             status: isAnn ? 'Анонс' : 'Онгоинг',
             isCalendarAnnounced: isAnn,
@@ -759,7 +768,11 @@
         const posterImg = card.querySelector('.jikan-card-poster img');
         if (posterImg) {
             posterImg.alt = title;
-            if (anime.mal_id != null && typeof global.attachJikanPosterFallback === 'function') {
+            if (
+                !imgUrl &&
+                anime.mal_id != null &&
+                typeof global.attachJikanPosterFallback === 'function'
+            ) {
                 global.attachJikanPosterFallback(
                     posterImg,
                     anime.mal_id,
@@ -795,11 +808,14 @@
                 const cardAnime = Array.isArray(items)
                     ? items.find((a) => parseInt(a?.mal_id, 10) === parseInt(malId, 10))
                     : null;
-                global.attachJikanPosterFallback(
-                    img,
-                    malId,
-                    cardAnime ? animeContextForKodikHomeCard(cardAnime) : { mal_id: parseInt(malId, 10) }
-                );
+                const ctx = cardAnime ? animeContextForKodikHomeCard(cardAnime) : { mal_id: parseInt(malId, 10) };
+                const hasPoster =
+                    img.src &&
+                    !img.src.startsWith('data:') &&
+                    isValidHomePosterUrl(img.src);
+                if (!hasPoster) {
+                    global.attachJikanPosterFallback(img, malId, ctx);
+                }
             }
         }
     }
@@ -824,6 +840,26 @@
 
         void hydrateKodikHomePosters(container, items);
         applyShikimoriToKodikHomeStrip(container, items);
+
+        if (typeof global.prefetchPosterUrlsForMals === 'function') {
+            void global.prefetchPosterUrlsForMals(items, { concurrency: 4, delayMs: 280 }).then(() => {
+                for (const anime of items) {
+                    const mal = parseInt(anime?.mal_id, 10);
+                    if (!Number.isFinite(mal) || mal <= 0) continue;
+                    const url =
+                        typeof global.readMalPosterCache === 'function'
+                            ? global.readMalPosterCache(mal)
+                            : '';
+                    if (!url) continue;
+                    const card = container.querySelector(`.kodik-home-card[data-mal-id="${mal}"]`);
+                    const img = card?.querySelector('.jikan-card-poster img');
+                    if (img && img.src !== url) {
+                        img.classList.remove('is-poster-missing');
+                        img.src = url;
+                    }
+                }
+            });
+        }
 
         if (typeof global.reminkoStartLiveCountdown === 'function') {
             container.querySelectorAll('.jikan-card-countdown[data-countdown-iso]').forEach((el) => {
