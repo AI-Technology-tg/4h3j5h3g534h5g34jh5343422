@@ -383,9 +383,6 @@
 
                 const wtStartEl = document.getElementById('wtStartScreen');
                 if (wtStartEl) {
-                    wtStartEl.addEventListener('click', (e) => {
-                        if (e.target === wtStartEl) closeWatchTogetherStartScreen();
-                    });
                     document.addEventListener('keydown', (e) => {
                         if (e.key !== 'Escape') return;
                         if (wtStartEl.classList.contains('hidden')) return;

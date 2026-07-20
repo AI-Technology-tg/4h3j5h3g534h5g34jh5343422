@@ -228,9 +228,7 @@ function initHomeSocialPanel() {
     const panel = document.getElementById('homeSocialPanel');
     if (!panel) return;
 
-    panel.querySelectorAll('[data-social-close]').forEach((el) => {
-        el.addEventListener('click', closeHomeSocialPanel);
-    });
+    panel.querySelector('.home-social-panel__close')?.addEventListener('click', closeHomeSocialPanel);
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && panel && !panel.hidden) closeHomeSocialPanel();

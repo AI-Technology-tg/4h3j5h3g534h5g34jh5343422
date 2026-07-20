@@ -888,11 +888,6 @@ function reminkoBindCatalogFilterDelegation() {
             }
             return;
         }
-
-        if (!t.closest('.filter-chip-wrap') && !t.closest('.filter-multi-select')) {
-            document.querySelectorAll('.filter-select-panel').forEach((p) => p.classList.remove('active'));
-            document.querySelectorAll('.filter-select-btn').forEach((b) => b.classList.remove('active'));
-        }
     });
 
     document.addEventListener('input', (e) => {

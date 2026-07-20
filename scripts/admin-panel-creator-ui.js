@@ -56,9 +56,6 @@ function openCreatorActionModal({ title, submitLabel = 'Сохранить', dan
         };
         modal.querySelector('[data-action="cancel"]')?.addEventListener('click', () => close(null));
         modal.querySelector('.modal-close')?.addEventListener('click', () => close(null));
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) close(null);
-        });
         modal.querySelector('[data-action="submit"]')?.addEventListener('click', () => {
             const data = {};
             fields.forEach((f) => {
@@ -2532,9 +2529,6 @@ async function openMinkoAiLogsModal() {
     document.body.appendChild(modal);
     const close = () => modal.remove();
     modal.querySelector('#minkoAiLogsClose')?.addEventListener('click', close);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) close();
-    });
 
     const { users, error } = await window.creatorAdminPanel.listMinkoAiChatUsers();
     const listEl = modal.querySelector('#minkoAiLogsUserList');

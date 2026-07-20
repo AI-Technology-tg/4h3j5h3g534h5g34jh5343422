@@ -425,9 +425,6 @@
             document.body.classList.remove('support-minko-open');
             if (panel) panel.classList.remove('is-expanded');
         };
-        root.addEventListener('click', (e) => {
-            if (e.target === root) close();
-        });
         root.querySelector('#supportMinkoClose').addEventListener('click', close);
         root.querySelector('#supportMinkoExpand').addEventListener('click', () => {
             if (panel) panel.classList.toggle('is-expanded');

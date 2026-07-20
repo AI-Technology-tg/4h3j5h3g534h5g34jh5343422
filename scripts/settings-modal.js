@@ -152,11 +152,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeSettingsModal();
-        }
-    });
 });
 
 window.openSettingsModal = openSettingsModal;

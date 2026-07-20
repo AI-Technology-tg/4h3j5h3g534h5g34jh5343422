@@ -1222,7 +1222,6 @@ class NavigationManager {
             document.body.appendChild(backdrop);
             document.body.appendChild(panel);
 
-            backdrop.addEventListener('click', closeNotificationsUi);
             panel.querySelector('#notificationsPanelCloseBtn')?.addEventListener('click', closeNotificationsUi);
             panel.querySelector('#notificationsMarkReadBtn')?.addEventListener('click', () => {
                 if (window.notificationService) void window.notificationService.markAllAsRead();
@@ -1281,24 +1280,6 @@ class NavigationManager {
             }, 60000); // 60 секунд вместо 30
         }
         
-        // Закрытие при клике вне панели (когда нет полноэкранного затемнения — запасной вариант)
-        document.addEventListener('click', (e) => {
-            const panel = document.getElementById('notificationsPanel');
-            const backdrop = document.getElementById('notificationsBackdrop');
-            if (
-                panel &&
-                panel.classList.contains('active') &&
-                !panel.contains(e.target) &&
-                !notificationsBtn.contains(e.target) &&
-                !(backdrop && backdrop.contains(e.target))
-            ) {
-                panel.classList.remove('active');
-                panel.setAttribute('aria-hidden', 'true');
-                backdrop?.classList.remove('active');
-                backdrop?.setAttribute('aria-hidden', 'true');
-                document.body.classList.remove('notifications-sheet-open');
-            }
-        });
     }
     
     // Убедиться, что модальные окна есть на странице
@@ -1584,11 +1565,6 @@ class NavigationManager {
             
             // Закрытие модального окна подтверждения email обрабатывается в email-confirm.js
             // Не закрываем здесь, чтобы не было конфликтов
-            
-            // Клик вне модального окна закрывает его (кроме окна подтверждения email)
-            if (e.target.classList.contains('modal') && e.target.id !== 'emailConfirmModal') {
-                e.target.classList.remove('active');
-            }
             
             // Ссылка "Забыли пароль?"
             if (e.target.classList.contains('forgot-password') || e.target.closest('.forgot-password')) {

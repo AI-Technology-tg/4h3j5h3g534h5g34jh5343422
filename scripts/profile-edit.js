@@ -42,9 +42,6 @@ async function editProfile() {
     modal.querySelectorAll('[data-edit-profile-close]').forEach((el) => {
         el.addEventListener('click', close);
     });
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) close();
-    });
 
     const errEl = modal.querySelector('#editProfileNameError');
 
@@ -260,12 +257,6 @@ async function changePassword() {
     `;
     
     document.body.appendChild(modal);
-    
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
 }
 
 async function savePasswordChange(button) {

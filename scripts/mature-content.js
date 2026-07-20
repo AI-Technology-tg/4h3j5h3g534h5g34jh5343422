@@ -145,9 +145,6 @@
         el.querySelectorAll('[data-reminko-adult-close]').forEach((n) =>
             n.addEventListener('click', close)
         );
-        el.addEventListener('click', (e) => {
-            if (e.target === el) close();
-        });
         el.querySelector('#reminkoAdultConfirmBtn')?.addEventListener('click', () => {
             const err = el.querySelector('#reminkoAdultVerifyErr');
             const birth = inp?.value?.trim();
