@@ -31,13 +31,14 @@ function urlEntry(loc, priority, changefreq) {
 function main() {
     const urls = [];
 
+    /** Публичные indexable-страницы (без noindex в HTML и _headers). */
     const staticPages = [
         ['/', '1.0', 'daily'],
         ['/catalog/anime.html', '0.95', 'daily'],
+        ['/catalog/calendar.html', '0.9', 'daily'],
+        ['/catalog/anime-4k.html', '0.85', 'weekly'],
         ['/minko-ai.html', '0.85', 'weekly'],
         ['/info.html', '0.7', 'weekly'],
-        ['/privacy-policy.html', '0.3', 'yearly'],
-        ['/terms-of-service.html', '0.3', 'yearly'],
         ['/account-deletion.html', '0.3', 'yearly'],
     ];
 

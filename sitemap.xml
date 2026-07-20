@@ -11,6 +11,16 @@
     <priority>0.95</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/catalog/calendar.html</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/catalog/anime-4k.html</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/minko-ai.html</loc>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
@@ -19,6 +29,11 @@
     <loc>https://re-minko-anime.com/info.html</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/account-deletion.html</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20052991</loc>
@@ -102,11 +117,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20011061</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20059193</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -247,6 +257,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20000263</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20059193</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -856,11 +871,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062076</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20540456</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -1202,6 +1212,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20509260</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062076</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -4066,6 +4081,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20053924</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20509204</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -4636,6 +4656,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20523225</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20504985</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -4716,11 +4741,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062728</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20058059</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -4782,6 +4802,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20055742</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062936</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -4946,6 +4971,16 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063240</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061562</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20054915</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -5072,11 +5107,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20018179</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20053924</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -5576,6 +5606,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20064398</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20533280</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -5632,6 +5667,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20049738</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062856</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -5761,11 +5801,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20523225</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20030902</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -5836,6 +5871,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20561617</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20001910</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -5847,6 +5887,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20000849</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062728</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -5931,11 +5976,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062936</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20001293</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -5967,11 +6007,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20057353</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20051289</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -6041,6 +6076,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20058878</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20002605</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -6062,11 +6102,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20040858</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063240</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -6856,17 +6891,17 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062856</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20034544</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20509288</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060191</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -7051,11 +7086,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20561617</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20001483</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -7137,11 +7167,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20005074</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20057442</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -7256,12 +7281,22 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20051289</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20563606</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20032491</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20559985</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -7396,11 +7431,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20058878</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20521339</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -7427,16 +7457,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20041219</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20061562</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20059916</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -7722,6 +7742,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20053716</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061240</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -8276,11 +8301,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20064398</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20031764</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -8442,11 +8462,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20518753</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060191</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -8651,6 +8666,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20057442</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20000880</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -8672,6 +8692,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20538594</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061280</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -8707,6 +8732,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20002985</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060059</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -8962,6 +8992,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20053148</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20059916</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -9312,6 +9347,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20037869</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062430</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -10496,11 +10536,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20061280</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20510589</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -10591,6 +10626,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20046488</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20537621</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -10602,11 +10642,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20061625</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060055</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -11117,11 +11152,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20509790</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062430</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -11672,11 +11702,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20038787</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20058606</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -12441,11 +12466,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20046488</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20003731</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -12457,6 +12477,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20054850</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060055</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -13176,11 +13201,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20061169</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20038472</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -13511,6 +13531,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062476</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20040496</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -13557,6 +13582,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20004038</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20055774</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -13701,6 +13731,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20058606</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20001846</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -13787,6 +13822,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20052367</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063780</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -13991,6 +14031,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20049066</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20050384</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -14022,6 +14067,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20501723</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062241</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -14407,6 +14457,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20051461</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061753</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -14857,11 +14912,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20537303</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062883</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -15471,6 +15521,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061169</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20015687</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -15916,11 +15971,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062476</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20048684</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -15977,11 +16027,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20012875</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20055774</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -16396,6 +16441,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063967</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20031163</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -16501,11 +16551,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062241</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20000935</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -16552,6 +16597,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20049519</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060571</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -16627,6 +16677,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20000206</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060637</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -16822,11 +16877,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20542899</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20061753</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -17096,11 +17146,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20058551</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20000953</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -17242,6 +17287,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20516444</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062883</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -17626,6 +17676,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060580</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20048556</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -17911,6 +17966,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20002151</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20001013</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -18077,11 +18137,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20036800</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20056876</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -18516,11 +18571,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20058131</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20017211</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -18542,11 +18592,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20061269</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063780</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -18597,6 +18642,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20501531</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063100</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -18811,11 +18861,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060571</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20514817</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -18926,22 +18971,12 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060637</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20060293</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20041109</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062078</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -19346,6 +19381,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20058551</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20037578</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -19631,11 +19671,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060522</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20014765</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -19821,11 +19856,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060580</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20560452</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -19852,11 +19882,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20005079</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20059390</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -19962,6 +19987,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20002602</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061107</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -20236,6 +20266,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20056876</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20004662</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -20441,11 +20476,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20059938</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20060449</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -20571,6 +20601,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20058131</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20004195</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -20636,6 +20671,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20558549</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20502998</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -20647,11 +20687,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20011783</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063100</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -20721,11 +20756,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063967</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20059915</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -20757,11 +20787,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20024171</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20059741</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -20892,6 +20917,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20000620</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062078</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -21057,6 +21087,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20030014</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20510115</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -21446,6 +21481,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060522</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20509931</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -21507,6 +21547,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20003425</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20563819</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -21626,6 +21671,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20059390</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20022687</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -21706,11 +21756,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20061107</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20033573</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -21722,6 +21767,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20001944</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062535</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -22141,11 +22191,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063316</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20050647</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -22217,6 +22262,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20057907</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20059938</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -22486,11 +22536,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20558549</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20052214</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -22602,6 +22647,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20049766</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20059741</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -23186,6 +23236,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20058772</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20506610</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -23526,11 +23581,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062617</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20003653</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -23801,6 +23851,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060561</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20502006</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -24036,11 +24091,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20054000</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20557387</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -24077,6 +24127,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20557184</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063316</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -24426,11 +24481,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20059967</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20052623</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -24522,11 +24572,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20034204</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20059156</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -24871,6 +24916,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062719</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20036049</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -25041,6 +25091,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061642</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20501923</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -25177,11 +25232,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20029785</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20058772</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -25511,6 +25561,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062617</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20533204</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -25811,11 +25866,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060509</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20025859</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -25851,11 +25901,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060561</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20051940</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -25867,6 +25912,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20055762</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062512</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -25902,11 +25952,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20506670</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063957</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -26091,6 +26136,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20054000</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20037525</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -26222,6 +26272,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20034280</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063537</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -26431,6 +26486,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20059967</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20031537</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -26507,6 +26567,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20001618</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20059156</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -26856,11 +26921,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062719</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20049849</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -27051,11 +27111,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20061642</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20060529</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -27147,6 +27202,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20018097</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060592</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -28046,6 +28106,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060509</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20041659</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -28146,11 +28211,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062512</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20037393</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -28211,6 +28271,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063957</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20017082</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -28257,6 +28322,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20040228</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20564519</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -28472,11 +28542,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20051706</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063537</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -29051,11 +29116,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062322</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20001348</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -29556,11 +29616,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060185</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20054716</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -29726,7 +29781,7 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20056736</loc>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062080</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -29912,6 +29967,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20056820</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062544</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -30232,6 +30292,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20538419</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20559029</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -30891,12 +30956,12 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063489</loc>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20001198</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20001198</loc>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062322</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -30917,11 +30982,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20010260</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20058717</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -31166,6 +31226,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061831</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20550209</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -31401,6 +31466,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060185</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20504795</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -31512,6 +31582,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=21500001</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060153</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -31641,12 +31716,12 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062080</loc>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061090</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20061090</loc>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20056736</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -32306,11 +32381,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20559029</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20559908</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -32911,6 +32981,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20058717</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20512437</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -32972,6 +33047,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20034497</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20563736</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -33077,11 +33157,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20057099</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20061831</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -33322,11 +33397,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20008438</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060153</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -34531,6 +34601,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063489</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20502267</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -35691,6 +35766,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20502468</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20038091</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -35757,6 +35837,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20540194</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063468</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -36381,11 +36466,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063324</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20510687</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -36811,6 +36891,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20562593</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20502015</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -36926,11 +37011,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20502468</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20002148</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -36981,11 +37061,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063468</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20505080</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -37027,6 +37102,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20061847</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063514</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -37521,11 +37601,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062435</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20051863</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -37906,11 +37981,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20562593</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20000546</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -38187,11 +38257,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20034602</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062155</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -38526,6 +38591,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063324</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20503509</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -38577,6 +38647,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20050636</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062435</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -39112,6 +39187,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20010349</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062155</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -39751,11 +39831,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20058957</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20023609</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -39827,11 +39902,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20054798</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062037</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -40071,11 +40141,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063802</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20514347</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -40172,11 +40237,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20506038</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20506800</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -40466,6 +40526,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20058957</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20035835</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -40532,6 +40597,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20059148</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062037</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -40781,6 +40851,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063878</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20053135</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -40822,6 +40897,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20501767</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063802</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -40937,6 +41017,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20034179</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20506800</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -42086,6 +42171,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063469</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20505624</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -42182,6 +42272,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20044040</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20063433</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -42436,11 +42531,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063469</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20000675</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -42477,11 +42567,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20030251</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20063433</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -43346,6 +43431,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20556891</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20031633</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -43851,6 +43941,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062707</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20056773</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -43877,6 +43972,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20556455</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061619</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -44096,11 +44196,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20563736</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20057468</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -44207,11 +44302,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20041912</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060592</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -44421,12 +44511,22 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062954</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20056505</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20053249</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20064455</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -44487,11 +44587,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20062165</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062544</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
