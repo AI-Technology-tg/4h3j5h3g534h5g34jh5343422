@@ -563,6 +563,18 @@
             }
         }
 
+        if (typeof global.fetchAnilistPosterByMalId === 'function') {
+            try {
+                const u = await global.fetchAnilistPosterByMalId(mal);
+                if (u && !isShikimoriPlaceholderPoster(u)) {
+                    writeMalPosterCache(mal, u);
+                    return u;
+                }
+            } catch (_) {
+                /* ignore */
+            }
+        }
+
         const searchTitles = reminkoCollectPosterSearchTitles(anime, mal);
         if (searchTitles.length && typeof global.getPosterFast === 'function') {
             for (const title of searchTitles) {
@@ -587,18 +599,6 @@
                 );
                 const u = shikimoriPosterUrlFromPath(sh?.image?.original);
                 if (u) {
-                    writeMalPosterCache(mal, u);
-                    return u;
-                }
-            } catch (_) {
-                /* ignore */
-            }
-        }
-
-        if (typeof global.fetchAnilistPosterByMalId === 'function') {
-            try {
-                const u = await global.fetchAnilistPosterByMalId(mal);
-                if (u && !isShikimoriPlaceholderPoster(u)) {
                     writeMalPosterCache(mal, u);
                     return u;
                 }

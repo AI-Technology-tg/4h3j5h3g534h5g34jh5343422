@@ -441,22 +441,117 @@
         return list.slice(0, KODIK_HOME_LIMIT);
     }
 
-    function pickAnnouncedMerged(all, mediaType) {
-        const kodikItems = pickAnnounced(all, mediaType);
-        const seenMal = new Set(
-            kodikItems.map((a) => parseInt(a.mal_id, 10)).filter((m) => Number.isFinite(m) && m > 0)
-        );
-        const shikiExtras = pickShikimoriAnnouncedExtras(all, mediaType, seenMal);
-        const merged = [...kodikItems, ...shikiExtras];
-        merged.sort((a, b) => {
+    function pickAnnouncedForHome(all, mediaType) {
+        const metaByMal = catalogByMalMap();
+        const byMal = new Map();
+        const now = Date.now();
+
+        if (
+            typeof global.reminkoMergedCalendarItems === 'function' &&
+            typeof global.reminkoSplitCalendarRows === 'function'
+        ) {
+            const merged = global.reminkoMergedCalendarItems();
+            const { announced: calRows } = global.reminkoSplitCalendarRows(merged, metaByMal);
+            for (const row of calRows) {
+                if (!calendarRowMatchesMedia(row, mediaType)) continue;
+                const t = Date.parse(row.next_at || row.nextAt);
+                if (!Number.isFinite(t) || t <= now) continue;
+                const mal = parseInt(row.mal_id, 10);
+                if (!Number.isFinite(mal) || mal <= 0) continue;
+
+                const catalogMeta = metaByMal.get(mal);
+                if (
+                    catalogMeta &&
+                    matchMedia(catalogMeta, mediaType) &&
+                    isKodikHomeAnnounced(catalogMeta)
+                ) {
+                    byMal.set(mal, {
+                        ...catalogMeta,
+                        _calendarRow: row,
+                        isCalendarAnnounced: true,
+                    });
+                } else {
+                    byMal.set(mal, virtualAnimeFromCalendarRow(row));
+                }
+            }
+        }
+
+        for (const a of all) {
+            if (!a || !matchMedia(a, mediaType) || !isKodikHomeAnnounced(a)) continue;
+            const mal = parseInt(a.mal_id, 10);
+            if (!Number.isFinite(mal) || mal <= 0) continue;
+            if (!byMal.has(mal)) {
+                byMal.set(mal, a);
+                continue;
+            }
+            const existing = byMal.get(mal);
+            if (!existing.posterUrl && a.posterUrl) {
+                byMal.set(mal, {
+                    ...existing,
+                    posterUrl: a.posterUrl,
+                    titleAlt: existing.titleAlt || a.titleAlt || '',
+                    _posterSearchTitles: a._posterSearchTitles || existing._posterSearchTitles,
+                });
+            }
+        }
+
+        const list = [...byMal.values()];
+        list.sort((a, b) => {
             const ac = mergedCalendarRowForMal(a.mal_id) || a._calendarRow || a._calendar;
             const bc = mergedCalendarRowForMal(b.mal_id) || b._calendarRow || b._calendar;
-            const at = ac && (ac.next_at || ac.nextAt) ? Date.parse(ac.next_at || ac.nextAt) || Infinity : Infinity;
-            const bt = bc && (bc.next_at || bc.nextAt) ? Date.parse(bc.next_at || bc.nextAt) || Infinity : Infinity;
+            const at =
+                ac && (ac.next_at || ac.nextAt) ? Date.parse(ac.next_at || ac.nextAt) || Infinity : Infinity;
+            const bt =
+                bc && (bc.next_at || bc.nextAt) ? Date.parse(bc.next_at || bc.nextAt) || Infinity : Infinity;
             if (at !== bt) return at - bt;
             return (b.rating || 0) - (a.rating || 0);
         });
-        return merged.slice(0, KODIK_HOME_LIMIT);
+        return list.slice(0, KODIK_HOME_LIMIT);
+    }
+
+    function pickAnnouncedMerged(all, mediaType) {
+        return pickAnnouncedForHome(all, mediaType);
+    }
+
+    async function hydrateAnnouncedPosterForCard(img, anime) {
+        if (!img || !anime) return;
+        const mal = parseInt(anime.mal_id, 10);
+        if (!Number.isFinite(mal) || mal <= 0) return;
+
+        const ctx = animeContextForKodikHomeCard(anime);
+        const syncUrl = resolveKodikHomePosterUrl(ctx);
+        if (syncUrl && isValidHomePosterUrl(syncUrl)) {
+            img.classList.remove('is-poster-missing');
+            img.src = syncUrl;
+            if (typeof global.writeMalPosterCache === 'function') {
+                global.writeMalPosterCache(mal, syncUrl);
+            }
+            return;
+        }
+
+        if (typeof global.fetchPosterUrlForMal === 'function') {
+            const url = await global.fetchPosterUrlForMal(mal, ctx);
+            if (url && img.isConnected) {
+                img.classList.remove('is-poster-missing');
+                img.src = url;
+                return;
+            }
+        }
+
+        if (img.isConnected && img.naturalWidth <= 1) {
+            img.classList.add('is-poster-missing');
+        }
+    }
+
+    function hydrateAnnouncedPostersForGrid(container, items) {
+        if (!container || !Array.isArray(items)) return;
+        for (const anime of items) {
+            const mal = parseInt(anime?.mal_id, 10);
+            if (!Number.isFinite(mal) || mal <= 0) continue;
+            const card = container.querySelector(`.kodik-home-card[data-mal-id="${mal}"]`);
+            const img = card?.querySelector('.jikan-card-poster img');
+            if (img) void hydrateAnnouncedPosterForCard(img, anime);
+        }
     }
 
     function resolveCardCountdownIso(anime, shiki) {
@@ -768,17 +863,7 @@
         const posterImg = card.querySelector('.jikan-card-poster img');
         if (posterImg) {
             posterImg.alt = title;
-            if (
-                !imgUrl &&
-                anime.mal_id != null &&
-                typeof global.attachJikanPosterFallback === 'function'
-            ) {
-                global.attachJikanPosterFallback(
-                    posterImg,
-                    anime.mal_id,
-                    animeContextForKodikHomeCard(anime)
-                );
-            }
+            void hydrateAnnouncedPosterForCard(posterImg, anime);
         }
 
         const go = () => navigateKodikCard(anime);
@@ -838,28 +923,8 @@
             container.appendChild(createKodikHomeCard(anime));
         }
 
-        void hydrateKodikHomePosters(container, items);
+        void hydrateAnnouncedPostersForGrid(container, items);
         applyShikimoriToKodikHomeStrip(container, items);
-
-        if (typeof global.prefetchPosterUrlsForMals === 'function') {
-            void global.prefetchPosterUrlsForMals(items, { concurrency: 4, delayMs: 280 }).then(() => {
-                for (const anime of items) {
-                    const mal = parseInt(anime?.mal_id, 10);
-                    if (!Number.isFinite(mal) || mal <= 0) continue;
-                    const url =
-                        typeof global.readMalPosterCache === 'function'
-                            ? global.readMalPosterCache(mal)
-                            : '';
-                    if (!url) continue;
-                    const card = container.querySelector(`.kodik-home-card[data-mal-id="${mal}"]`);
-                    const img = card?.querySelector('.jikan-card-poster img');
-                    if (img && img.src !== url) {
-                        img.classList.remove('is-poster-missing');
-                        img.src = url;
-                    }
-                }
-            });
-        }
 
         if (typeof global.reminkoStartLiveCountdown === 'function') {
             container.querySelectorAll('.jikan-card-countdown[data-countdown-iso]').forEach((el) => {
@@ -922,17 +987,10 @@
             }
         }
 
-        const items = pickAnnouncedMerged(_catalog, m);
+        await loadCalendarMalIds();
+        const items = pickAnnouncedForHome(_catalog, m);
         if (items.length) {
             renderSectionGrid('kodikAnnouncedGrid', items);
-            if (typeof global.appendAnnouncedHomeSection === 'function') {
-                const exclude = new Set(
-                    items
-                        .map((anime) => (anime && anime.mal_id != null ? String(anime.mal_id) : ''))
-                        .filter(Boolean)
-                );
-                void global.appendAnnouncedHomeSection(m, exclude);
-            }
             return;
         }
 
@@ -1033,7 +1091,7 @@
             return;
         }
         if (e?.detail?.preservedMain) {
-            refreshKodikHomeSections(true);
+            refreshKodikHomeSections(false);
             return;
         }
         refreshKodikHomeSections(false);
