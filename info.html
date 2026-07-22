@@ -438,8 +438,9 @@
                             <div id="giveawayStatsBlock" class="gw-stats" hidden>
                                 <div class="gw-stats__head">
                                     <h3 class="gw-stats__title">Персональная реферальная ссылка</h3>
-                                    <p class="gw-stats__sub">Разместите её в описании ролика на выбранной платформе.</p>
+                                    <p class="gw-stats__sub">Разместите её в описании ролика. Ссылка закреплена до конца розыгрыша.</p>
                                 </div>
+                                <p id="giveawaySocialSummary" class="gw-card__text" style="margin:0 0 0.75rem;"></p>
                                 <div class="gw-stats__link">
                                     <input type="text" id="giveawayShareUrl" readonly aria-label="Реферальная ссылка">
                                     <button type="button" class="gw-btn gw-btn--ghost" id="giveawayCopyBtn">Копировать</button>
@@ -454,6 +455,24 @@
                                         <span class="gw-metric__label">Регистрации</span>
                                         <strong class="gw-metric__val" id="giveawayStatRegs">0</strong>
                                     </div>
+                                </div>
+
+                                <div id="giveawayAddSocialBlock" class="gw-prereg" hidden style="margin-top:1rem;">
+                                    <p class="gw-card__text" style="margin:0 0 0.75rem;">Можно добавить вторую соцсеть — реф-ссылка останется прежней.</p>
+                                    <label class="gw-field is-active" id="giveawayAddSocialFieldWrap">
+                                        <span class="gw-field__label" id="giveawayAddSocialLabel">Соцсеть</span>
+                                        <span class="gw-field__input">
+                                            <span class="gw-field__at">@</span>
+                                            <input type="text" id="giveawayAddSocialInput" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
+                                        </span>
+                                    </label>
+                                    <div class="gw-join-form-actions" style="margin-top:0.75rem;">
+                                        <button type="button" class="gw-btn gw-btn--primary gw-btn--full" id="giveawayAddSocialBtn">
+                                            <span class="gw-btn__glow" aria-hidden="true"></span>
+                                            <span>Добавить соцсеть</span>
+                                        </button>
+                                    </div>
+                                    <p id="giveawayAddSocialMsg" class="gw-form-msg" aria-live="polite"></p>
                                 </div>
                             </div>
                         </div>
@@ -508,9 +527,9 @@
     <script src="scripts/register.js"></script>
     <script src="scripts/main.js"></script>
     <script src="scripts/loading.js"></script>
-    <script src="scripts/giveaway.js?v=20260718b"></script>
+    <script src="scripts/giveaway.js?v=20260722b"></script>
     <script src="scripts/info-page.js"></script>
-    <script src="scripts/giveaway-info.js?v=20260718b"></script>
-    <script src="scripts/apply-navigation.js?v=20260718b"></script>
+    <script src="scripts/giveaway-info.js?v=20260722b"></script>
+    <script src="scripts/apply-navigation.js?v=20260722a"></script>
 </body>
 </html>

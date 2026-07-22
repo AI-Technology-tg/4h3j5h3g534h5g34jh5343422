@@ -6,6 +6,8 @@
     var GIVEAWAY_END_ISO = '2026-07-31T21:59:59.000Z';
     var GIVEAWAY_TG_URL = 'https://telegram.me/re_minko';
     var GIVEAWAY_TZ = 'Europe/Kyiv';
+    /** @type {{ is_participant?: boolean, can_add_social?: boolean, platform?: string, tiktok_handle?: string, instagram_handle?: string } | null} */
+    var _participantState = null;
 
     function $(id) {
         return document.getElementById(id);
@@ -83,15 +85,20 @@
         }
 
         if (joinBtn) {
-            joinBtn.disabled = false;
-            joinBtn.setAttribute('aria-disabled', active ? 'false' : 'true');
-            joinBtn.hidden = false;
-            joinBtn.classList.toggle('is-phase-waiting', !started && !ended);
-            joinBtn.classList.toggle('is-phase-ended', ended);
-            joinBtn.classList.toggle('is-phase-active', active);
-            if (ended) joinBtn.title = 'Конкурс завершён';
-            else if (!started) joinBtn.title = 'Участие откроется 18 июля 2026';
-            else joinBtn.title = '';
+            // Кнопка «Участвую» только до первого участия
+            if (_participantState && _participantState.is_participant) {
+                joinBtn.hidden = true;
+            } else {
+                joinBtn.disabled = false;
+                joinBtn.setAttribute('aria-disabled', active ? 'false' : 'true');
+                joinBtn.hidden = false;
+                joinBtn.classList.toggle('is-phase-waiting', !started && !ended);
+                joinBtn.classList.toggle('is-phase-ended', ended);
+                joinBtn.classList.toggle('is-phase-active', active);
+                if (ended) joinBtn.title = 'Конкурс завершён';
+                else if (!started) joinBtn.title = 'Участие откроется 18 июля 2026';
+                else joinBtn.title = '';
+            }
         }
 
         if (!active) {
@@ -273,7 +280,10 @@
         var btn = $('giveawayJoinBtn');
         var form = $('giveawayJoinForm');
         var block = $('giveawayJoinBlock');
-        if (btn && isGiveawayActive()) btn.hidden = false;
+        // Не возвращаем «Участвую», если пользователь уже участник
+        if (btn && isGiveawayActive() && !(_participantState && _participantState.is_participant)) {
+            btn.hidden = false;
+        }
         if (form) form.hidden = true;
         if (block) block.classList.remove('is-form-open');
     }
@@ -288,6 +298,67 @@
         }
     }
 
+    function formatSocialSummary(row) {
+        var bits = [];
+        if (row.tiktok_handle) bits.push('TikTok @' + row.tiktok_handle);
+        if (row.instagram_handle) bits.push('Instagram @' + row.instagram_handle);
+        if (!bits.length) return 'Соцсети ещё не указаны.';
+        return 'Указано: ' + bits.join(' · ');
+    }
+
+    function renderParticipantPanel(row) {
+        var joinBlock = $('giveawayJoinBlock');
+        var statsBlock = $('giveawayStatsBlock');
+        var addBlock = $('giveawayAddSocialBlock');
+        var summary = $('giveawaySocialSummary');
+
+        _participantState = row || null;
+
+        if (joinBlock) joinBlock.hidden = true;
+        if (statsBlock) statsBlock.hidden = false;
+        hideJoinForm();
+
+        var url =
+            typeof window.reminkoGiveawayBuildShareUrl === 'function'
+                ? window.reminkoGiveawayBuildShareUrl(row.share_path || (row.ref_code ? '/r/' + row.ref_code : ''))
+                : window.location.origin + (row.share_path || (row.ref_code ? '/r/' + row.ref_code : ''));
+        var linkInput = $('giveawayShareUrl');
+        if (linkInput) linkInput.value = url || '';
+
+        var clicksEl = $('giveawayStatClicks');
+        var regsEl = $('giveawayStatRegs');
+        if (clicksEl) clicksEl.textContent = String(row.unique_clicks != null ? row.unique_clicks : 0);
+        if (regsEl) regsEl.textContent = String(row.registrations != null ? row.registrations : 0);
+        if (summary) summary.textContent = formatSocialSummary(row);
+
+        var canAdd = !!row.can_add_social && isGiveawayActive();
+        if (addBlock) {
+            addBlock.hidden = !canAdd;
+            if (canAdd) {
+                var needIg = !row.instagram_handle;
+                var label = $('giveawayAddSocialLabel');
+                var input = $('giveawayAddSocialInput');
+                if (label) label.textContent = needIg ? 'Instagram' : 'TikTok';
+                if (input) {
+                    input.value = '';
+                    input.placeholder = 'username';
+                    input.dataset.addPlatform = needIg ? 'instagram' : 'tiktok';
+                }
+            }
+        }
+    }
+
+    function renderGuestOrJoinPanel() {
+        var joinBlock = $('giveawayJoinBlock');
+        var statsBlock = $('giveawayStatsBlock');
+        var addBlock = $('giveawayAddSocialBlock');
+        _participantState = { is_participant: false };
+        if (joinBlock) joinBlock.hidden = false;
+        if (statsBlock) statsBlock.hidden = true;
+        if (addBlock) addBlock.hidden = true;
+        hideJoinForm();
+    }
+
     async function loadGiveawayPanel() {
         var joinBlock = $('giveawayJoinBlock');
         var statsBlock = $('giveawayStatsBlock');
@@ -298,50 +369,73 @@
         if (loginHint) loginHint.hidden = logged;
 
         if (!logged) {
-            joinBlock.hidden = false;
-            if (statsBlock) statsBlock.hidden = true;
-            hideJoinForm();
+            renderGuestOrJoinPanel();
             applyGiveawayPhaseUi();
             return;
         }
 
-        if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
+        if (typeof supabaseClient === 'undefined' || !supabaseClient) {
+            renderGuestOrJoinPanel();
+            applyGiveawayPhaseUi();
+            return;
+        }
 
         try {
             var res = await supabaseClient.rpc('giveaway_my_status');
             var row = Array.isArray(res.data) ? res.data[0] : res.data;
-            if (res.error || !row) {
-                joinBlock.hidden = false;
-                if (statsBlock) statsBlock.hidden = true;
-                return;
-            }
-
-            if (row.is_participant) {
-                joinBlock.hidden = true;
-                if (statsBlock) statsBlock.hidden = false;
-                hideJoinForm();
-                var url =
-                    typeof window.reminkoGiveawayBuildShareUrl === 'function'
-                        ? window.reminkoGiveawayBuildShareUrl(row.share_path)
-                        : window.location.origin + (row.share_path || '');
-                var linkInput = $('giveawayShareUrl');
-                if (linkInput) linkInput.value = url;
-                var clicksEl = $('giveawayStatClicks');
-                var regsEl = $('giveawayStatRegs');
-                if (clicksEl) clicksEl.textContent = String(row.unique_clicks != null ? row.unique_clicks : 0);
-                if (regsEl) regsEl.textContent = String(row.registrations != null ? row.registrations : 0);
+            if (res.error) {
+                console.warn('[giveaway] my_status', res.error);
+                // Не сбрасываем уже показанную реф-ссылку при временной ошибке
+                if (!(_participantState && _participantState.is_participant)) {
+                    renderGuestOrJoinPanel();
+                }
+            } else if (row && row.is_participant) {
+                renderParticipantPanel(row);
             } else {
-                joinBlock.hidden = false;
-                if (statsBlock) statsBlock.hidden = true;
-                hideJoinForm();
+                renderGuestOrJoinPanel();
             }
-        } catch (_) {
-            joinBlock.hidden = false;
-            if (statsBlock) statsBlock.hidden = true;
-            hideJoinForm();
+        } catch (e) {
+            console.warn('[giveaway] load panel', e);
+            if (!(_participantState && _participantState.is_participant)) {
+                renderGuestOrJoinPanel();
+            }
         }
 
         applyGiveawayPhaseUi();
+    }
+
+    async function onAddSocialClick() {
+        var btn = $('giveawayAddSocialBtn');
+        var msg = $('giveawayAddSocialMsg');
+        var input = $('giveawayAddSocialInput');
+        if (!_participantState || !_participantState.is_participant) return;
+        if (!isGiveawayActive()) {
+            showMsg(msg, 'Розыгрыш завершён — соцсеть добавить нельзя.', false);
+            return;
+        }
+        var platform = (input && input.dataset.addPlatform) || 'instagram';
+        var handle = (input && input.value) || '';
+        if (btn) btn.disabled = true;
+        showMsg(msg, 'Сохраняем…', true);
+        try {
+            var payload = {
+                p_platform: platform,
+                p_tiktok_handle: platform === 'tiktok' ? handle : null,
+                p_instagram_handle: platform === 'instagram' ? handle : null
+            };
+            var res = await supabaseClient.rpc('giveaway_add_social', payload);
+            if (res.error) throw res.error;
+            var row = Array.isArray(res.data) ? res.data[0] : res.data;
+            if (!row || row.success === false) {
+                throw new Error((row && row.message) || 'Не удалось сохранить');
+            }
+            showMsg(msg, row.message || 'Соцсеть добавлена', true);
+            await loadGiveawayPanel();
+        } catch (e) {
+            showMsg(msg, (e && e.message) || 'Ошибка сохранения', false);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
     }
 
     async function onJoinClick() {
@@ -398,6 +492,18 @@
             var row = Array.isArray(res.data) ? res.data[0] : res.data;
             if (!row || !row.ref_code) throw new Error('Не удалось получить ссылку');
             showMsg(msg, 'Вы участвуете! Скопируйте ссылку ниже.', true);
+            // Сразу помечаем участника, чтобы «Участвую» не всплыла до reload
+            _participantState = {
+                is_participant: true,
+                ref_code: row.ref_code,
+                share_path: row.share_path,
+                platform: row.platform,
+                tiktok_handle: row.tiktok_handle,
+                instagram_handle: row.instagram_handle,
+                can_add_social:
+                    row.platform !== 'both' &&
+                    (!row.tiktok_handle || !row.instagram_handle)
+            };
             hideJoinForm();
             await loadGiveawayPanel();
         } catch (e) {
@@ -461,6 +567,9 @@
         });
         $('giveawayJoinCancelBtn')?.addEventListener('click', onJoinCancel);
         $('giveawayCopyBtn')?.addEventListener('click', onCopyClick);
+        $('giveawayAddSocialBtn')?.addEventListener('click', function () {
+            void onAddSocialClick();
+        });
         $('giveawayOpenLoginBtn')?.addEventListener('click', function () {
             if (typeof openLoginModal === 'function') openLoginModal();
         });
@@ -485,7 +594,29 @@
             el.addEventListener('change', applyJoinPlatformFields);
         });
         applyJoinPlatformFields();
+
+        // После логина/логаута сразу обновляем реф-ссылку (без повторного «Участвую»)
+        try {
+            if (typeof supabaseClient !== 'undefined' && supabaseClient && supabaseClient.auth) {
+                supabaseClient.auth.onAuthStateChange(function () {
+                    void loadGiveawayPanel();
+                });
+            }
+        } catch (_) {
+            /* ignore */
+        }
+        window.addEventListener('reminko:auth-changed', function () {
+            void loadGiveawayPanel();
+        });
+
         void loadGiveawayPanel();
+        // Повтор после готовности сессии — если первый запрос был до auth
+        setTimeout(function () {
+            void loadGiveawayPanel();
+        }, 800);
+        setTimeout(function () {
+            void loadGiveawayPanel();
+        }, 2200);
     }
 
     window.reminkoGiveawayStartsAt = GIVEAWAY_START_ISO;
