@@ -278,27 +278,69 @@ async function fetchJikanResearch(userText) {
 }
 
 async function fetchDuckDuckGoSnippet(query) {
-    const q = encodeURIComponent(String(query).trim().slice(0, 240));
-    if (!q || q.length < 2) return '';
-    const url = `https://api.duckduckgo.com/?q=${q}&format=json&no_html=1&skip_disambig=1`;
-    const ac = new AbortController();
-    const tid = setTimeout(() => ac.abort(), 5000);
-    try {
-        const r = await fetch(url, { signal: ac.signal });
-        const j = await r.json();
-        const chunks = [];
-        if (j.AbstractText) chunks.push(j.AbstractText);
-        const topics = Array.isArray(j.RelatedTopics) ? j.RelatedTopics : [];
-        for (const t of topics.slice(0, 6)) {
-            if (typeof t === 'string') chunks.push(t);
-            else if (t && t.Text) chunks.push(t.Text);
-        }
-        return chunks.join('\n').trim().slice(0, 2500);
-    } catch {
-        return '';
-    } finally {
-        clearTimeout(tid);
+    const base = String(query || '').trim().slice(0, 200);
+    if (base.length < 2) return '';
+    const variants = [base];
+    if (!/аниме|anime|manga|манга/i.test(base)) {
+        variants.push(base + ' аниме');
+        variants.push(base + ' anime');
     }
+    const chunks = [];
+    for (const v of variants.slice(0, 2)) {
+        const q = encodeURIComponent(v);
+        const url = `https://api.duckduckgo.com/?q=${q}&format=json&no_html=1&skip_disambig=1`;
+        const ac = new AbortController();
+        const tid = setTimeout(() => ac.abort(), 4500);
+        try {
+            const r = await fetch(url, { signal: ac.signal });
+            const j = await r.json();
+            if (j.AbstractText) chunks.push(j.AbstractText);
+            if (j.Heading && j.AbstractURL) chunks.push(`${j.Heading}: ${j.AbstractURL}`);
+            const topics = Array.isArray(j.RelatedTopics) ? j.RelatedTopics : [];
+            for (const t of topics.slice(0, 5)) {
+                if (typeof t === 'string') chunks.push(t);
+                else if (t && t.Text) chunks.push(t.Text);
+            }
+        } catch {
+            /* ignore */
+        } finally {
+            clearTimeout(tid);
+        }
+        if (chunks.join('\n').length > 800) break;
+    }
+    return chunks.join('\n').trim().slice(0, 2800);
+}
+
+async function fetchWikipediaSnippet(query) {
+    const base = String(query || '')
+        .trim()
+        .replace(/^(расскажи|найди|открой|что|как)\s+/i, '')
+        .slice(0, 120);
+    if (base.length < 2) return '';
+    const titles = [base, `${base} (аниме)`, `${base} (anime)`];
+    for (const title of titles) {
+        const ac = new AbortController();
+        const tid = setTimeout(() => ac.abort(), 4000);
+        try {
+            const url =
+                'https://ru.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title);
+            const r = await fetch(url, {
+                signal: ac.signal,
+                headers: { Accept: 'application/json', 'Api-User-Agent': 'ReMinkoMinkoAI/1.0' }
+            });
+            if (!r.ok) continue;
+            const j = await r.json();
+            if (j.type === 'disambiguation') continue;
+            const extract = String(j.extract || '').trim();
+            if (extract.length < 40) continue;
+            return `${j.title || title}: ${extract}`.slice(0, 2200);
+        } catch {
+            /* try next */
+        } finally {
+            clearTimeout(tid);
+        }
+    }
+    return '';
 }
 
 async function fetchResearchBundle(userText, clientResearch) {
@@ -315,13 +357,19 @@ async function fetchResearchBundle(userText, clientResearch) {
             /* ignore */
         }
         try {
+            const wiki = await fetchWikipediaSnippet(userText);
+            if (wiki) parts.push('=== Wikipedia ===\n' + wiki);
+        } catch (_) {
+            /* ignore */
+        }
+        try {
             const ddg = await fetchDuckDuckGoSnippet(userText);
-            if (ddg) parts.push('=== DuckDuckGo ===\n' + ddg);
+            if (ddg) parts.push('=== DuckDuckGo / web ===\n' + ddg);
         } catch (_) {
             /* ignore */
         }
     }
-    return parts.join('\n\n').slice(0, 9000);
+    return parts.join('\n\n').slice(0, 9500);
 }
 
 const SITE_PUBLIC_KNOWLEDGE = `=== САЙТ Re-Minko (для обычных пользователей) ===
@@ -355,8 +403,9 @@ const SITE_PUBLIC_KNOWLEDGE = `=== САЙТ Re-Minko (для обычных по
 • Не обещай победу и не меняй суммы/даты от себя.
 
 ССЫЛКИ НА ПРОСМОТР:
-• Если пользователь просит найти / открыть / смотреть аниме и в ПРОВЕРЕННЫХ ДАННЫХ есть id каталога Re-Minko — в ответе добавь маркер ровно в формате [[watch:ID|Название]] (ID — числовой id с сайта). Можно несколько маркеров. Клиент покажет кнопку перехода.
-• Не выдумывай id. Если тайтла нет в сводке каталога — скажи честно и дай ссылку на /catalog/anime.html.
+• Если пользователь просит найти / открыть / смотреть аниме и в ПРОВЕРЕННЫХ ДАННЫХ есть строка «Аниме в каталоге Re-Minko» с id=… — в ответе добавь маркер ровно [[watch:ID|Название]] только с этими id. Можно несколько маркеров. Клиент покажет кнопку.
+• ЗАПРЕЩЕНО выдумывать id, URL /anime/view.html?id=… и любые «похожие» ссылки. Если id нет в сводке — честно скажи и дай только /catalog/anime.html (поиск на сайте).
+• MAL id ≠ id каталога Re-Minko. Не подставляй mal_id в [[watch:]].
 
 КОНФИДЕНЦИАЛЬНОСТЬ (строго — для обычных пользователей):
 • Рассказывай ТОЛЬКО то, что нужно обычному посетителю: публичные разделы, как смотреть, аккаунт, розыгрыш, поддержка, правила сайта.
@@ -386,9 +435,11 @@ function buildSystemPrompt(userGender, isVip, researchBlock) {
 - Пересказ серии / сюжет / «что произошло» — развёрнуто, по пунктам, со спойлер-меткой если нужно.
 - Новости и премьеры — конкретные названия, без воды.
 - Не уходи от темы общими фразами. Не отвечай «на отъебись».
-- Опирайся на блок ПРОВЕРЕННЫЕ ДАННЫЕ ниже в первую очередь.
+- Опирайся на блок ПРОВЕРЕННЫЕ ДАННЫЕ (Jikan/MAL, Wikipedia, DuckDuckGo, каталог) в первую очередь — это живой поиск, не выдумывай факты против него.
+- Если в данных есть факты — отвечай уверенно по ним. Если данных мало — скажи что не нашла в сводке и дай общий контекст без фейковых ссылок.
 - Русский язык, обращение на «ты».
 - Давай только допустимую для обычных пользователей информацию; чужое и служебное не разглашай.
+- В каждом ответе держи сонность: короткие *ремарки*, иногда шутка про сон/кофе/подушку — но ПОСЛЕ полезного ответа, не вместо него.
 
 ${g}
 

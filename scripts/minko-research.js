@@ -5,7 +5,7 @@
     'use strict';
 
     const ANIME_TOPIC =
-        /аниме|манга|тайтл|сери|эпизод|сезон|новост|премьер|выход|студи|жанр|персонаж|сюжет|mal|myanimelist|рекоменд|похож|онгоинг|анонс|пересказ|что\s+произошло|смотреть|каталог/i;
+        /аниме|манга|тайтл|сери|эпизод|сезон|новост|премьер|выход|студи|жанр|персонаж|сюжет|mal|myanimelist|рекоменд|похож|онгоинг|анонс|пересказ|что\s+произошло|смотреть|каталог|озвуч|студи|рейтинг|спойлер|арк|сэйю|сейю|шикимори|shiki|kodik/i;
 
     function extractEpisodeHint(msg) {
         const m = String(msg || '').match(/(?:^|\s)(\d{1,3})\s*(?:-?\s*)?(?:серия|серии|серию|эпизод|эп\.?|episode)/i);
@@ -37,7 +37,7 @@
         const en = text.match(/\b([A-Z][a-zA-Z0-9':\-\s]{2,60})\b/g);
         if (en) en.forEach((e) => out.push(e.trim()));
         const cleaned = text
-            .replace(/^(расскажи|объясни|опиши|что|как|какая|какой|скажи|подскажи)\s+/gi, '')
+            .replace(/^(расскажи|объясни|опиши|что|как|какая|какой|скажи|подскажи|найди|открой)\s+/gi, '')
             .replace(/\?.*$/, '')
             .trim();
         if (cleaned.length >= 4 && cleaned.length <= 90) out.push(cleaned);
@@ -51,7 +51,7 @@
             seen.add(k);
             uniq.push(t);
         }
-        return uniq.slice(0, 3);
+        return uniq.slice(0, 4);
     }
 
     function stripHtml(s) {
@@ -59,6 +59,54 @@
             .replace(/<[^>]+>/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
+    }
+
+    function normalizeTitle(s) {
+        return String(s || '')
+            .toLowerCase()
+            .replace(/ё/g, 'е')
+            .replace(/[^a-z0-9а-я\s]/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function titleTokens(s) {
+        return normalizeTitle(s)
+            .split(' ')
+            .filter((t) => t.length > 1 && !/^(the|a|an|и|в|на|о|об|про|сери|аниме)$/i.test(t));
+    }
+
+    function itemMalId(item) {
+        if (!item) return null;
+        const raw =
+            item.mal_id != null
+                ? item.mal_id
+                : item._jikanRaw && item._jikanRaw.mal_id != null
+                  ? item._jikanRaw.mal_id
+                  : null;
+        const n = raw != null ? Number(raw) : NaN;
+        if (Number.isFinite(n) && n > 0) return n;
+        const id = Number(item.id);
+        if (Number.isFinite(id) && id >= 10000000) return id - 10000000;
+        return null;
+    }
+
+    function itemTitleFields(item) {
+        const fields = [
+            item.title,
+            item.titleAlt,
+            item.title_english,
+            item.title_ru,
+            item.titleRu,
+            item.name
+        ];
+        if (item._jikanRaw) {
+            fields.push(item._jikanRaw.title, item._jikanRaw.title_english, item._jikanRaw.title_japanese);
+            if (Array.isArray(item._jikanRaw.titles)) {
+                item._jikanRaw.titles.forEach((t) => fields.push(t && t.title));
+            }
+        }
+        return fields.filter(Boolean).map((x) => String(x));
     }
 
     function formatJikanAnime(a, episodeHint) {
@@ -108,15 +156,58 @@
         }
     }
 
+    function _tokenOverlapScore(qNorm, titleNorm) {
+        const qt = titleTokens(qNorm);
+        const tt = titleTokens(titleNorm);
+        if (!qt.length || !tt.length) return 0;
+        const tset = new Set(tt);
+        let hit = 0;
+        for (const t of qt) {
+            if (tset.has(t)) {
+                hit += 1;
+                continue;
+            }
+            if ([...tset].some((x) => x.includes(t) || t.includes(x))) hit += 0.65;
+        }
+        return (hit / qt.length) * 55;
+    }
+
     function _scoreCatalogHit(item, q) {
-        const t = String(item.title || '').toLowerCase();
-        const alt = String(item.titleAlt || item.title_english || '').toLowerCase();
-        if (!t && !alt) return 0;
-        if (t === q || alt === q) return 100;
-        if (t.startsWith(q) || alt.startsWith(q)) return 80;
-        if (t.includes(q) || alt.includes(q)) return 60;
-        if (q.length >= 5 && (q.includes(t) || (alt && q.includes(alt)))) return 40;
-        return 0;
+        const qn = normalizeTitle(q);
+        if (!qn || qn.length < 2) return 0;
+        let best = 0;
+        for (const field of itemTitleFields(item)) {
+            const tn = normalizeTitle(field);
+            if (!tn) continue;
+            if (tn === qn) best = Math.max(best, 100);
+            else if (tn.startsWith(qn) || qn.startsWith(tn)) best = Math.max(best, 88);
+            else if (tn.includes(qn) || qn.includes(tn)) best = Math.max(best, 72);
+            else best = Math.max(best, _tokenOverlapScore(qn, tn));
+        }
+        return best >= 28 ? best : 0;
+    }
+
+    function _hitFromItem(item, score) {
+        return {
+            score,
+            id: item.id,
+            mal_id: itemMalId(item),
+            title: item.title || item.titleAlt || 'Аниме',
+            year: item.year || null,
+            poster: item.poster || item.image || '',
+            href: `anime/view.html?id=${encodeURIComponent(String(item.id))}`
+        };
+    }
+
+    function minkoFindCatalogByMalId(animeList, malId) {
+        const mid = Number(malId);
+        if (!Number.isFinite(mid) || mid <= 0 || !Array.isArray(animeList)) return null;
+        for (const item of animeList) {
+            if (!item || item.id == null) continue;
+            if (itemMalId(item) === mid) return item;
+            if (Number(item.id) === 10000000 + mid) return item;
+        }
+        return null;
     }
 
     /** Поиск аниме в каталоге сайта для кнопок перехода в чате. */
@@ -142,14 +233,7 @@
                 const id = String(item.id);
                 const prev = scored.get(id);
                 if (!prev || score > prev.score) {
-                    scored.set(id, {
-                        score,
-                        id: item.id,
-                        title: item.title || 'Аниме',
-                        year: item.year || null,
-                        poster: item.poster || item.image || '',
-                        href: `anime/view.html?id=${encodeURIComponent(String(item.id))}`
-                    });
+                    scored.set(id, _hitFromItem(item, score));
                 }
             }
         }
@@ -158,15 +242,18 @@
             .slice(0, max);
     }
 
-    function findCatalogMatches(msg, animeList, mangaList) {
+    function findCatalogMatches(msg, animeList, mangaList, forcedHits) {
         const parts = [];
-        const animeHits = minkoFindCatalogAnimeHits(msg, animeList, 4);
+        const animeHits =
+            Array.isArray(forcedHits) && forcedHits.length
+                ? forcedHits
+                : minkoFindCatalogAnimeHits(msg, animeList, 4);
         if (animeHits.length) {
             parts.push(
-                'Аниме в каталоге Re-Minko (для кнопок смотреть используй [[watch:ID|Название]]):\n' +
+                'Аниме в каталоге Re-Minko (для кнопок смотреть используй ТОЛЬКО эти id в [[watch:ID|Название]]):\n' +
                     animeHits
                         .map((h) => {
-                            return `- id=${h.id} «${h.title}»${h.year ? ` (${h.year})` : ''} → /${h.href}`;
+                            return `- id=${h.id}${h.mal_id ? ` mal=${h.mal_id}` : ''} «${h.title}»${h.year ? ` (${h.year})` : ''} → /${h.href}`;
                         })
                         .join('\n')
             );
@@ -201,11 +288,11 @@
 
     async function minkoBuildResearchContext(userMessage) {
         const msg = String(userMessage || '').trim();
-        if (msg.length < 3) return '';
+        if (msg.length < 2) return '';
         const wantsResearch =
             ANIME_TOPIC.test(msg) ||
-            msg.length >= 12 ||
-            /новост|что\s+нового|расскаж|объясн|опиш|пересказ|рекоменд|похож/i.test(msg);
+            msg.length >= 8 ||
+            /новост|что\s+нового|расскаж|объясн|опиш|пересказ|рекоменд|похож|найди|открой|смотр/i.test(msg);
         if (!wantsResearch) return '';
 
         const parts = [];
@@ -215,6 +302,7 @@
             titles = [msg.replace(/\?.*$/, '').slice(0, 80)];
         }
 
+        const jikanMalIds = [];
         for (const title of titles.slice(0, 2)) {
             try {
                 let anime = null;
@@ -226,6 +314,7 @@
                     if (full) anime = full;
                 }
                 if (anime) {
+                    if (anime.mal_id) jikanMalIds.push(Number(anime.mal_id));
                     parts.push('--- Jikan / MyAnimeList ---\n' + formatJikanAnime(anime, episodeHint));
                     if (episodeHint && anime.mal_id) {
                         const epLine = await fetchEpisodeSynopsis(anime.mal_id, episodeHint);
@@ -269,8 +358,22 @@
             if (typeof global.getAllAnime === 'function' || typeof global.getAllManga === 'function') {
                 const animeList = typeof global.getAllAnime === 'function' ? global.getAllAnime() : [];
                 const mangaList = typeof global.getAllManga === 'function' ? global.getAllManga() : [];
-                lastAnimeHits = minkoFindCatalogAnimeHits(msg, animeList, 4);
-                parts.push(...findCatalogMatches(msg, animeList, mangaList));
+                const byText = minkoFindCatalogAnimeHits(msg, animeList, 4);
+                const byMal = [];
+                for (const mid of jikanMalIds) {
+                    const item = minkoFindCatalogByMalId(animeList, mid);
+                    if (item) byMal.push(_hitFromItem(item, 110));
+                }
+                const merged = new Map();
+                [...byMal, ...byText].forEach((h) => {
+                    const id = String(h.id);
+                    const prev = merged.get(id);
+                    if (!prev || h.score > prev.score) merged.set(id, h);
+                });
+                lastAnimeHits = Array.from(merged.values())
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 4);
+                parts.push(...findCatalogMatches(msg, animeList, mangaList, lastAnimeHits));
             }
         } catch (_) {
             /* ignore */
@@ -287,4 +390,5 @@
 
     global.minkoBuildResearchContext = minkoBuildResearchContext;
     global.minkoFindCatalogAnimeHits = minkoFindCatalogAnimeHits;
+    global.minkoFindCatalogByMalId = minkoFindCatalogByMalId;
 })(typeof window !== 'undefined' ? window : globalThis);
