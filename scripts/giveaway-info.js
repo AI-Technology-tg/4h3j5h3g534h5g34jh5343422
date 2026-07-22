@@ -6,9 +6,10 @@
     var GIVEAWAY_END_ISO = '2026-07-31T21:59:59.000Z';
     var GIVEAWAY_TG_URL = 'https://telegram.me/re_minko';
     var GIVEAWAY_TZ = 'Europe/Kyiv';
-    /** @type {{ is_participant?: boolean, can_add_social?: boolean, platform?: string, tiktok_handle?: string, instagram_handle?: string } | null} */
+    /** @type {{ is_participant?: boolean, can_add_social?: boolean, can_edit_profile?: boolean, platform?: string, tiktok_handle?: string, instagram_handle?: string } | null} */
     var _participantState = null;
     var _loadPanelGen = 0;
+    var _editFormOpen = false;
 
     function $(id) {
         return document.getElementById(id);
@@ -248,11 +249,15 @@
         return checked ? checked.value : 'tiktok';
     }
 
-    function applyJoinPlatformFields() {
-        var platform = getSelectedJoinPlatform();
-        var tiktokWrap = $('giveawayJoinTiktokWrap');
-        var instagramWrap = $('giveawayJoinInstagramWrap');
-        var fields = $('giveawayJoinFields');
+    function getSelectedEditPlatform() {
+        var checked = document.querySelector('input[name="giveawayEditPlatform"]:checked');
+        return checked ? checked.value : 'tiktok';
+    }
+
+    function applyPlatformFields(prefix, platform) {
+        var tiktokWrap = $(prefix + 'TiktokWrap');
+        var instagramWrap = $(prefix + 'InstagramWrap');
+        var fields = $(prefix + 'Fields');
         if (!fields) return;
 
         fields.setAttribute('data-mode', platform === 'both' ? 'both' : 'single');
@@ -263,6 +268,56 @@
         if (instagramWrap) {
             instagramWrap.classList.toggle('is-active', platform === 'instagram' || platform === 'both');
         }
+    }
+
+    function applyJoinPlatformFields() {
+        applyPlatformFields('giveawayJoin', getSelectedJoinPlatform());
+    }
+
+    function applyEditPlatformFields() {
+        applyPlatformFields('giveawayEdit', getSelectedEditPlatform());
+    }
+
+    function setEditPlatformRadio(platform) {
+        var value = platform === 'instagram' || platform === 'both' ? platform : 'tiktok';
+        document.querySelectorAll('input[name="giveawayEditPlatform"]').forEach(function (el) {
+            el.checked = el.value === value;
+        });
+        applyEditPlatformFields();
+    }
+
+    function fillEditFormFromState(row) {
+        var state = row || _participantState || {};
+        setEditPlatformRadio(state.platform || 'tiktok');
+        var tt = $('giveawayEditTiktok');
+        var ig = $('giveawayEditInstagram');
+        if (tt) tt.value = state.tiktok_handle || '';
+        if (ig) ig.value = state.instagram_handle || '';
+        showMsg($('giveawayEditMsg'), '', true);
+    }
+
+    function showEditForm() {
+        if (!_participantState || !_participantState.is_participant) return;
+        if (!isGiveawayActive() && !_participantState.can_edit_profile) return;
+        var block = $('giveawayEditProfileBlock');
+        var btn = $('giveawayEditProfileBtn');
+        var addBlock = $('giveawayAddSocialBlock');
+        fillEditFormFromState(_participantState);
+        _editFormOpen = true;
+        if (block) block.hidden = false;
+        if (btn) btn.hidden = true;
+        if (addBlock) addBlock.hidden = true;
+    }
+
+    function hideEditForm() {
+        var block = $('giveawayEditProfileBlock');
+        var btn = $('giveawayEditProfileBtn');
+        _editFormOpen = false;
+        if (block) block.hidden = true;
+        if (btn && _participantState && _participantState.can_edit_profile && isGiveawayActive()) {
+            btn.hidden = false;
+        }
+        showMsg($('giveawayEditMsg'), '', true);
     }
 
     function showJoinForm() {
@@ -311,13 +366,15 @@
         var joinBlock = $('giveawayJoinBlock');
         var statsBlock = $('giveawayStatsBlock');
         var addBlock = $('giveawayAddSocialBlock');
+        var editBlock = $('giveawayEditProfileBlock');
+        var editBtn = $('giveawayEditProfileBtn');
         var summary = $('giveawaySocialSummary');
         var joinForm = $('giveawayJoinForm');
         var joinBtn = $('giveawayJoinBtn');
 
         _participantState = Object.assign({ is_participant: true }, row || {});
 
-        // Только реф-ссылка (и опционально «добавить 2-ю соцсеть»). Форма участия — скрыта.
+        // Только реф-ссылка + правка данных. Форма первого участия — скрыта.
         if (joinBlock) {
             joinBlock.hidden = true;
             joinBlock.classList.remove('is-form-open');
@@ -339,7 +396,21 @@
         if (regsEl) regsEl.textContent = String(row.registrations != null ? row.registrations : 0);
         if (summary) summary.textContent = formatSocialSummary(row);
 
-        var canAdd = !!row.can_add_social && isGiveawayActive();
+        var canEdit = !!row.can_edit_profile && isGiveawayActive();
+        if (editBtn) editBtn.hidden = !canEdit || _editFormOpen;
+        if (editBlock) {
+            if (!canEdit) {
+                editBlock.hidden = true;
+                _editFormOpen = false;
+            } else if (_editFormOpen) {
+                editBlock.hidden = false;
+                fillEditFormFromState(row);
+            } else {
+                editBlock.hidden = true;
+            }
+        }
+
+        var canAdd = !!row.can_add_social && isGiveawayActive() && !_editFormOpen;
         if (addBlock) {
             addBlock.hidden = !canAdd;
             if (canAdd) {
@@ -360,12 +431,17 @@
         var joinBlock = $('giveawayJoinBlock');
         var statsBlock = $('giveawayStatsBlock');
         var addBlock = $('giveawayAddSocialBlock');
+        var editBlock = $('giveawayEditProfileBlock');
+        var editBtn = $('giveawayEditProfileBtn');
         // Не откатываем UI, если уже показали участника (гонка auth/load)
         if (_participantState && _participantState.is_participant) return;
         _participantState = { is_participant: false };
+        _editFormOpen = false;
         if (joinBlock) joinBlock.hidden = false;
         if (statsBlock) statsBlock.hidden = true;
         if (addBlock) addBlock.hidden = true;
+        if (editBlock) editBlock.hidden = true;
+        if (editBtn) editBtn.hidden = true;
         hideJoinForm();
     }
 
@@ -450,6 +526,40 @@
                 throw new Error((row && row.message) || 'Не удалось сохранить');
             }
             showMsg(msg, row.message || 'Соцсеть добавлена', true);
+            await loadGiveawayPanel();
+        } catch (e) {
+            showMsg(msg, (e && e.message) || 'Ошибка сохранения', false);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function onEditSaveClick() {
+        var btn = $('giveawayEditSaveBtn');
+        var msg = $('giveawayEditMsg');
+        if (!_participantState || !_participantState.is_participant) return;
+        if (!isGiveawayActive()) {
+            showMsg(msg, 'Розыгрыш завершён — данные менять нельзя.', false);
+            return;
+        }
+        var platform = getSelectedEditPlatform();
+        var tiktok = ($('giveawayEditTiktok') && $('giveawayEditTiktok').value) || '';
+        var instagram = ($('giveawayEditInstagram') && $('giveawayEditInstagram').value) || '';
+        if (btn) btn.disabled = true;
+        showMsg(msg, 'Сохраняем…', true);
+        try {
+            var res = await supabaseClient.rpc('giveaway_update_profile', {
+                p_platform: platform,
+                p_tiktok_handle: platform === 'instagram' ? null : tiktok,
+                p_instagram_handle: platform === 'tiktok' ? null : instagram
+            });
+            if (res.error) throw res.error;
+            var row = Array.isArray(res.data) ? res.data[0] : res.data;
+            if (!row || row.success === false) {
+                throw new Error((row && row.message) || 'Не удалось сохранить');
+            }
+            showMsg(msg, row.message || 'Данные обновлены', true);
+            _editFormOpen = false;
             await loadGiveawayPanel();
         } catch (e) {
             showMsg(msg, (e && e.message) || 'Ошибка сохранения', false);
@@ -589,6 +699,22 @@
         $('giveawayCopyBtn')?.addEventListener('click', onCopyClick);
         $('giveawayAddSocialBtn')?.addEventListener('click', function () {
             void onAddSocialClick();
+        });
+        $('giveawayEditProfileBtn')?.addEventListener('click', function (e) {
+            e.preventDefault();
+            showEditForm();
+        });
+        $('giveawayEditSaveBtn')?.addEventListener('click', function () {
+            void onEditSaveClick();
+        });
+        $('giveawayEditCancelBtn')?.addEventListener('click', function () {
+            hideEditForm();
+            if (_participantState && _participantState.is_participant) {
+                renderParticipantPanel(_participantState);
+            }
+        });
+        document.querySelectorAll('input[name="giveawayEditPlatform"]').forEach(function (el) {
+            el.addEventListener('change', applyEditPlatformFields);
         });
         $('giveawayOpenLoginBtn')?.addEventListener('click', function () {
             if (typeof openLoginModal === 'function') openLoginModal();

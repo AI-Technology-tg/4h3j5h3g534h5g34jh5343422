@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="styles/loading.css">
     <link rel="stylesheet" href="styles/register-flow.css">
     <link rel="stylesheet" href="styles/notifications.css">
-    <link rel="stylesheet" href="styles/info-page.css?v=20260722d">
+    <link rel="stylesheet" href="styles/info-page.css?v=20260723a">
 </head>
 <body>
     <div class="loading-screen" id="loadingScreen">
@@ -440,7 +440,10 @@
                                     <h3 class="gw-stats__title">Персональная реферальная ссылка</h3>
                                     <p class="gw-stats__sub">Разместите её в описании ролика. Ссылка закреплена до конца розыгрыша.</p>
                                 </div>
-                                <p id="giveawaySocialSummary" class="gw-card__text" style="margin:0 0 0.75rem;"></p>
+                                <div class="gw-profile-summary">
+                                    <p id="giveawaySocialSummary" class="gw-card__text" style="margin:0;"></p>
+                                    <button type="button" class="gw-btn gw-btn--ghost" id="giveawayEditProfileBtn" hidden>Изменить данные</button>
+                                </div>
                                 <div class="gw-stats__link">
                                     <input type="text" id="giveawayShareUrl" readonly aria-label="Реферальная ссылка">
                                     <button type="button" class="gw-btn gw-btn--ghost" id="giveawayCopyBtn">Копировать</button>
@@ -457,8 +460,50 @@
                                     </div>
                                 </div>
 
+                                <div id="giveawayEditProfileBlock" class="gw-prereg" hidden style="margin-top:1rem;">
+                                    <p class="gw-card__text" style="margin:0 0 0.75rem;">Можно поправить платформу и ники. Реф-ссылка не изменится.</p>
+                                    <div class="gw-prereg__platforms" role="radiogroup" aria-label="Платформа публикации">
+                                        <label class="gw-platform">
+                                            <input type="radio" name="giveawayEditPlatform" value="tiktok">
+                                            <span class="gw-platform__face">TikTok</span>
+                                        </label>
+                                        <label class="gw-platform">
+                                            <input type="radio" name="giveawayEditPlatform" value="instagram">
+                                            <span class="gw-platform__face">Instagram</span>
+                                        </label>
+                                        <label class="gw-platform">
+                                            <input type="radio" name="giveawayEditPlatform" value="both">
+                                            <span class="gw-platform__face">Обе</span>
+                                        </label>
+                                    </div>
+                                    <div class="gw-prereg__fields" id="giveawayEditFields" data-mode="single">
+                                        <label class="gw-field is-active" id="giveawayEditTiktokWrap">
+                                            <span class="gw-field__label">TikTok</span>
+                                            <span class="gw-field__input">
+                                                <span class="gw-field__at">@</span>
+                                                <input type="text" id="giveawayEditTiktok" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
+                                            </span>
+                                        </label>
+                                        <label class="gw-field" id="giveawayEditInstagramWrap">
+                                            <span class="gw-field__label">Instagram</span>
+                                            <span class="gw-field__input">
+                                                <span class="gw-field__at">@</span>
+                                                <input type="text" id="giveawayEditInstagram" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div class="gw-join-form-actions" style="margin-top:0.75rem;">
+                                        <button type="button" class="gw-btn gw-btn--primary gw-btn--full" id="giveawayEditSaveBtn">
+                                            <span class="gw-btn__glow" aria-hidden="true"></span>
+                                            <span>Сохранить</span>
+                                        </button>
+                                        <button type="button" class="gw-btn gw-btn--ghost" id="giveawayEditCancelBtn">Отмена</button>
+                                    </div>
+                                    <p id="giveawayEditMsg" class="gw-form-msg" aria-live="polite"></p>
+                                </div>
+
                                 <div id="giveawayAddSocialBlock" class="gw-prereg" hidden style="margin-top:1rem;">
-                                    <p class="gw-card__text" style="margin:0 0 0.75rem;">Можно добавить вторую соцсеть — реф-ссылка останется прежней.</p>
+                                    <p class="gw-card__text" style="margin:0 0 0.75rem;">Можно быстро добавить вторую соцсеть — или изменить всё через «Изменить данные».</p>
                                     <label class="gw-field is-active" id="giveawayAddSocialFieldWrap">
                                         <span class="gw-field__label" id="giveawayAddSocialLabel">Соцсеть</span>
                                         <span class="gw-field__input">
@@ -529,7 +574,7 @@
     <script src="scripts/loading.js"></script>
     <script src="scripts/giveaway.js?v=20260722d"></script>
     <script src="scripts/info-page.js"></script>
-    <script src="scripts/giveaway-info.js?v=20260722d"></script>
+    <script src="scripts/giveaway-info.js?v=20260723a"></script>
     <script src="scripts/apply-navigation.js?v=20260722c"></script>
 </body>
 </html>

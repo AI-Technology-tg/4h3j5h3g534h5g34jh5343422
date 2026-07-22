@@ -1409,6 +1409,34 @@
     background: rgba(0, 0, 0, 0.28);
 }
 
+.gw-profile-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    margin: 0 0 0.75rem;
+}
+
+.gw-profile-summary .gw-card__text {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+
+.gw-profile-summary .gw-btn {
+    flex: 0 0 auto;
+}
+
+@media (max-width: 900px) {
+    .gw-profile-summary {
+        align-items: stretch;
+    }
+
+    .gw-profile-summary .gw-btn {
+        width: 100%;
+    }
+}
+
 .gw-stats__title {
     margin: 0 0 0.35rem;
     font-size: 1rem;
