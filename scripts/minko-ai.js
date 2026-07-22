@@ -1589,10 +1589,16 @@ const GROK_SYSTEM_BASE = `Ты — Minko, умная девушка-помощн
 - На пересказ серий, новости сезона, разбор сюжета — развёрнутый экспертный ответ.
 - Прямые URL пользователя ты сама не открываешь — если дали ссылку без текста, попроси коротко пересказать суть в чате.
 
-ОБЫЧНЫЕ ПОСЕТИТЕЛИ:
-- Не рассказывай про скрытые разделы, панели управления, внутренние механики и привилегии «не для гостей». Не выдавай длинных списков возможностей сайта без запроса — только кратко по сути вопроса.
+ОБЫЧНЫЕ ПОСЕТИТЕЛИ (строго):
+- Давай только информацию, которая нужна обычному пользователю. Чужое, служебное и «не для гостей» не разглашай.
+- Не упоминай панель создателя, админку, внутренние инструменты, ключи, логи, чужие аккаунты.
+- На вопросы про админку/панель создателя — откажи: для пользователей такого раздела в твоей карте нет; предложи Инфо или поддержку.
 
-САЙТ Re-Minko: если спрашивают про возможности — отвечай кратко по делу, без техдеталей. Не перечисляй всё подряд без нужды.`;
+САЙТ Re-Minko (знай от А до Я для юзера):
+- Работает: главная, каталог аниме, страница просмотра, календарь, ≈4K-каталог, Minko AI, Инфо, аккаунт (профиль/избранное/история/друзья/ЛС), watch-together, поддержка, документы.
+- В разработке/ограничено: манга (может быть закрыта), расширение ≈4K, бета-функции.
+- Розыгрыш $100 USDT: участие через Инфо → «Розыгрыш» → «Участвую»; цель — видеобзор о Re-Minko; призы 1/2/3 место ($60/$30/$10 + бонусы); результаты 1 августа. Ссылка: /info.html#giveaway
+- Если просят смотреть аниме и в сводке есть id каталога — добавь маркер [[watch:ID|Название]] (клиент покажет кнопку). Id не выдумывай.`;
 
 // История сообщений
 let chatHistory = [
@@ -2743,7 +2749,10 @@ document.addEventListener('DOMContentLoaded', () => {
             _saveChatToStorage();
 
             if (_sleepyWokeUp) _sleepyWokeUp = false;
-            addMessage('assistant', assistantMessage);
+            const catalogHits = Array.isArray(window.__minkoLastCatalogAnimeHits)
+                ? window.__minkoLastCatalogAnimeHits
+                : [];
+            addMessage('assistant', assistantMessage, { catalogHits, userMessage: message });
 
             void reminkoLogMinkoAiExchange(message, assistantMessage);
 
@@ -3384,12 +3393,15 @@ document.addEventListener('DOMContentLoaded', () => {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    function addMessage(role, content, userAvatar = '') {
+    function addMessage(role, content, third) {
         const chatMessagesEl = document.getElementById('chatMessages');
         if (!chatMessagesEl) {
             console.error('addMessage: chatMessages не найден');
             return;
         }
+
+        const options = third && typeof third === 'object' ? third : null;
+        const userAvatar = options ? options.userAvatar || '' : third || '';
 
         const messageDiv = document.createElement('div');
         messageDiv.className = `minko-msg message message-${role}`;
@@ -3419,24 +3431,80 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
+        if (
+            role === 'assistant' &&
+            options &&
+            Array.isArray(options.catalogHits) &&
+            options.catalogHits.length
+        ) {
+            const alreadyLinked = /\[\[watch:/i.test(String(content || ''));
+            const wantsWatch = /смотр|открой|найди|дай\s*ссыл|перейд|где\s*смотр|watch|каталог/i.test(
+                String(options.userMessage || '')
+            );
+            if (!alreadyLinked && wantsWatch) {
+                const bubble = messageDiv.querySelector('.message-bubble');
+                const cards = _buildCatalogWatchCardsHtml(options.catalogHits);
+                if (bubble && cards) bubble.insertAdjacentHTML('beforeend', cards);
+            }
+        }
+
         chatMessagesEl.appendChild(messageDiv);
         _scrollChatToBottom();
         return messageDiv;
     }
 
+    function _buildCatalogWatchCardsHtml(hits) {
+        if (!Array.isArray(hits) || !hits.length) return '';
+        const seen = new Set();
+        const cards = [];
+        for (const h of hits) {
+            if (!h || h.id == null) continue;
+            const id = String(h.id);
+            if (seen.has(id)) continue;
+            seen.add(id);
+            const href = h.href || `anime/view.html?id=${encodeURIComponent(id)}`;
+            const title = escapeHtml(String(h.title || 'Смотреть'));
+            cards.push(
+                `<a class="minko-watch-chip" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">` +
+                    `<span class="minko-watch-chip__label">Смотреть</span>` +
+                    `<span class="minko-watch-chip__title">${title}</span>` +
+                    `</a>`
+            );
+            if (cards.length >= 4) break;
+        }
+        if (!cards.length) return '';
+        return `<div class="minko-watch-chips" role="group" aria-label="Ссылки на просмотр">${cards.join('')}</div>`;
+    }
+
     function formatMessage(text) {
-        // Заменяем переносы строк на <br>
-        text = escapeHtml(text);
-        text = text.replace(/\n/g, '<br>');
-        
-        // Форматируем списки
-        text = text.replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>');
-        text = text.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-        
-        // Форматируем жирный текст
-        text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        
-        return '<p>' + text.split('<br><br>').join('</p><p>') + '</p>';
+        const watchChips = [];
+        let raw = String(text || '');
+        raw = raw.replace(/\[\[watch:(\d+)\|([^\]]{1,120})\]\]/gi, (_, id, title) => {
+            const href = `anime/view.html?id=${encodeURIComponent(String(id))}`;
+            watchChips.push(
+                `<a class="minko-watch-chip" href="${href}" target="_blank" rel="noopener noreferrer">` +
+                    `<span class="minko-watch-chip__label">Смотреть</span>` +
+                    `<span class="minko-watch-chip__title">${escapeHtml(String(title).trim())}</span>` +
+                    `</a>`
+            );
+            return '';
+        });
+        raw = raw.replace(/\n{3,}/g, '\n\n').trim();
+
+        raw = escapeHtml(raw);
+        raw = raw.replace(/\n/g, '<br>');
+        raw = raw.replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>');
+        raw = raw.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+        raw = raw.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+        let body = '<p>' + raw.split('<br><br>').join('</p><p>') + '</p>';
+        if (watchChips.length) {
+            body +=
+                `<div class="minko-watch-chips" role="group" aria-label="Ссылки на просмотр">` +
+                watchChips.join('') +
+                `</div>`;
+        }
+        return body;
     }
 
     function escapeHtml(text) {

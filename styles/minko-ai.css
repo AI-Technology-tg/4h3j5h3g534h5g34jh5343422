@@ -1702,3 +1702,63 @@ body.minko-curse-shake--heavy .main-layout {
     from { opacity: 0.4; transform: translateY(-3px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+.minko-watch-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.minko-watch-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    max-width: 100%;
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    text-decoration: none;
+    color: #f8fafc;
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.25);
+    transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.minko-watch-chip:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.06);
+}
+
+.minko-watch-chip__label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.9;
+}
+
+.minko-watch-chip__title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 220px;
+}
+
+body.theme-dark .minko-watch-chip {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+@media (max-width: 900px) {
+    .minko-watch-chip {
+        width: 100%;
+        justify-content: flex-start;
+        border-radius: 14px;
+    }
+    .minko-watch-chip__title {
+        max-width: none;
+        white-space: normal;
+    }
+}

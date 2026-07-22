@@ -108,16 +108,75 @@
         }
     }
 
+    function _scoreCatalogHit(item, q) {
+        const t = String(item.title || '').toLowerCase();
+        const alt = String(item.titleAlt || item.title_english || '').toLowerCase();
+        if (!t && !alt) return 0;
+        if (t === q || alt === q) return 100;
+        if (t.startsWith(q) || alt.startsWith(q)) return 80;
+        if (t.includes(q) || alt.includes(q)) return 60;
+        if (q.length >= 5 && (q.includes(t) || (alt && q.includes(alt)))) return 40;
+        return 0;
+    }
+
+    /** Поиск аниме в каталоге сайта для кнопок перехода в чате. */
+    function minkoFindCatalogAnimeHits(msg, animeList, limit) {
+        const max = Math.max(1, Math.min(Number(limit) || 4, 8));
+        const titles = extractTitleCandidates(msg);
+        const queries = (titles.length ? titles : [String(msg || '')]).map((s) =>
+            String(s || '')
+                .toLowerCase()
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 80)
+        );
+        if (!Array.isArray(animeList) || !queries.length) return [];
+
+        const scored = new Map();
+        for (const q of queries) {
+            if (!q || q.length < 2) continue;
+            for (const item of animeList) {
+                if (!item || item.id == null) continue;
+                const score = _scoreCatalogHit(item, q);
+                if (score <= 0) continue;
+                const id = String(item.id);
+                const prev = scored.get(id);
+                if (!prev || score > prev.score) {
+                    scored.set(id, {
+                        score,
+                        id: item.id,
+                        title: item.title || 'Аниме',
+                        year: item.year || null,
+                        poster: item.poster || item.image || '',
+                        href: `anime/view.html?id=${encodeURIComponent(String(item.id))}`
+                    });
+                }
+            }
+        }
+        return Array.from(scored.values())
+            .sort((a, b) => b.score - a.score)
+            .slice(0, max);
+    }
+
     function findCatalogMatches(msg, animeList, mangaList) {
         const parts = [];
+        const animeHits = minkoFindCatalogAnimeHits(msg, animeList, 4);
+        if (animeHits.length) {
+            parts.push(
+                'Аниме в каталоге Re-Minko (для кнопок смотреть используй [[watch:ID|Название]]):\n' +
+                    animeHits
+                        .map((h) => {
+                            return `- id=${h.id} «${h.title}»${h.year ? ` (${h.year})` : ''} → /${h.href}`;
+                        })
+                        .join('\n')
+            );
+        }
+
         const titles = extractTitleCandidates(msg);
         const q = (titles[0] || msg).toLowerCase().slice(0, 80);
-        if (!q || q.length < 3) return parts;
-
-        function scan(list, label) {
-            if (!Array.isArray(list)) return;
+        if (q && q.length >= 3 && Array.isArray(mangaList)) {
             const hits = [];
-            for (const item of list) {
+            for (const item of mangaList) {
                 const t = (item.title || '').toLowerCase();
                 const alt = (item.titleAlt || '').toLowerCase();
                 if (t.includes(q) || q.includes(t) || (alt && (alt.includes(q) || q.includes(alt)))) {
@@ -125,19 +184,18 @@
                 }
                 if (hits.length >= 3) break;
             }
-            if (hits.length === 0) return;
-            parts.push(
-                `${label} Re-Minko: ` +
-                    hits
-                        .map((h) => {
-                            const g = (h.genres || []).slice(0, 4).join(', ');
-                            return `${h.title} (${h.year || '?'}, ${h.status || '?'}, ★${h.rating ?? '—'}${g ? ', ' + g : ''})`;
-                        })
-                        .join('; ')
-            );
+            if (hits.length) {
+                parts.push(
+                    'Манга Re-Minko (справочно; раздел может быть ограничен): ' +
+                        hits
+                            .map((h) => {
+                                const g = (h.genres || []).slice(0, 4).join(', ');
+                                return `${h.title} (${h.year || '?'}, ${h.status || '?'}, ★${h.rating ?? '—'}${g ? ', ' + g : ''})`;
+                            })
+                            .join('; ')
+                );
+            }
         }
-        scan(animeList, 'Аниме');
-        scan(mangaList, 'Манга');
         return parts;
     }
 
@@ -206,12 +264,20 @@
             }
         }
 
+        let lastAnimeHits = [];
         try {
             if (typeof global.getAllAnime === 'function' || typeof global.getAllManga === 'function') {
                 const animeList = typeof global.getAllAnime === 'function' ? global.getAllAnime() : [];
                 const mangaList = typeof global.getAllManga === 'function' ? global.getAllManga() : [];
+                lastAnimeHits = minkoFindCatalogAnimeHits(msg, animeList, 4);
                 parts.push(...findCatalogMatches(msg, animeList, mangaList));
             }
+        } catch (_) {
+            /* ignore */
+        }
+
+        try {
+            global.__minkoLastCatalogAnimeHits = lastAnimeHits;
         } catch (_) {
             /* ignore */
         }
@@ -220,4 +286,5 @@
     }
 
     global.minkoBuildResearchContext = minkoBuildResearchContext;
+    global.minkoFindCatalogAnimeHits = minkoFindCatalogAnimeHits;
 })(typeof window !== 'undefined' ? window : globalThis);
