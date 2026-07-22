@@ -8,6 +8,7 @@
     var GIVEAWAY_TZ = 'Europe/Kyiv';
     /** @type {{ is_participant?: boolean, can_add_social?: boolean, platform?: string, tiktok_handle?: string, instagram_handle?: string } | null} */
     var _participantState = null;
+    var _loadPanelGen = 0;
 
     function $(id) {
         return document.getElementById(id);
@@ -311,12 +312,19 @@
         var statsBlock = $('giveawayStatsBlock');
         var addBlock = $('giveawayAddSocialBlock');
         var summary = $('giveawaySocialSummary');
+        var joinForm = $('giveawayJoinForm');
+        var joinBtn = $('giveawayJoinBtn');
 
-        _participantState = row || null;
+        _participantState = Object.assign({ is_participant: true }, row || {});
 
-        if (joinBlock) joinBlock.hidden = true;
+        // Только реф-ссылка (и опционально «добавить 2-ю соцсеть»). Форма участия — скрыта.
+        if (joinBlock) {
+            joinBlock.hidden = true;
+            joinBlock.classList.remove('is-form-open');
+        }
+        if (joinForm) joinForm.hidden = true;
+        if (joinBtn) joinBtn.hidden = true;
         if (statsBlock) statsBlock.hidden = false;
-        hideJoinForm();
 
         var url =
             typeof window.reminkoGiveawayBuildShareUrl === 'function'
@@ -352,6 +360,8 @@
         var joinBlock = $('giveawayJoinBlock');
         var statsBlock = $('giveawayStatsBlock');
         var addBlock = $('giveawayAddSocialBlock');
+        // Не откатываем UI, если уже показали участника (гонка auth/load)
+        if (_participantState && _participantState.is_participant) return;
         _participantState = { is_participant: false };
         if (joinBlock) joinBlock.hidden = false;
         if (statsBlock) statsBlock.hidden = true;
@@ -361,14 +371,19 @@
 
     async function loadGiveawayPanel() {
         var joinBlock = $('giveawayJoinBlock');
-        var statsBlock = $('giveawayStatsBlock');
         var loginHint = $('giveawayLoginHint');
         if (!joinBlock) return;
+        var gen = ++_loadPanelGen;
 
         var logged = await isLoggedIn();
+        if (gen !== _loadPanelGen) return;
         if (loginHint) loginHint.hidden = logged;
 
         if (!logged) {
+            // После logout можно снова показать «Участвую»
+            if (_participantState && _participantState.is_participant) {
+                _participantState = { is_participant: false };
+            }
             renderGuestOrJoinPanel();
             applyGiveawayPhaseUi();
             return;
@@ -382,25 +397,30 @@
 
         try {
             var res = await supabaseClient.rpc('giveaway_my_status');
+            if (gen !== _loadPanelGen) return;
             var row = Array.isArray(res.data) ? res.data[0] : res.data;
             if (res.error) {
                 console.warn('[giveaway] my_status', res.error);
-                // Не сбрасываем уже показанную реф-ссылку при временной ошибке
                 if (!(_participantState && _participantState.is_participant)) {
                     renderGuestOrJoinPanel();
                 }
             } else if (row && row.is_participant) {
                 renderParticipantPanel(row);
             } else {
+                if (_participantState && _participantState.is_participant) {
+                    _participantState = { is_participant: false };
+                }
                 renderGuestOrJoinPanel();
             }
         } catch (e) {
+            if (gen !== _loadPanelGen) return;
             console.warn('[giveaway] load panel', e);
             if (!(_participantState && _participantState.is_participant)) {
                 renderGuestOrJoinPanel();
             }
         }
 
+        if (gen !== _loadPanelGen) return;
         applyGiveawayPhaseUi();
     }
 

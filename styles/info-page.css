@@ -1169,7 +1169,13 @@
 }
 
 .gw-prereg[hidden],
-#giveawayJoinForm[hidden] {
+#giveawayJoinForm[hidden],
+#giveawayJoinBlock[hidden],
+.gw-join[hidden],
+#giveawayStatsBlock[hidden],
+.gw-stats[hidden],
+#giveawayAddSocialBlock[hidden],
+#giveawayLoginHint[hidden] {
     display: none !important;
 }
 
