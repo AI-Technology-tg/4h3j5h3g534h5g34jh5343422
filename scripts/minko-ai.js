@@ -861,6 +861,9 @@ function _syncHeaderSleepPresentation() {
     const remain = _isMinkoDeepAsleep();
     if (remain > 0) {
         _setMinkoHeadStatus('Спит');
+        _ensureSleepyHeaderBadge();
+        const badge = document.querySelector('.minko-header-sleepy-badge');
+        if (badge) badge.textContent = '😴 крепко спит';
         _minkoAllDotEls().forEach((dotEl) => {
             dotEl.classList.remove('online', 'offline');
             dotEl.classList.add('sleeping');
