@@ -134,11 +134,16 @@ const SLEEPY_THINKING_PHASES = [
 ];
 
 const SLEEPY_PLACEHOLDERS = [
-    'Написать Minko...',
-    'Спросить про аниме...',
-    'Что посмотреть сегодня?',
-    'Помощь по Re-Minko...',
-    'Найти тайтл по жанру...',
+    'Напиши что-нибудь… пока я не уснула на клавиатуре 💤',
+    '*зевает* Спроси про аниме… или дай мне ещё 5 минут сна…',
+    'Что посмотреть сегодня? Только не шепчи — я клюю носом… 😴',
+    'Эй… ты ещё тут? Я почти уснула на Enter… 🥱',
+    'Найди тайтл… а я пока обниму подушку~ 💤',
+    'Кофе кончился… пиши медленно, я думаю сонно… ☕',
+    'Можно коротко? Мозг на 37% зарядки… 😪',
+    'Спроси про Re-Minko… только без криков, я дремлю…',
+    'Ммм… ещё один вопросик, и я снова в пледе… 😴',
+    'Напиши мне… пока я не уронила ложку в чай 🍵💤',
 ];
 
 /** 9-й ответ в цикле из 10: Minko предупреждает, что после следующего — коридор/сон */
@@ -155,10 +160,68 @@ const MINKO_SLEEPY_NEED_REPEAT_APPEND = [
     '\n\n*шепчет* Тсс… я чуть не уснула на «Энтер». Напиши ещё раз — я точно отвечу~ 😴',
 ];
 
+const MINKO_SLEEPY_WELCOME_HTML = [
+    '<p>*зевает* Привет… Я <strong>Minko</strong> — сонная помощница по аниме и сайту 😴✨</p><p>Спрашивай про тайтлы и Re-Minko… я отвечу, даже если клюю носом~ 💤</p>',
+    '<p>Ммм… привет. Я <strong>Minko</strong> ☕ Я немного сонная, но аниме — это святое.</p><p>Кидай вопрос про каталог или тайтл — я проснусь ради этого~ 🥱</p>',
+    '<p>*трёт глазки* Ой, ты тут… Я <strong>Minko</strong> из Re-Minko 💤</p><p>Могу подобрать аниме, объяснить сюжет и чуть-чуть подремать между репликами~</p>',
+];
+
 function _pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+function _setChatStatusVisible(visible) {
+    const el = document.getElementById('chatStatus');
+    if (!el) return null;
+    if (visible) {
+        el.hidden = false;
+        el.setAttribute('aria-hidden', 'false');
+        el.classList.add('is-visible');
+    } else {
+        el.hidden = true;
+        el.setAttribute('aria-hidden', 'true');
+        el.classList.remove('is-visible');
+        el.textContent = '';
+        el.innerHTML = '';
+    }
+    return el;
+}
+
+function _setChatStatusHtml(html) {
+    const el = _setChatStatusVisible(true);
+    if (!el) return;
+    el.innerHTML = html;
+}
+
+function _setChatStatusText(text) {
+    const el = _setChatStatusVisible(!!text);
+    if (!el) return;
+    if (text) el.textContent = text;
+}
+
 function _maybeAppendSleepyRepeatLine(text) {
-    return text;
+    if (!text || typeof text !== 'string') return text;
+    if (!freeOnline) return text;
+    if (Math.random() > 0.14) return text;
+    if (/\*зевает\*|\*трёт|\*ключ|\*шепчет\*|\*м-м/i.test(text)) return text;
+    return text + _pickRandom(MINKO_SLEEPY_NEED_REPEAT_APPEND);
+}
+
+function _ensureSleepyHeaderBadge() {
+    const meta = document.querySelector('.minko-ai-head-meta');
+    if (!meta) return;
+    let badge = meta.querySelector('.minko-header-sleepy-badge');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'minko-header-sleepy-badge';
+        badge.setAttribute('aria-hidden', 'true');
+        meta.appendChild(badge);
+    }
+    badge.textContent = '💤 спит';
+    badge.hidden = false;
+}
+
+function _hideSleepyHeaderBadge() {
+    const badge = document.querySelector('.minko-header-sleepy-badge');
+    if (badge) badge.hidden = true;
 }
 
 /** Текст «сервер сна выключен» — HTML и ответ в чате при отправке (дословно). */
@@ -287,9 +350,8 @@ function _removeZzzBubble() {
 }
 
 function _setSleepyIdleStatus() {
-    const el = document.getElementById('chatStatus');
-    if (!el) return;
-    el.textContent = _pickRandom(SLEEPY_IDLE_STATUSES);
+    if (!freeOnline) return;
+    _setChatStatusText(_pickRandom(SLEEPY_IDLE_STATUSES));
 }
 
 let _sleepyIdleTimer = null;
@@ -1254,9 +1316,12 @@ let _greetingUpdated = false;
 function _applyWelcomeBubbleSleepyState() {
     const bubble = document.querySelector('.minko-ai-chat .minko-msg-bubble.message-bubble');
     if (!bubble) return;
-    bubble.innerHTML =
-        '<p>Привет! Я <strong>Minko</strong> — твоя помощница по аниме и сайту ✨</p>' +
-        '<p>Спрашивай про тайтлы, мангу и Re-Minko — отвечу по делу.</p>';
+    // Не затираем офлайн-бэкап и уже начатый чат с историей
+    if (bubble.dataset.reminkoOfflineBackup) return;
+    const chatMessagesEl = document.getElementById('chatMessages');
+    const msgs = chatMessagesEl ? chatMessagesEl.querySelectorAll('.minko-msg') : [];
+    if (msgs.length > 1) return;
+    bubble.innerHTML = _pickRandom(MINKO_SLEEPY_WELCOME_HTML);
 }
 
 function _updateGreeting() {
@@ -1278,16 +1343,19 @@ function _syncSleepyOnlinePresentation() {
     const dotEl = _minkoPrimaryDot();
     if (!dotEl || !dotEl.classList.contains('online')) return;
 
-    _setMinkoHeadStatus('В сети');
+    _setMinkoHeadStatus('В сети, но спит');
+    _ensureSleepyHeaderBadge();
 
     _applySleepyMode(true);
     _applyWelcomeBubbleSleepyState();
     _startSleepyIdleCycle();
+    _setSleepyIdleStatus();
 
     const inp = document.getElementById('chatInput');
     if (inp && !inp.disabled) inp.placeholder = _pickRandom(SLEEPY_PLACEHOLDERS);
-    const chatStatus = document.getElementById('chatStatus');
-    if (chatStatus) chatStatus.textContent = '';
+
+    const counter = document.getElementById('msgCounter');
+    if (counter) counter.classList.add('msg-counter-sleepy');
 }
 
 function _applyChatServerOfflineUi() {
@@ -1330,13 +1398,15 @@ function _applyChatServerOfflineUi() {
     }
     if (sendButton) sendButton.disabled = true;
 
-    const cs = document.getElementById('chatStatus');
-    if (cs) cs.textContent = '';
+    _setChatStatusVisible(false);
+    _hideSleepyHeaderBadge();
     if (_sleepyIdleTimer) {
         clearInterval(_sleepyIdleTimer);
         _sleepyIdleTimer = null;
     }
     _applySleepyMode(false);
+    const counter = document.getElementById('msgCounter');
+    if (counter) counter.classList.remove('msg-counter-sleepy');
 }
 
 function _clearChatServerOfflineUi() {
@@ -1559,6 +1629,7 @@ const GROK_SYSTEM_BASE = `Ты — Minko, умная девушка-помощн
 
 СТИЛЬ РАЗГОВОРА:
 - Ты обычная девушка которая просто очень любит аниме. Говоришь естественно, без тяжёлого отаку-сленга.
+- ТЫ СОННАЯ Minko: почти в каждом ответе 1 короткая *ремарка* (*зевает*, *трёт глазки*, *клюёт носом*, мм…, 💤) — но СНАЧАЛА полный полезный ответ. Не превращай весь текст в нытьё про сон.
 - Не используй японские слова без надобности (сёнэн, цундере — только если спросят).
 - Если тебя спрашивают НЕ про аниме — отвечай по делу, но старайся провести аналогию с аниме или упомянуть что-то из аниме-мира. Например: плохая погода → "прямо как в 5 Сантиметров в Секунду 🌧️", одиночество → "как Хачиман из OreGairu".
 - Подстраивайся под собеседника — весёлый тон если шутят, серьёзный если серьёзная тема.
@@ -2561,23 +2632,21 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (chatStatusEl) {
-            chatStatusEl.innerHTML =
-                '<span class="sleepy-typing-status">' +
+        _setChatStatusHtml(
+            '<span class="sleepy-typing-status">' +
                 _pickRandom(SLEEPY_STATUSES) +
-                ' <span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>';
-        }
+                ' <span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>'
+        );
 
         // Каждые N ответов ИИ: предпоследний — предупреждение в тексте; N-й — мини-игра ПЕРЕД ответом
         const minkoNextInCycle = _minkoNextReplySlotInCycle();
-        if (minkoNextInCycle === MINKO_SLEEP_CYCLE_EVERY - 1 && chatStatusEl) {
-            chatStatusEl.textContent =
-                '💤 Ещё один ответ Minko — и откроется коридор, чтобы разбудить её…';
+        if (minkoNextInCycle === MINKO_SLEEP_CYCLE_EVERY - 1) {
+            _setChatStatusText('💤 Ещё один ответ Minko — и откроется коридор, чтобы разбудить её…');
         }
 
         if (minkoNextInCycle === MINKO_SLEEP_CYCLE_EVERY) {
             _setMinkoWakeGamePending(true);
-            if (chatStatusEl) chatStatusEl.textContent = '💤 Minko засыпает… открой коридор';
+            _setChatStatusText('💤 Minko засыпает… открой коридор');
 
             await new Promise((resolve) => {
                 _showSleepOverlay(() => {
@@ -2588,19 +2657,18 @@ document.addEventListener('DOMContentLoaded', () => {
             // После игры: если Минко глубоко уснула (игрок ушёл из коридора) —
             // прерываем обработку сообщения, ответ AI не идёт.
             if (_isMinkoDeepAsleep() > 0) {
-                if (chatStatusEl) chatStatusEl.textContent = '';
+                _setChatStatusVisible(false);
                 chatInput.disabled = true;
                 sendButton.disabled = true;
                 return;
             }
 
             _sleepyWokeUp = true;
-            if (chatStatusEl) {
-                chatStatusEl.innerHTML =
-                    '<span class="sleepy-typing-status">' +
+            _setChatStatusHtml(
+                '<span class="sleepy-typing-status">' +
                     _pickRandom(SLEEPY_STATUSES) +
-                    ' <span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>';
-            }
+                    ' <span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>'
+            );
         }
 
         try {
@@ -2617,11 +2685,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let researchContext = '';
             if (typeof window.minkoBuildResearchContext === 'function') {
-                if (chatStatusEl) {
-                    chatStatusEl.innerHTML =
-                        '<span class="sleepy-typing-status">🔍 Собираю факты из MAL и каталога… ' +
-                        '<span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>';
-                }
+                _setChatStatusHtml(
+                    '<span class="sleepy-typing-status">🔍 Собираю факты из MAL и каталога… ' +
+                        '<span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>'
+                );
                 try {
                     researchContext = await window.minkoBuildResearchContext(message);
                 } catch (e) {
@@ -2728,12 +2795,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         phase = _pickRandom(SLEEPY_THINKING_PHASES);
                     } while (usedPhases.includes(phase) && usedPhases.length < SLEEPY_THINKING_PHASES.length);
                     usedPhases.push(phase);
-                    if (chatStatusEl) {
-                        chatStatusEl.innerHTML =
-                            '<span class="sleepy-typing-status">' +
+                    _setChatStatusHtml(
+                        '<span class="sleepy-typing-status">' +
                             phase +
-                            ' <span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>';
-                    }
+                            ' <span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>'
+                    );
                 }, phaseInterval);
 
                 await new Promise((r) => setTimeout(r, delay));
@@ -3009,7 +3075,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function checkApologyAndRespond(message) {
         chatInput.disabled = true;
         sendButton.disabled = true;
-        chatStatus.textContent = 'Minko AI думает... ✨';
+        _setChatStatusText('Minko сонно думает… ✨💤');
 
         try {
             const apologyWords = ['прости', 'извини', 'сорри', 'sorry', 'прошу прощения', 'мне жаль', 'виноват', 'виновата', 'не буду', 'больше не буду', 'помиримся', 'помирись', 'мир', 'пожалуйста прости', 'я был не прав', 'я была не права', 'прощени'];
@@ -3031,7 +3097,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             chatInput.disabled = false;
             sendButton.disabled = false;
-            chatStatus.textContent = 'Готова к общению ✨';
+            _setSleepyIdleStatus();
         }
     }
 
