@@ -159,14 +159,30 @@ function extractEpisodeHint(msg) {
     return null;
 }
 
+function expandAliasQueries(msg) {
+    const text = String(msg || '');
+    const aliases = [
+        [/ре\s*[-:]?\s*зеро|резеро|re\s*[-:]?\s*zero|rezero/i, ['Re:Zero', 'Re Zero', 'Re:Zero kara Hajimeru Isekai Seikatsu']],
+        [/атак\w*\s+на\s+титан|атака\s+титанов|shingeki|\baot\b/i, ['Attack on Titan', 'Shingeki no Kyojin']],
+        [/клинок\s+рассекающ|demon\s*slayer|kimetsu/i, ['Demon Slayer', 'Kimetsu no Yaiba']],
+        [/ван\s*пис|one\s*piece/i, ['One Piece']],
+        [/магическ\w+\s+битв|jujutsu/i, ['Jujutsu Kaisen']]
+    ];
+    const out = [];
+    for (const [re, qs] of aliases) {
+        if (re.test(text)) out.push(...qs);
+    }
+    return out;
+}
+
 function extractTitleCandidates(msg) {
     const text = String(msg || '').trim();
-    const out = [];
+    const out = expandAliasQueries(text);
     const reQuote = /[«"']([^»"']{2,90})[»"']/g;
     let m;
     while ((m = reQuote.exec(text)) !== null) out.push(m[1].trim());
     const pro = text.match(
-        /(?:про|об|о)\s+(?:аниме\s+|тайтл\s+|мангу\s+|манге\s+)?([a-zA-Zа-яА-ЯёЁ0-9\s:\-—!?]{3,80})/i
+        /(?:про|об|о|тема|теме|тему|типа|вроде)\s+(?:аниме\s+|тайтл\s+|мангу\s+|манге\s+)?([a-zA-Zа-яА-ЯёЁ0-9\s:\-—!?]{2,80})/i
     );
     if (pro && pro[1]) {
         out.push(
@@ -176,10 +192,14 @@ function extractTitleCandidates(msg) {
                 .trim()
         );
     }
+    const theme = text.match(/(?:на\s+тему|по\s+мотивам|в\s+стиле)\s+([a-zA-Zа-яА-ЯёЁ0-9\s:\-—!?]{2,60})/i);
+    if (theme && theme[1]) out.push(theme[1].replace(/\?.*$/, '').trim());
     const en = text.match(/\b([A-Z][a-zA-Z0-9':\-\s]{2,60})\b/g);
     if (en) en.forEach((e) => out.push(e.trim()));
     const cleaned = text
-        .replace(/^(расскажи|объясни|опиши|что|как|какая|какой|скажи|подскажи)\s+/gi, '')
+        .replace(/^(расскажи|объясни|опиши|что|как|какая|какой|скажи|подскажи|дай|найди|покажи)\s+/gi, '')
+        .replace(/^(на\s+сайте|в\s+каталоге)\s+/gi, '')
+        .replace(/\b\d+\s*но\b/gi, '')
         .replace(/\?.*$/, '')
         .trim();
     if (cleaned.length >= 4 && cleaned.length <= 90) out.push(cleaned);
@@ -188,11 +208,11 @@ function extractTitleCandidates(msg) {
     for (const s of out) {
         const t = s.replace(/\s+/g, ' ').trim();
         const k = t.toLowerCase();
-        if (t.length < 3 || seen.has(k)) continue;
+        if (t.length < 2 || seen.has(k)) continue;
         seen.add(k);
         uniq.push(t);
     }
-    return uniq.slice(0, 3);
+    return uniq.slice(0, 5);
 }
 
 async function jikanGet(path, ms = 7000) {
@@ -433,7 +453,8 @@ function buildSystemPrompt(userGender, isVip, researchBlock) {
 
 ПРАВИЛА ОТВЕТА:
 - Пересказ серии / сюжет / «что произошло» — развёрнуто, по пунктам, со спойлер-меткой если нужно.
-- Новости и премьеры — конкретные названия, без воды.
+- Новости и премьеры — конкретные названия, без воды. Даты/сезоны бери ТОЛЬКО из блока данных; если пусто — скажи «не уверена по году», не выдумывай «вышел в этом году».
+- Запрос «на сайте / в каталоге дай аниме про X» — если в блоке есть каталог с id, дай ИМЕННО эти тайтлы (для франшизы — сам тайтл, не «похожее» из головы). Маркер только [[watch:ЧИСЛО|Название]] из блока. Никаких slug вроде the-rising-of-….
 - Не уходи от темы общими фразами. Не отвечай «на отъебись».
 - Опирайся на блок ПРОВЕРЕННЫЕ ДАННЫЕ (Jikan/MAL, Wikipedia, DuckDuckGo, каталог) в первую очередь — это живой поиск, не выдумывай факты против него.
 - Если в данных есть факты — отвечай уверенно по ним. Если данных мало — скажи что не нашла в сводке и дай общий контекст без фейковых ссылок.

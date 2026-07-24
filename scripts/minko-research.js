@@ -5,7 +5,60 @@
     'use strict';
 
     const ANIME_TOPIC =
-        /аниме|манга|тайтл|сери|эпизод|сезон|новост|премьер|выход|студи|жанр|персонаж|сюжет|mal|myanimelist|рекоменд|похож|онгоинг|анонс|пересказ|что\s+произошло|смотреть|каталог|озвуч|студи|рейтинг|спойлер|арк|сэйю|сейю|шикимори|shiki|kodik/i;
+        /аниме|манга|тайтл|сери|эпизод|сезон|новост|премьер|выход|студи|жанр|персонаж|сюжет|mal|myanimelist|рекоменд|похож|онгоинг|анонс|пересказ|что\s+произошло|смотреть|каталог|озвуч|студи|рейтинг|спойлер|арк|сэйю|сейю|шикимори|shiki|kodik|на\s+сайте|дай\s+\d/i;
+
+    /** Народные названия → канонические запросы для каталога / Jikan */
+    const TITLE_ALIASES = [
+        {
+            re: /ре\s*[-:]?\s*зеро|резеро|rezeро|re\s*[-:]?\s*zero|rezero|ри\s*зеро/i,
+            queries: ['Re:Zero', 'Re Zero', 'Re:Zero kara Hajimeru Isekai Seikatsu', 'Жизнь с нуля']
+        },
+        {
+            re: /атак\w*\s+на\s+титан|атака\s+титанов|shingeki|аот\b|aot\b/i,
+            queries: ['Attack on Titan', 'Shingeki no Kyojin', 'Атака титанов']
+        },
+        {
+            re: /ван\s*пис|one\s*piece/i,
+            queries: ['One Piece', 'Ван-Пис']
+        },
+        {
+            re: /наруто\b|naruto/i,
+            queries: ['Naruto', 'Наруто']
+        },
+        {
+            re: /клинок\s+рассекающ|demon\s*slayer|kimetsu/i,
+            queries: ['Demon Slayer', 'Kimetsu no Yaiba', 'Клинок, рассекающий демонов']
+        },
+        {
+            re: /магическ\w+\s+битв|jujutsu|джджутсу|магическая\s+битва/i,
+            queries: ['Jujutsu Kaisen', 'Магическая битва']
+        },
+        {
+            re: /тетрад\w+\s+смерт|death\s*note/i,
+            queries: ['Death Note', 'Тетрадь смерти']
+        },
+        {
+            re: /охотник\s+х\s+охотник|hunter\s*x\s*hunter|hxh/i,
+            queries: ['Hunter x Hunter', 'Охотник × Охотник']
+        },
+        {
+            re: /врата\s+штейна|steins\s*[-:]?\s*gate/i,
+            queries: ['Steins;Gate', 'Врата Штейна']
+        },
+        {
+            re: /щит\w*\s+герой|shield\s*hero/i,
+            queries: ['The Rising of the Shield Hero', 'Tate no Yuusha', 'Восхождение героя щита']
+        }
+    ];
+
+    function expandAliasQueries(msg) {
+        const text = String(msg || '');
+        const out = [];
+        for (const row of TITLE_ALIASES) {
+            if (row.re.test(text)) out.push(...row.queries);
+        }
+        return out;
+    }
 
     function extractEpisodeHint(msg) {
         const m = String(msg || '').match(/(?:^|\s)(\d{1,3})\s*(?:-?\s*)?(?:серия|серии|серию|эпизод|эп\.?|episode)/i);
@@ -18,26 +71,40 @@
     function extractTitleCandidates(msg) {
         const text = String(msg || '').trim();
         const out = [];
+        // Сначала алиасы — «резеро» → Re:Zero
+        out.push(...expandAliasQueries(text));
+
         const reQuote = /[«"']([^»"']{2,90})[»"']/g;
         let m;
         while ((m = reQuote.exec(text)) !== null) {
             out.push(m[1].trim());
         }
         const pro = text.match(
-            /(?:про|об|о)\s+(?:аниме\s+|тайтл\s+|мангу\s+|манге\s+)?([a-zA-Zа-яА-ЯёЁ0-9\s:\-—!?]{3,80})/i
+            /(?:про|об|о|тема|теме|тему|типа|вроде|как|похож(?:ее|ие)?\s+на)\s+(?:аниме\s+|тайтл\s+|мангу\s+|манге\s+)?([a-zA-Zа-яА-ЯёЁ0-9\s:\-—!?]{2,80})/i
         );
         if (pro && pro[1]) {
             out.push(
                 pro[1]
                     .replace(/\?.*$/, '')
-                    .replace(/\s+(сери|эпизод|сезон).*$/i, '')
+                    .replace(/\s+(сери|эпизод|сезон|на\s+сайте).*$/i, '')
                     .trim()
             );
+        }
+        const theme = text.match(
+            /(?:на\s+тему|по\s+мотивам|в\s+стиле|из\s+франшизы)\s+([a-zA-Zа-яА-ЯёЁ0-9\s:\-—!?]{2,60})/i
+        );
+        if (theme && theme[1]) {
+            out.push(theme[1].replace(/\?.*$/, '').trim());
         }
         const en = text.match(/\b([A-Z][a-zA-Z0-9':\-\s]{2,60})\b/g);
         if (en) en.forEach((e) => out.push(e.trim()));
         const cleaned = text
-            .replace(/^(расскажи|объясни|опиши|что|как|какая|какой|скажи|подскажи|найди|открой)\s+/gi, '')
+            .replace(
+                /^(расскажи|объясни|опиши|что|как|какая|какой|скажи|подскажи|найди|открой|дай|покажи)\s+/gi,
+                ''
+            )
+            .replace(/^(на\s+сайте|в\s+каталоге)\s+/gi, '')
+            .replace(/\b\d+\s*но\b/gi, '')
             .replace(/\?.*$/, '')
             .trim();
         if (cleaned.length >= 4 && cleaned.length <= 90) out.push(cleaned);
@@ -46,12 +113,12 @@
         for (const s of out) {
             const t = s.replace(/\s+/g, ' ').trim();
             const k = t.toLowerCase();
-            if (t.length < 3 || seen.has(k)) continue;
-            if (/^(что|как|кто|где|когда|почему|сколько)$/i.test(t)) continue;
+            if (t.length < 2 || seen.has(k)) continue;
+            if (/^(что|как|кто|где|когда|почему|сколько|аниме|тайтл|сайт|каталог)$/i.test(t)) continue;
             seen.add(k);
             uniq.push(t);
         }
-        return uniq.slice(0, 4);
+        return uniq.slice(0, 6);
     }
 
     function stripHtml(s) {
@@ -210,6 +277,22 @@
         return null;
     }
 
+    /** Известные франшизы → MAL id (на случай слабого текстового матча). */
+    const FRANCHISE_MAL_HINTS = [
+        {
+            re: /ре\s*[-:]?\s*зеро|резеро|re\s*[-:]?\s*zero|rezero/i,
+            malIds: [31240, 39587, 42203, 54857, 61316, 36286, 38414]
+        },
+        {
+            re: /атак\w*\s+на\s+титан|атака\s+титанов|shingeki|аот\b|\baot\b/i,
+            malIds: [16498, 25777, 35760, 38524, 40028, 51535]
+        },
+        {
+            re: /клинок\s+рассекающ|demon\s*slayer|kimetsu/i,
+            malIds: [38000, 47778, 51019, 55701]
+        }
+    ];
+
     /** Поиск аниме в каталоге сайта для кнопок перехода в чате. */
     function minkoFindCatalogAnimeHits(msg, animeList, limit) {
         const max = Math.max(1, Math.min(Number(limit) || 4, 8));
@@ -237,6 +320,22 @@
                 }
             }
         }
+
+        // Прямой матч по MAL франшизы (резеро → TV-1 и сезоны)
+        const msgText = String(msg || '');
+        for (const hint of FRANCHISE_MAL_HINTS) {
+            if (!hint.re.test(msgText)) continue;
+            for (const mid of hint.malIds) {
+                const item = minkoFindCatalogByMalId(animeList, mid);
+                if (!item) continue;
+                const id = String(item.id);
+                const prev = scored.get(id);
+                if (!prev || prev.score < 105) {
+                    scored.set(id, _hitFromItem(item, 105));
+                }
+            }
+        }
+
         return Array.from(scored.values())
             .sort((a, b) => b.score - a.score)
             .slice(0, max);
@@ -250,12 +349,17 @@
                 : minkoFindCatalogAnimeHits(msg, animeList, 4);
         if (animeHits.length) {
             parts.push(
-                'Аниме в каталоге Re-Minko (для кнопок смотреть используй ТОЛЬКО эти id в [[watch:ID|Название]]):\n' +
+                'Аниме в каталоге Re-Minko (для кнопок смотреть используй ТОЛЬКО числовые id ниже в [[watch:ID|Название]]; НЕ выдумывай slug вроде the-rising-of…):\n' +
                     animeHits
                         .map((h) => {
                             return `- id=${h.id}${h.mal_id ? ` mal=${h.mal_id}` : ''} «${h.title}»${h.year ? ` (${h.year})` : ''} → /${h.href}`;
                         })
-                        .join('\n')
+                        .join('\n') +
+                    '\nЕсли пользователь просит тайтл «на сайте» / «дай аниме» по теме франшизы — рекомендуй ПЕРВЫЙ пункт из этого списка (сам тайтл франшизы), а не «похожее» из головы.'
+            );
+        } else {
+            parts.push(
+                'В каталоге Re-Minko по запросу совпадений не найдено. Не выдумывай [[watch:…]]. Можно предложить поискать вручную в /catalog/anime.html или уточнить название.'
             );
         }
 
