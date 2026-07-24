@@ -384,11 +384,27 @@ function updateHeroStats() {
 
 // ==================== Jikan API секции ====================
 
-const HOME_CAROUSEL_INTERVAL_MS = 3000;
+/** Пауза между стартами автосдвига (сама анимация ~HOME_CAROUSEL_ANIM_MS) */
+const HOME_CAROUSEL_INTERVAL_MS = 3200;
+/** Длительность плавного шага на одну карточку */
+const HOME_CAROUSEL_ANIM_MS = 780;
 /** Порог «сдвинули ленту»; меньше — ложные срабатывания на тапе/тачскролле */
 const HOME_CAROUSEL_DRAG_PX = 22;
 const HOME_CAROUSEL_PAUSE_MS = 5000;
 const HOME_CAROUSEL_TAP_MAX_MS = 380;
+
+function homeCarouselEaseOutCubic(t) {
+    const x = Math.min(1, Math.max(0, t));
+    return 1 - Math.pow(1 - x, 3);
+}
+
+function homeCarouselPrefersReducedMotion() {
+    try {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    } catch (_) {
+        return false;
+    }
+}
 
 if (typeof window !== 'undefined' && !window.__homeCarouselEls) {
     window.__homeCarouselEls = new Set();
@@ -587,10 +603,51 @@ function enhanceHomeHorizontalScroll(container) {
     let activePointer = null;
     let pointerDownAt = 0;
     let maxAbsDx = 0;
+    let animRaf = 0;
+    let animating = false;
+
+    function cancelAutoScrollAnim() {
+        if (animRaf) {
+            cancelAnimationFrame(animRaf);
+            animRaf = 0;
+        }
+        animating = false;
+    }
+
+    function animateScrollTo(targetLeft, durationMs) {
+        cancelAutoScrollAnim();
+        const from = container.scrollLeft;
+        const to = targetLeft;
+        const dist = to - from;
+        if (Math.abs(dist) < 0.5) {
+            container.scrollLeft = to;
+            return;
+        }
+        if (homeCarouselPrefersReducedMotion() || durationMs <= 0) {
+            container.scrollLeft = to;
+            return;
+        }
+        animating = true;
+        const started = performance.now();
+        function tick(now) {
+            if (!animating) return;
+            const t = (now - started) / durationMs;
+            if (t >= 1) {
+                container.scrollLeft = to;
+                animating = false;
+                animRaf = 0;
+                return;
+            }
+            container.scrollLeft = from + dist * homeCarouselEaseOutCubic(t);
+            animRaf = requestAnimationFrame(tick);
+        }
+        animRaf = requestAnimationFrame(tick);
+    }
 
     function onPointerDown(e) {
         if (e.pointerType === 'mouse' && e.button !== 0) return;
         if (e.target.closest('.jikan-card-go-btn')) return;
+        cancelAutoScrollAnim();
         delete container.dataset.suppressJikanClick;
         drag = true;
         dragged = false;
@@ -679,17 +736,25 @@ function enhanceHomeHorizontalScroll(container) {
     container._homeCarouselAdvance = () => {
         if (document.hidden) return;
         if (Date.now() < pauseUntil) return;
+        if (drag || animating) return;
         const step = getHomeScrollStep(container);
         const maxLeft = container.scrollWidth - container.clientWidth;
         if (maxLeft <= 0) return;
+        const atEnd = container.scrollLeft >= maxLeft - 0.5;
+        if (atEnd) {
+            // В начало без «отмотки» назад по всем карточкам
+            container.scrollLeft = 0;
+            return;
+        }
         let next = container.scrollLeft + step;
-        if (next >= maxLeft - 0.5) next = 0;
-        container.scrollLeft = next;
+        if (next > maxLeft) next = maxLeft;
+        animateScrollTo(next, HOME_CAROUSEL_ANIM_MS);
     };
 
     registerCarouselEl(container);
 
     container._homeHorizontalTeardown = () => {
+        cancelAutoScrollAnim();
         unregisterCarouselEl(container);
         delete container._homeCarouselAdvance;
         container.removeEventListener('pointerdown', onPointerDown);
