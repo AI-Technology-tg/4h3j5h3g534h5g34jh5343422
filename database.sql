@@ -1984,6 +1984,120 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- Гостевые ЛС: RPC + sync metadata → profiles (см. sql/pending/20260724_guest_dm_profile_sync.sql)
+CREATE OR REPLACE FUNCTION public.reminko_set_own_guest_profile(
+  p_username text,
+  p_avatar text DEFAULT NULL
+)
+RETURNS public.profiles
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  uname text := left(trim(coalesce(p_username, '')), 40);
+  av text := nullif(trim(coalesce(p_avatar, '')), '');
+  gender_val text;
+  row_out public.profiles;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+  IF uname IS NULL OR length(uname) < 3 THEN
+    RAISE EXCEPTION 'invalid_username';
+  END IF;
+  IF lower(uname) IN ('guest', 'гость', 'anonymous', 'anon') THEN
+    RAISE EXCEPTION 'invalid_username';
+  END IF;
+  IF uname ~* '^user_[a-f0-9]{6,}$' OR uname ~* '^guest[\W_0-9-]*$' THEN
+    RAISE EXCEPTION 'invalid_username';
+  END IF;
+
+  av := coalesce(av, 'Fons/1 b.jpg');
+  gender_val := CASE
+    WHEN av ~* '(^|/)Fons/[0-9]+[[:space:]]+g\.jpg$' THEN 'female'
+    ELSE 'male'
+  END;
+
+  INSERT INTO public.profiles AS p (id, username, avatar, gender)
+  VALUES (uid, uname, av, gender_val)
+  ON CONFLICT (id) DO UPDATE SET
+    username = EXCLUDED.username,
+    avatar = EXCLUDED.avatar,
+    gender = EXCLUDED.gender,
+    updated_at = timezone('utc'::text, now())
+  RETURNING * INTO row_out;
+
+  RETURN row_out;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reminko_set_own_guest_profile(text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reminko_set_own_guest_profile(text, text) TO authenticated, anon;
+
+CREATE OR REPLACE FUNCTION public.handle_anon_user_meta_sync()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uname text;
+  av text;
+  gender_val text;
+BEGIN
+  IF COALESCE(NEW.is_anonymous, false) IS NOT TRUE THEN
+    RETURN NEW;
+  END IF;
+
+  uname := left(trim(COALESCE(
+    NEW.raw_user_meta_data->>'username',
+    NEW.raw_user_meta_data->>'display_name',
+    NEW.raw_user_meta_data->>'full_name',
+    ''
+  )), 40);
+  av := nullif(trim(COALESCE(
+    NEW.raw_user_meta_data->>'avatar',
+    NEW.raw_user_meta_data->>'avatar_url',
+    ''
+  )), '');
+
+  IF uname IS NULL OR length(uname) < 3 THEN
+    RETURN NEW;
+  END IF;
+  IF lower(uname) IN ('guest', 'гость', 'anonymous', 'anon') THEN
+    RETURN NEW;
+  END IF;
+  IF uname ~* '^user_[a-f0-9]{6,}$' OR uname ~* '^guest[\W_0-9-]*$' THEN
+    RETURN NEW;
+  END IF;
+
+  av := coalesce(av, 'Fons/1 b.jpg');
+  gender_val := CASE
+    WHEN av ~* '(^|/)Fons/[0-9]+[[:space:]]+g\.jpg$' THEN 'female'
+    ELSE 'male'
+  END;
+
+  INSERT INTO public.profiles AS p (id, username, avatar, gender)
+  VALUES (NEW.id, uname, av, gender_val)
+  ON CONFLICT (id) DO UPDATE SET
+    username = EXCLUDED.username,
+    avatar = EXCLUDED.avatar,
+    gender = EXCLUDED.gender,
+    updated_at = timezone('utc'::text, now());
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_anon_meta ON auth.users;
+CREATE TRIGGER on_auth_user_anon_meta
+  AFTER UPDATE OF raw_user_meta_data ON auth.users
+  FOR EACH ROW
+  WHEN (COALESCE(NEW.is_anonymous, false) = true)
+  EXECUTE FUNCTION public.handle_anon_user_meta_sync();
+
 CREATE OR REPLACE FUNCTION public.reset_cooldown_messages()
 RETURNS void
 LANGUAGE plpgsql

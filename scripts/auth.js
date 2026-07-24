@@ -638,22 +638,47 @@ async function getCurrentUser(forceRefresh = false) {
                 su.is_anonymous === true
                     ? String(meta.username || meta.display_name || meta.full_name || '').trim()
                     : '';
+            const anonMetaAvatar =
+                su.is_anonymous === true
+                    ? String(meta.avatar || meta.avatar_url || '').trim()
+                    : '';
+            const profileUsername = profile?.username ? String(profile.username).trim() : '';
+            const profileIsAutoGuest =
+                !profileUsername ||
+                (typeof reminkoIsAutoGuestUsername === 'function' &&
+                    reminkoIsAutoGuestUsername(profileUsername));
+            const metaNameOk =
+                !!anonMetaName &&
+                !(
+                    typeof reminkoIsAutoGuestUsername === 'function' &&
+                    reminkoIsAutoGuestUsername(anonMetaName)
+                );
+            // У анонима «Гость» в profiles — битый дефолт: берём имя из metadata
+            const resolvedUsername =
+                (su.is_anonymous && profileIsAutoGuest && metaNameOk
+                    ? anonMetaName
+                    : null) ||
+                profileUsername ||
+                (metaNameOk ? anonMetaName : null) ||
+                (su.is_anonymous ? anonMetaName || 'Гость' : su.email?.split('@')[0]) ||
+                'Пользователь';
+            const profileAvatar = profile?.avatar ? String(profile.avatar).trim() : '';
+            const profileAvatarIsDefault =
+                !profileAvatar ||
+                profileAvatar === 'Fons/seitFon.jpg' ||
+                /^Fons\/1\s+[bg]\.jpg$/i.test(profileAvatar);
+            const resolvedAvatar =
+                (su.is_anonymous && profileAvatarIsDefault && anonMetaAvatar
+                    ? anonMetaAvatar
+                    : null) ||
+                profileAvatar ||
+                anonMetaAvatar ||
+                'Fons/1 b.jpg';
             const userData = {
                 id: su.id,
                 email: su.email || '',
-                username:
-                    profile?.username ||
-                    (anonMetaName &&
-                    typeof reminkoIsAutoGuestUsername === 'function' &&
-                    !reminkoIsAutoGuestUsername(anonMetaName)
-                        ? anonMetaName
-                        : null) ||
-                    (su.is_anonymous ? anonMetaName || 'Гость' : su.email?.split('@')[0]) ||
-                    'Пользователь',
-                avatar:
-                    profile?.avatar ||
-                    (su.is_anonymous && meta.avatar ? String(meta.avatar) : null) ||
-                    'Fons/1 b.jpg',
+                username: resolvedUsername,
+                avatar: resolvedAvatar,
                 isAnonymous: su.is_anonymous === true,
                 is_banned: false,
                 is_site_creator: profile?.is_site_creator === true,

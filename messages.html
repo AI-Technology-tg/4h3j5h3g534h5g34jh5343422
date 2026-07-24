@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -164,7 +164,7 @@
     <script src="scripts/oauth-auth.js"></script>
     <script src="scripts/config.js?v=20260718b"></script>
     <script src="scripts/utils-notifications.js"></script>
-    <script src="scripts/auth.js"></script>
+    <script src="scripts/auth.js?v=20260724h"></script>
     <script src="scripts/data.js"></script>
     <script src="scripts/utils.js"></script>
     <script src="scripts/loading.js"></script>
@@ -445,26 +445,151 @@
             return false;
         }
 
+        const GUEST_DM_PREF_KEY = 'reminko_guest_dm_pref_v1';
+
+        function saveGuestDmPref(name, avatarRel) {
+            try {
+                localStorage.setItem(
+                    GUEST_DM_PREF_KEY,
+                    JSON.stringify({
+                        name: String(name || '').trim(),
+                        avatar: String(avatarRel || guestSelectedAvatar || 'Fons/1 b.jpg').trim(),
+                        ts: Date.now()
+                    })
+                );
+            } catch (_) {
+                /* ignore */
+            }
+        }
+
+        function loadGuestDmPref() {
+            try {
+                const raw = localStorage.getItem(GUEST_DM_PREF_KEY);
+                if (!raw) return null;
+                const o = JSON.parse(raw);
+                if (!o || typeof o !== 'object') return null;
+                const name = String(o.name || '').trim();
+                const avatar = String(o.avatar || '').trim();
+                if (name.length < 3) return null;
+                return { name, avatar: avatar || 'Fons/1 b.jpg' };
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function prefillGuestGateFromPref() {
+            const pref = loadGuestDmPref();
+            if (!pref) return;
+            const nameInp = document.getElementById('msgV2GuestName');
+            if (nameInp && !String(nameInp.value || '').trim()) nameInp.value = pref.name;
+            if (pref.avatar) {
+                guestSelectedAvatar = pref.avatar;
+                const grid = document.getElementById('msgV2GuestAvatarGrid');
+                if (grid) {
+                    grid.querySelectorAll('.msg-v2-guest-avatar-btn').forEach((el) => {
+                        const on = el.dataset.avatar === pref.avatar;
+                        el.classList.toggle('is-selected', on);
+                        el.setAttribute('aria-selected', on ? 'true' : 'false');
+                    });
+                }
+            }
+        }
+
         async function persistGuestProfile(uid, name, avatarRel) {
             const avatar = String(avatarRel || guestSelectedAvatar || 'Fons/1 b.jpg').trim();
+            const uname = String(name || '').trim();
             const gender =
                 typeof reminkoGenderFromPresetAvatar === 'function'
                     ? reminkoGenderFromPresetAvatar(avatar)
                     : 'male';
-            const row = { id: uid, username: name, avatar, gender };
-            let { error } = await supabaseClient.from('profiles').upsert(row, { onConflict: 'id' });
-            if (error) {
+
+            // 1) RPC SECURITY DEFINER — надёжная запись (обходит «тихий» RLS upsert)
+            try {
+                const { data: rpcRow, error: rpcErr } = await supabaseClient.rpc(
+                    'reminko_set_own_guest_profile',
+                    { p_username: uname, p_avatar: avatar }
+                );
+                if (!rpcErr && rpcRow) {
+                    saveGuestDmPref(uname, avatar);
+                    if (DirectMessagesService?._profileCache) {
+                        delete DirectMessagesService._profileCache[uid];
+                    }
+                    return null;
+                }
+                if (rpcErr) console.warn('[messages] guest rpc:', rpcErr);
+            } catch (ex) {
+                console.warn('[messages] guest rpc exception:', ex);
+            }
+
+            // 2) Fallback: upsert + update + обязательная проверка чтения
+            const row = { id: uid, username: uname, avatar, gender };
+            let { data: upData, error } = await supabaseClient
+                .from('profiles')
+                .upsert(row, { onConflict: 'id' })
+                .select('id, username, avatar')
+                .maybeSingle();
+            if (error || !upData) {
                 const upd = await supabaseClient
                     .from('profiles')
-                    .update({ username: name, avatar, gender })
-                    .eq('id', uid);
+                    .update({ username: uname, avatar, gender })
+                    .eq('id', uid)
+                    .select('id, username, avatar')
+                    .maybeSingle();
                 error = upd.error;
+                upData = upd.data;
             }
             if (error) return error;
+
+            const { data: check } = await supabaseClient
+                .from('profiles')
+                .select('username, avatar')
+                .eq('id', uid)
+                .maybeSingle();
+            const gotName = (check && check.username && String(check.username).trim()) || '';
+            if (
+                !gotName ||
+                (typeof reminkoIsAutoGuestUsername === 'function'
+                    ? reminkoIsAutoGuestUsername(gotName)
+                    : gotName.length < 2)
+            ) {
+                return {
+                    message:
+                        'Не удалось сохранить имя в профиль. Обновите страницу (Ctrl+F5) и попробуйте снова.'
+                };
+            }
+
+            saveGuestDmPref(uname, avatar);
             if (DirectMessagesService?._profileCache) {
                 delete DirectMessagesService._profileCache[uid];
             }
             return null;
+        }
+
+        async function syncGuestProfileFromAuthUser(user) {
+            if (!user || !isAnonAuthUser(user)) return false;
+            const meta = user.user_metadata || {};
+            const metaName = String(
+                meta.username || meta.display_name || meta.full_name || ''
+            ).trim();
+            const metaAvatar = String(meta.avatar || meta.avatar_url || '').trim();
+            const pref = loadGuestDmPref();
+            const name =
+                metaName &&
+                !(typeof reminkoIsAutoGuestUsername === 'function'
+                    ? reminkoIsAutoGuestUsername(metaName)
+                    : false)
+                    ? metaName
+                    : pref?.name || '';
+            if (!name || name.length < 3) return false;
+            if (
+                typeof reminkoIsAutoGuestUsername === 'function' &&
+                reminkoIsAutoGuestUsername(name)
+            ) {
+                return false;
+            }
+            const avatar = metaAvatar || pref?.avatar || guestSelectedAvatar || 'Fons/1 b.jpg';
+            const pe = await persistGuestProfile(user.id, name, avatar);
+            return !pe;
         }
 
         async function detectCurrentUserIsSiteCreator(uid) {
@@ -588,6 +713,12 @@
             __reminkoMsgGuestBusy = true;
             if (startBtn) startBtn.disabled = true;
             try {
+                const guestMeta = {
+                    username: name,
+                    display_name: name,
+                    full_name: name,
+                    avatar: avatarRel
+                };
                 const { data: s0 } = await supabaseClient.auth.getSession();
                 if (!s0?.user) {
                     if (typeof supabaseClient.auth.signInAnonymously !== 'function') {
@@ -596,7 +727,9 @@
                         );
                         return;
                     }
-                    const { data, error } = await supabaseClient.auth.signInAnonymously();
+                    const { data, error } = await supabaseClient.auth.signInAnonymously({
+                        options: { data: guestMeta }
+                    });
                     if (error) {
                         setMsgGuestErr(formatGuestAuthError(error));
                         return;
@@ -607,14 +740,7 @@
                         setMsgGuestErr('Сессия не появилась. Обновите страницу и попробуйте снова.');
                         return;
                     }
-                    const { error: uErr } = await supabaseClient.auth.updateUser({
-                        data: {
-                            username: name,
-                            display_name: name,
-                            full_name: name,
-                            avatar: avatarRel
-                        }
-                    });
+                    const { error: uErr } = await supabaseClient.auth.updateUser({ data: guestMeta });
                     if (uErr) console.warn('[messages] updateUser:', uErr);
                     const pe = await persistGuestProfile(u.id, name, avatarRel);
                     if (pe) {
@@ -623,14 +749,7 @@
                     }
                 } else {
                     const uid = s0.user.id;
-                    const { error: u1 } = await supabaseClient.auth.updateUser({
-                        data: {
-                            username: name,
-                            display_name: name,
-                            full_name: name,
-                            avatar: avatarRel
-                        }
-                    });
+                    const { error: u1 } = await supabaseClient.auth.updateUser({ data: guestMeta });
                     if (u1) console.warn('[messages] updateUser:', u1);
                     const pe = await persistGuestProfile(uid, name, avatarRel);
                     if (pe) {
@@ -638,6 +757,7 @@
                         return;
                     }
                 }
+                saveGuestDmPref(name, avatarRel);
                 if (typeof clearUserCache === 'function') clearUserCache();
                 if (DirectMessagesService?.resetSessionCache) DirectMessagesService.resetSessionCache();
                 await runAfterSessionReady();
@@ -794,17 +914,28 @@
                         return;
                     }
                     initGuestAvatarPicker();
+                    prefillGuestGateFromPref();
                     showMsgGuestGate();
                     hideMsgPageLoading();
                 } else if (isAnonAuthUser(session.user) && (await profileNeedsDisplayNameForMessages(session.user.id))) {
+                    // Мета/localStorage уже есть — допишем профиль и не мучаем формой снова
+                    const synced = await syncGuestProfileFromAuthUser(session.user);
+                    if (synced && !(await profileNeedsDisplayNameForMessages(session.user.id))) {
+                        await runAfterSessionReady();
+                        return;
+                    }
                     if (!hasCreatorQuery()) {
                         window.location.replace(messagesPageRelativeToMessagesWithCreator());
                         return;
                     }
                     initGuestAvatarPicker();
+                    prefillGuestGateFromPref();
                     showMsgGuestGate();
                     hideMsgPageLoading();
                 } else {
+                    if (isAnonAuthUser(session.user)) {
+                        void syncGuestProfileFromAuthUser(session.user);
+                    }
                     await runAfterSessionReady();
                 }
             } catch (e) {
