@@ -13,6 +13,10 @@
 [functions]
   node_bundler = "esbuild"
 
+# web_search (Responses API) дольше обычного chat — нужен запас на Pro/Team
+[functions."minko-chat"]
+  timeout = 26
+
 [[redirects]]
   from = "/config.local.js"
   to = "/config.local.stub.js"

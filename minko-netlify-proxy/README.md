@@ -17,7 +17,10 @@
 | **MINKO_FREE_API_KEY** | «Сонная Minko», бесплатный поток (как в локальном `.env`) |
 | **KODIK_API_TOKEN** | Прокси Kodik (`/.netlify/functions/kodik-proxy`) — поиск плеера |
 | **ALLOHA_API_TOKEN** | Прокси Alloha TV (`/.netlify/functions/alloha-proxy`) — второй плеер на странице аниме |
-| **OPENAI_API_KEY** | VIP-ответы и опционально запасной путь |
+| **OPENAI_API_KEY** | Основной чат + **веб-поиск** (Responses API `web_search`, как ChatGPT) |
+| **MINKO_OPENAI_WEB_SEARCH** | `1` (по умолчанию) — искать в интернете по аниме-вопросам; `0` — выключить |
+| **MINKO_WEB_SEARCH_ANIME_DOMAINS** | `1` — только аниме-сайты; `0` (по умолчанию) — весь веб, тема «аниме» в промпте |
+| **MINKO_OPENAI_MODEL** | Модель (по умолчанию `gpt-5.6`) |
 | **XAI_API_KEY** | Grok, если Free API вернул мусор или ошибку |
 | **SUPABASE_URL** | URL проекта Supabase (для «выключателя» чата и логов) |
 | **SUPABASE_ANON_KEY** | anon key — функция читает `minko_ai_public_state` |

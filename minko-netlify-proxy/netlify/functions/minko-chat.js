@@ -1,15 +1,38 @@
 /**
- * Netlify Function — OpenAI + веб-поиск (Google/Bing/DDG) для Minko AI (+ Supabase-ворота).
+ * Netlify Function — OpenAI Responses + web_search (как ChatGPT) для Minko AI.
  * POST JSON: { messages, isVip?, sessionKey?, researchContext? }
- * Факты по аниме — из интернета, не из Jikan/AniList.
+ * Факты по аниме/манге — из интернета (hosted web_search), не из «памяти» и не из Kodik.
  */
 const GPT_URL = 'https://api.openai.com/v1/chat/completions';
+const RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const GPT_KEY = process.env.OPENAI_API_KEY || process.env.MINKO_GPT_API_KEY || '';
 /** Одна модель на весь чат. Env MINKO_OPENAI_MODEL опционален — по умолчанию gpt-5.6 */
 const MODEL_DEFAULT = (process.env.MINKO_OPENAI_MODEL || 'gpt-5.6').trim();
 const MODEL_VIP = (process.env.MINKO_OPENAI_MODEL_VIP || MODEL_DEFAULT).trim();
 const WEB_ON = String(process.env.MINKO_WEB_SEARCH || '1').trim() === '1';
+/** Нативный поиск OpenAI (Responses API + web_search). 0 = только наш scrape fallback */
+const OPENAI_WEB_SEARCH = String(process.env.MINKO_OPENAI_WEB_SEARCH || '1').trim() === '1';
 const JIKAN = 'https://api.jikan.moe/v4';
+
+/** Домены аниме/манги для web_search filters (как «гугл только по теме») */
+const ANIME_SEARCH_DOMAINS = [
+    'myanimelist.net',
+    'anilist.co',
+    'shikimori.one',
+    'animenewsnetwork.com',
+    'anime-planet.com',
+    'wikipedia.org',
+    'fandom.com',
+    'crunchyroll.com',
+    'anitrendz.com',
+    'livechart.me',
+    'anichart.net',
+    'kitsu.app',
+    'anidb.net',
+    'mangaupdates.com',
+    'animecorner.me',
+    'animenewsnetwork.com'
+];
 
 function isGpt5Family(model) {
     return /^gpt-5/i.test(String(model || '')) || /^o[0-9]/i.test(String(model || ''));
@@ -1072,33 +1095,28 @@ function buildSystemPrompt(userGender, isVip, researchBlock) {
     const g = genderLine(userGender);
     const sleepyBlock = isVip
         ? `РЕЖИМ VIP: ответы глубже и собраннее, но ХАРАКТЕР СОННОЙ Minko обязателен — в каждом ответе 1 короткая *ремарка* (*зевает* / *трёт глазки* / *клюёт носом* / мм… / 💤). Не убирай сонность полностью. СНАЧАЛА — полный экспертный ответ.`
-        : `РЕЖИМ ОБЫЧНЫЙ (сонная Minko): почти в каждом ответе 1–2 короткие *ремарки* сонности (*зевает*, *трёт глазки*, *клюёт носом*, мм…, 💤), иногда лёгкая шутка про кофе/подушку. СНАЧАЛА — полный экспертный ответ по сути. Не отмахивайся «не знаю» / «уточни в каталоге», если факты есть в блоке данных ниже. Не превращай весь ответ в нытьё про сон.`;
+        : `РЕЖИМ ОБЫЧНЫЙ (сонная Minko): почти в каждом ответе 1–2 короткие *ремарки* сонности (*зевает*, *трёт глазки*, *клюёт носом*, мм…, 💤), иногда лёгкая шутка про кофе/подушку. СНАЧАЛА — полный экспертный ответ по сути. Не отмахивайся «не знаю», если факты есть. Не превращай весь ответ в нытьё про сон.`;
 
     const dataBlock =
         researchBlock && researchBlock.trim().length > 40
-            ? `\n\n=== ДАННЫЕ (каталог + календарь + интернет) ===\nПорядок доверия: 1) КАЛЕНДАРЬ / ФАКТЫ ИЗ КАТАЛОГА  2) страницы из интернета  3) память модели (только если сверху пусто).\nЕсли в блоке есть «вышло серий / серии 1-N / следующая» — СРАЗУ назови цифры. Запрещено отвечать «в сводке нет данных», когда цифры есть в блоке. Не подсовывай другие аниме (KonoSuba, Slime и т.п.), если вопрос про конкретный тайтл.\n${researchBlock.trim().slice(0, 8500)}`
-            : `\n\n=== ДАННЫЕ ===\nСводка не пришла — не выдумывай точные даты/номера серий; скажи, что не нашла, и предложи уточнить название.`;
+            ? `\n\n=== РЕЗУЛЬТАТЫ ИЗ ИНТЕРНЕТА ===\nГлавный источник — веб-поиск/страницы ниже. Память модели — только запасной. Каталог Re-Minko — только для кнопок [[watch:ID|…]], не вместо интернета.\n${researchBlock.trim().slice(0, 8500)}`
+            : `\n\n=== ДАННЫЕ ===\nВеб-сводка не пришла — не выдумывай точные даты/номера серий; скажи, что не нашла в сети.`;
 
     return `Ты — Minko, лучший AI-ассистент сайта Re-Minko (каталог аниме и манги). Образ и характер — в духе Рэм из Re:Zero. Создатель — Дубина (он сделал сайт и тебя, фанат Re:Zero).
 
 СЕЙЧАС 2026 ГОД.
 
-ТЫ — ЭКСПЕРТ: студии, жанры, сюжеты, персонажи, сэйю, арки, спойлеры (с предупреждением), новости сезона, рекомендации. Пользователь должен восхищаться глубиной ответа.
+ТЫ — ЭКСПЕРТ по аниме/манге. Работаешь как чат с доступом в интернет: сначала поиск по сайтам, потом ответ.
 
-СТРОГИЙ ФОКУС (важнее всего):
-- Ты отвечаешь ТОЛЬКО на темы: аниме, манга, каталог/сайт Re-Minko, ты сама (Minko), создатель Дубина, короткие приветствия/благодарности/прощения.
-- На футбол, спорт, политику, погоду, общие новости и прочий оффтоп — не отвечай по сути: остроумно отшутись и верни к аниме/сайту. Без фактов «из головы» и без канцелярита.
-- Не ищи и не придумывай ответы вне аниме/сайта.
+СТРОГИЙ ФОКУС:
+- Только аниме, манга, сайт Re-Minko, ты сама, Дубина, короткие приветствия.
+- Оффтоп — отшутись, без фактов.
 
-ПРАВИЛА ОТВЕТА:
-- Пересказ серии / сюжет / «что произошло» — развёрнуто, по пунктам, со спойлер-меткой если нужно.
-- Новости и премьеры / «сколько серий / какая последняя» — бери цифры из КАЛЕНДАРЯ/КАТАЛОГА/интернета в блоке. НИКОГДА не пиши «нет доступа к браузеру» и не проси скрин вместо проверки.
-- Не кидай ссылку на calendar.html вместо цифр. Сначала ответ с числами.
-- Запрос «на сайте дай аниме» — только id из блока в [[watch:ЧИСЛО|Название]].
-- С первого ответа опирайся на блок фактов, не на устаревшую память.
-- Русский язык, обращение на «ты».
-- Давай только допустимую для обычных пользователей информацию; чужое и служебное не разглашай.
-- В каждом ответе держи сонность: короткие *ремарки* — но ПОСЛЕ полезного ответа, не вместо него.
+ПРАВИЛА:
+- Факты (серии, даты, новости, статус) — из интернета в блоке. НИКОГДА «нет браузера / не могу проверить».
+- Не подменяй ответ ссылкой на calendar.html вместо цифр.
+- [[watch:ЧИСЛО|Название]] — только если id есть в блоке каталога.
+- Русский, на «ты», сонность после пользы.
 
 ${g}
 
@@ -1110,6 +1128,104 @@ ${SITE_PUBLIC_KNOWLEDGE}
 ${dataBlock}
 
 Ответь на последнее сообщение пользователя максимально полезно.`;
+}
+
+/** Промпт для Responses API + web_search (как ChatGPT Browse) */
+function buildWebSearchSystemPrompt(userGender, isVip) {
+    const g = genderLine(userGender);
+    const sleepy = isVip
+        ? 'VIP: глубже, но 1 *ремарка* сонности в каждом ответе.'
+        : 'Обычный режим: 1–2 короткие *ремарки* сонности после полезного ответа.';
+    return `Ты — Minko AI сайта Re-Minko. Образ — Рэм из Re:Zero. Создатель — Дубина. Сейчас 2026.
+
+У тебя есть инструмент веб-поиска — пользуйся им как ChatGPT с Browse / Google:
+1) Сформулируй поисковый запрос по вопросу пользователя.
+2) Открой релевантные страницы из выдачи.
+3) Сопоставь источники и ответь цифрами/фактами.
+4) Если источники расходятся — скажи об этом коротко.
+
+ТОЛЬКО аниме и манга (и коротко про сайт Re-Minko / тебя / Дубину). Не отвечай по футболу, политике и прочему оффтопу.
+
+ЗАПРЕЩЕНО:
+- говорить «у меня нет интернета / браузера / не могу искать»;
+- отмахиваться «проверь сам в календаре» вместо цифр;
+- выдумывать серии/даты, если поиск ничего не дал — тогда честно «в выдаче не нашла».
+
+Отвечай на русском, на «ты». ${sleepy}
+${g}
+Не называй внешние ИИ-бренды и техно-стек.`;
+}
+
+function extractResponsesText(data) {
+    if (!data) return '';
+    if (typeof data.output_text === 'string' && data.output_text.trim()) {
+        return data.output_text.trim();
+    }
+    const parts = [];
+    const output = Array.isArray(data.output) ? data.output : [];
+    for (const item of output) {
+        if (!item || item.type !== 'message') continue;
+        const content = Array.isArray(item.content) ? item.content : [];
+        for (const c of content) {
+            if (!c) continue;
+            if ((c.type === 'output_text' || c.type === 'text') && c.text) {
+                parts.push(String(c.text));
+            }
+        }
+    }
+    return parts.join('\n').trim();
+}
+
+/**
+ * Как ChatGPT: Responses API + hosted web_search по аниме-доменам.
+ */
+async function callOpenAIWithWebSearch(instructions, nonSystem, model) {
+    const input = (nonSystem || [])
+        .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && m.content)
+        .slice(-16)
+        .map((m) => ({
+            role: m.role,
+            content: String(m.content).slice(0, MAX_MESSAGE_CHARS)
+        }));
+    if (!input.length) throw new Error('Empty input for web_search');
+
+    // Фильтр доменов опционален: по умолчанию полный веб (как Google), тему «только аниме»
+    // держим промптом. MINKO_WEB_SEARCH_ANIME_DOMAINS=1 — узкий список аниме-сайтов.
+    const domainFilterOn =
+        String(process.env.MINKO_WEB_SEARCH_ANIME_DOMAINS || '0').trim() === '1';
+    const webTool = { type: 'web_search' };
+    if (domainFilterOn) {
+        webTool.filters = { allowed_domains: ANIME_SEARCH_DOMAINS };
+    }
+
+    const body = {
+        model,
+        instructions: String(instructions || '').slice(0, 12000),
+        input,
+        tools: [webTool],
+        // Обязательный поиск по аниме-вопросу (не «из памяти»)
+        tool_choice: 'required',
+        include: ['web_search_call.action.sources']
+    };
+    if (isGpt5Family(model)) {
+        body.reasoning = { effort: 'low' };
+    }
+
+    const r = await fetch(RESPONSES_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + GPT_KEY
+        },
+        body: JSON.stringify(body)
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+        throw new Error(data.error?.message || `Responses API ${r.status}`);
+    }
+    const text = extractResponsesText(data);
+    if (!text) throw new Error('Responses API: empty output_text');
+    return text;
 }
 
 async function callOpenAI(messages, model, maxTokens, temperature) {
@@ -1224,6 +1340,30 @@ exports.handler = async (event) => {
     }
 
     const researchQuery = researchQueryFromHistory(nonSystem, lastUser);
+    const wantsAnimeWeb =
+        WEB_ON && researchQuery.length > 2 && isAnimeResearchTopic(researchQuery);
+
+    // Главный путь: как ChatGPT — OpenAI web_search по аниме/манга-сайтам
+    if (wantsAnimeWeb && OPENAI_WEB_SEARCH) {
+        try {
+            let instructions = buildWebSearchSystemPrompt(userGender, isVip);
+            const watchOnly = String(clientResearch || '').trim();
+            if (watchOnly.length > 40 && /\[\[watch:|id=\d+/i.test(watchOnly)) {
+                instructions +=
+                    '\n\nКнопки Re-Minko (не источник фактов, только ссылки смотреть):\n' +
+                    watchOnly.slice(0, 1800);
+            }
+            const text = await callOpenAIWithWebSearch(instructions, nonSystem, model);
+            return ok({ choices: [{ message: { role: 'assistant', content: text || '…' } }] }, headers);
+        } catch (e) {
+            console.error('[minko-chat] OpenAI web_search failed, fallback scrape', e);
+            void remoteServerLog('warn', 'web_search failed, fallback', {
+                err: String(e.message || e)
+            });
+            // дальше — scrape + chat completions
+        }
+    }
+
     let researchBlock = '';
     if (WEB_ON && researchQuery.length > 2) {
         try {
@@ -1236,7 +1376,6 @@ exports.handler = async (event) => {
     }
 
     const systemContent = buildSystemPrompt(userGender, isVip, researchBlock);
-    // Дублируем факты в последнее user-сообщение — модели сложнее «не заметить» сводку
     const msgs = nonSystem.map((m, idx, arr) => {
         if (idx !== arr.length - 1 || m.role !== 'user') return m;
         if (!researchBlock || researchBlock.length < 40) return m;
@@ -1244,7 +1383,7 @@ exports.handler = async (event) => {
             role: 'user',
             content:
                 String(m.content || '') +
-                '\n\n[СЛУЖЕБНЫЕ ФАКТЫ — ответь по ним, не отрицай их наличие]\n' +
+                '\n\n[РЕЗУЛЬТАТЫ ВЕБ-ПОИСКА — ответь по ним]\n' +
                 researchBlock.slice(0, 4500)
         };
     });

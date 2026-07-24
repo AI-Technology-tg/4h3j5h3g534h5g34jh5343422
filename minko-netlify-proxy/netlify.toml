@@ -11,6 +11,9 @@
   # Бесплатный тариф Netlify: 10 с — тяжёлые цепочки API могут не успеть; при таймаутах см. план Pro или упростите ключи.
   # external_node_modules = []
 
+[functions."minko-chat"]
+  timeout = 26
+
 [[redirects]]
   from = "/chat"
   to = "/.netlify/functions/minko-chat"
