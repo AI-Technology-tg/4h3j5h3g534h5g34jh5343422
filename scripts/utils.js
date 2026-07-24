@@ -591,9 +591,24 @@ function createAnimeCard(anime, clickHandler) {
         });
     }
 
-    // Загружаем постер из API с lazy loading, если его еще нет
-    if (!posterUrl && !anime.isJikanVirtual && typeof getAnimePoster === 'function' && stats.title) {
-        // Пробуем оба названия (сначала titleAlt для API, потом title)
+    const malForPoster = anime.mal_id != null ? parseInt(anime.mal_id, 10) : NaN;
+    const posterWeak =
+        typeof isWeakPosterSource === 'function'
+            ? isWeakPosterSource(posterUrl)
+            : !posterUrl;
+
+    // Нет постера или слабый (KP/missing) — подтягиваем по MAL, не по названию
+    if (
+        (!posterUrl || posterWeak) &&
+        !anime.isJikanVirtual &&
+        Number.isFinite(malForPoster) &&
+        malForPoster > 0 &&
+        typeof fetchPosterUrlForMal === 'function'
+    ) {
+        card.dataset.posterDisplayTitle = stats.title;
+        card.dataset.posterMalId = String(malForPoster);
+        loadAnimePosterLazy(card, stats.titleAlt ? [stats.titleAlt, stats.title] : stats.title, gradient);
+    } else if (!posterUrl && !anime.isJikanVirtual && typeof getAnimePoster === 'function' && stats.title) {
         const searchTitles = stats.titleAlt ? [stats.titleAlt, stats.title] : stats.title;
         card.dataset.posterDisplayTitle = stats.title;
         loadAnimePosterLazy(card, searchTitles, gradient);
@@ -703,7 +718,7 @@ function initLazyLoading() {
 
 // Асинхронная загрузка постера для карточки с lazy loading
 async function loadAnimePosterAsync(card, title, fallbackGradient) {
-    if (!card || !title) return;
+    if (!card) return;
     
     const posterElement = card.querySelector('.anime-poster');
     if (!posterElement) return;
@@ -711,38 +726,54 @@ async function loadAnimePosterAsync(card, title, fallbackGradient) {
     try {
         let posterUrl = null;
         const contentType = card.dataset.contentType || 'anime';
-        
-        // Определяем названия для поиска (может быть массив или строка)
-        const searchTitle = Array.isArray(title) ? title[0] : title;
-        
-        // Приоритет 1: Новый быстрый API (параллельные запросы к Kitsu, AniList, Jikan)
-        if (typeof getPosterFast === 'function') {
-            posterUrl = await getPosterFast(searchTitle, contentType);
+        const mal = parseInt(card.dataset.posterMalId || card.dataset.malId, 10);
+
+        // Приоритет: постер по MAL (сезон-точный), не поиск по названию
+        if (
+            contentType !== 'manga' &&
+            Number.isFinite(mal) &&
+            mal > 0 &&
+            typeof fetchPosterUrlForMal === 'function'
+        ) {
+            const animeStub = {
+                mal_id: mal,
+                title: card.dataset.posterDisplayTitle || (Array.isArray(title) ? title[0] : title),
+                titleAlt: Array.isArray(title) ? title[0] : title,
+                id: card.dataset.id,
+            };
+            posterUrl = await fetchPosterUrlForMal(mal, animeStub);
         }
-        // Приоритет 2: Старый Jikan API
-        else if (typeof getAnimeDetails === 'function') {
-            const searchTitles = Array.isArray(title) ? title : [title];
-            
-            for (const st of searchTitles) {
-                if (!st) continue;
-                try {
-                    const details = contentType === 'manga' 
-                        ? await getMangaDetails(st)
-                        : await getAnimeDetails(st);
-                    posterUrl = details?.poster || details?.cover || null;
-                    if (posterUrl) break;
-                } catch (e) {
-                    continue;
+
+        if (!posterUrl && title) {
+            const searchTitle = Array.isArray(title) ? title[0] : title;
+            if (typeof getPosterFast === 'function') {
+                posterUrl = await getPosterFast(searchTitle, contentType);
+            } else if (typeof getAnimeDetails === 'function') {
+                const searchTitles = Array.isArray(title) ? title : [title];
+                for (const st of searchTitles) {
+                    if (!st) continue;
+                    try {
+                        const details =
+                            contentType === 'manga'
+                                ? await getMangaDetails(st)
+                                : await getAnimeDetails(st);
+                        posterUrl = details?.poster || details?.cover || null;
+                        if (posterUrl) break;
+                    } catch (e) {
+                        continue;
+                    }
                 }
+            } else if (typeof getAnimePoster === 'function') {
+                posterUrl = await getAnimePoster(title, {});
             }
         }
-        // Приоритет 3: Заглушка
-        else if (typeof getAnimePoster === 'function') {
-            posterUrl = await getAnimePoster(title, {});
-        }
+
+        const weak =
+            typeof isWeakPosterSource === 'function'
+                ? isWeakPosterSource(posterUrl)
+                : !posterUrl;
         
-        if (posterUrl && !posterUrl.startsWith('data:image/svg+xml')) {
-            // Плавная смена градиента на изображение с предзагрузкой
+        if (posterUrl && !posterUrl.startsWith('data:image/svg+xml') && !weak) {
             const img = new Image();
             
             img.onload = () => {
@@ -757,7 +788,7 @@ async function loadAnimePosterAsync(card, title, fallbackGradient) {
             };
             
             img.src = posterUrl;
-        } else {
+        } else if (!posterElement.style.backgroundImage) {
             posterElement.classList.add('poster-placeholder');
         }
     } catch (error) {

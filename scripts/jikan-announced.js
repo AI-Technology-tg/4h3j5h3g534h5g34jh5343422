@@ -350,20 +350,35 @@
         return /shikimori\.(one|me)\/system\/animes\/\d+\/original\.jpg/i.test(String(url || ''));
     }
 
-    const POSTER_MAL_CACHE_KEY = 'reminko_poster_mal_v2';
+    /** Слабые/общие постеры: плейсхолдеры, «общий» KP на все сезоны, шаблонный Shiki. */
+    function isWeakPosterSource(url) {
+        const s = String(url || '').toLowerCase();
+        if (!s || s.startsWith('data:')) return true;
+        if (isShikimoriPlaceholderPoster(s)) return true;
+        if (isShikimoriDirectMalPoster(s)) return true;
+        if (s.includes('st.kp.yandex.net') || s.includes('kinopoisk')) return true;
+        return false;
+    }
+
+    // v3: сброс кэша, отравленного поиском по названию (один постер на все сезоны)
+    const POSTER_MAL_CACHE_KEY = 'reminko_poster_mal_v3';
     const POSTER_MAL_CACHE_TTL = 30 * 86400000;
     const _posterMalMem = new Map();
 
     function readMalPosterCache(malId) {
         const mal = parseInt(malId, 10);
         if (!Number.isFinite(mal) || mal <= 0) return '';
-        if (_posterMalMem.has(mal)) return _posterMalMem.get(mal);
+        if (_posterMalMem.has(mal)) {
+            const u = _posterMalMem.get(mal);
+            return isWeakPosterSource(u) ? '' : u;
+        }
         try {
             const raw = localStorage.getItem(POSTER_MAL_CACHE_KEY);
             if (!raw) return '';
             const o = JSON.parse(raw);
             const e = o[String(mal)];
             if (e?.url && Date.now() - (e.ts || 0) < POSTER_MAL_CACHE_TTL) {
+                if (isWeakPosterSource(e.url)) return '';
                 _posterMalMem.set(mal, e.url);
                 return e.url;
             }
@@ -375,7 +390,7 @@
 
     function writeMalPosterCache(malId, url) {
         const mal = parseInt(malId, 10);
-        if (!Number.isFinite(mal) || mal <= 0 || !url || isShikimoriPlaceholderPoster(url)) return;
+        if (!Number.isFinite(mal) || mal <= 0 || !url || isWeakPosterSource(url)) return;
         _posterMalMem.set(mal, url);
         try {
             const raw = localStorage.getItem(POSTER_MAL_CACHE_KEY);
@@ -401,14 +416,15 @@
             jikanPosterFromAnime(anime._jikan),
             jikanPosterFromAnime(anime._jikanRaw),
             jikanPosterFromAnime(anime),
+            shikimoriPosterUrlFromPath(anime.image?.original),
             calPoster,
             anime.posterUrl,
-            shikimoriPosterUrlFromPath(anime.image?.original)
         ];
+        // Сначала сильные (не KP / не missing), потом любые непустые
         for (const url of candidates) {
-            if (url && !isShikimoriPlaceholderPoster(url) && !isShikimoriDirectMalPoster(url)) {
-                return url;
-            }
+            if (url && !isWeakPosterSource(url)) return url;
+        }
+        for (const url of candidates) {
             if (url && !isShikimoriPlaceholderPoster(url)) return url;
         }
         return '';
@@ -540,24 +556,16 @@
         if (cached) return cached;
 
         const known = pickKnownPosterUrl(anime);
-        if (known) {
+        if (known && !isWeakPosterSource(known)) {
             writeMalPosterCache(mal, known);
             return known;
         }
 
-        const calOnly =
-            typeof global.reminkoCalendarRowForMal === 'function'
-                ? global.reminkoCalendarRowForMal(mal)?.posterUrl
-                : '';
-        if (calOnly && !isShikimoriPlaceholderPoster(calOnly)) {
-            writeMalPosterCache(mal, calOnly);
-            return calOnly;
-        }
-
+        // Только источники по MAL-id — НЕ поиск по названию (он даёт постер 1-го сезона всем частям)
         if (global.shikimoriApi?.readCachedByMalId) {
             const sh = global.shikimoriApi.readCachedByMalId(mal);
             const u = shikimoriPosterUrlFromPath(sh?.image?.original);
-            if (u) {
+            if (u && !isWeakPosterSource(u)) {
                 writeMalPosterCache(mal, u);
                 return u;
             }
@@ -566,39 +574,7 @@
         if (typeof global.fetchAnilistPosterByMalId === 'function') {
             try {
                 const u = await global.fetchAnilistPosterByMalId(mal);
-                if (u && !isShikimoriPlaceholderPoster(u)) {
-                    writeMalPosterCache(mal, u);
-                    return u;
-                }
-            } catch (_) {
-                /* ignore */
-            }
-        }
-
-        const searchTitles = reminkoCollectPosterSearchTitles(anime, mal);
-        if (searchTitles.length && typeof global.getPosterFast === 'function') {
-            for (const title of searchTitles) {
-                try {
-                    const u = await global.getPosterFast(title, 'anime');
-                    const ph = global.POSTER_PLACEHOLDER || '';
-                    if (u && u !== ph && !isShikimoriPlaceholderPoster(u)) {
-                        writeMalPosterCache(mal, u);
-                        return u;
-                    }
-                } catch (_) {
-                    /* ignore */
-                }
-            }
-        }
-
-        if (global.shikimoriApi?.enqueueFetchShikimoriByMalId) {
-            try {
-                const sh = await global.shikimoriApi.enqueueFetchShikimoriByMalId(
-                    mal,
-                    searchTitles[0] || ''
-                );
-                const u = shikimoriPosterUrlFromPath(sh?.image?.original);
-                if (u) {
+                if (u && !isWeakPosterSource(u)) {
                     writeMalPosterCache(mal, u);
                     return u;
                 }
@@ -610,7 +586,7 @@
         try {
             if (typeof global.jikanFetchPosterByMalId === 'function') {
                 const u = await global.jikanFetchPosterByMalId(mal);
-                if (u && !isShikimoriPlaceholderPoster(u)) {
+                if (u && !isWeakPosterSource(u)) {
                     writeMalPosterCache(mal, u);
                     return u;
                 }
@@ -618,7 +594,7 @@
             if (typeof global.jikanFetchAnimeFullByMalId === 'function') {
                 const full = await global.jikanFetchAnimeFullByMalId(mal);
                 const u = jikanPosterFromAnime(full);
-                if (u && !isShikimoriPlaceholderPoster(u)) {
+                if (u && !isWeakPosterSource(u)) {
                     writeMalPosterCache(mal, u);
                     return u;
                 }
@@ -626,6 +602,34 @@
         } catch (_) {
             /* ignore */
         }
+
+        const searchTitles = reminkoCollectPosterSearchTitles(anime, mal);
+        if (global.shikimoriApi?.enqueueFetchShikimoriByMalId) {
+            try {
+                const sh = await global.shikimoriApi.enqueueFetchShikimoriByMalId(
+                    mal,
+                    searchTitles[0] || ''
+                );
+                const u = shikimoriPosterUrlFromPath(sh?.image?.original);
+                if (u && !isWeakPosterSource(u)) {
+                    writeMalPosterCache(mal, u);
+                    return u;
+                }
+            } catch (_) {
+                /* ignore */
+            }
+        }
+
+        // Календарь / известный слабый постер — лучше, чем пусто, но в mal-cache не кладём KP
+        const calOnly =
+            typeof global.reminkoCalendarRowForMal === 'function'
+                ? global.reminkoCalendarRowForMal(mal)?.posterUrl
+                : '';
+        if (calOnly && !isShikimoriPlaceholderPoster(calOnly)) {
+            if (!isWeakPosterSource(calOnly)) writeMalPosterCache(mal, calOnly);
+            return calOnly;
+        }
+        if (known) return known;
 
         return '';
     }
@@ -640,6 +644,26 @@
         img.referrerPolicy = 'no-referrer';
         img.decoding = 'async';
 
+        const initial = String(img.getAttribute('src') || img.src || '');
+        const initialOk = initial && !isWeakPosterSource(initial);
+
+        // Уже хороший постер каталога — не затираем кэшем/поиском; только догрузка при ошибке
+        if (initialOk) {
+            writeMalPosterCache(mal, initial);
+            img.onerror = () => {
+                if (!img.isConnected) return;
+                void fetchPosterUrlForMal(mal, anime).then((url) => {
+                    if (url && img.isConnected) {
+                        img.classList.remove('is-poster-missing');
+                        img.src = url;
+                    } else {
+                        img.classList.add('is-poster-missing');
+                    }
+                });
+            };
+            return;
+        }
+
         const cached = readMalPosterCache(mal);
         if (cached) {
             img.classList.remove('is-poster-missing');
@@ -647,13 +671,7 @@
             return;
         }
 
-        const initial = String(img.getAttribute('src') || img.src || '');
-        if (
-            !initial ||
-            initial.startsWith('data:') ||
-            isShikimoriPlaceholderPoster(initial) ||
-            isShikimoriDirectMalPoster(initial)
-        ) {
+        if (!initial || initial.startsWith('data:') || isWeakPosterSource(initial)) {
             img.src =
                 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
         }
@@ -712,6 +730,7 @@
     global.jikanPosterFromAnime = jikanPosterFromAnime;
     global.isShikimoriPlaceholderPoster = isShikimoriPlaceholderPoster;
     global.isShikimoriDirectMalPoster = isShikimoriDirectMalPoster;
+    global.isWeakPosterSource = isWeakPosterSource;
     global.readMalPosterCache = readMalPosterCache;
     global.writeMalPosterCache = writeMalPosterCache;
     global.pickKnownPosterUrl = pickKnownPosterUrl;

@@ -229,6 +229,9 @@
     function isValidHomePosterUrl(url) {
         const u = String(url || '').trim();
         if (!u || u.startsWith('data:')) return false;
+        if (typeof global.isWeakPosterSource === 'function' && global.isWeakPosterSource(u)) {
+            return false;
+        }
         if (
             typeof global.isShikimoriPlaceholderPoster === 'function' &&
             global.isShikimoriPlaceholderPoster(u)
