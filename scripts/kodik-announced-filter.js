@@ -46,6 +46,8 @@
         /всезнайка/,
         /счастливая\s+улыбка/,
         /origami\s+ninja/,
+        /детектив\s+конан/,
+        /detective\s+conan/,
     ];
 
     function norm(value) {

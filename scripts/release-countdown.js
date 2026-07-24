@@ -666,7 +666,9 @@
             /тикава/,
             /бейблэйд/,
             /отряд\s+мистики/,
-            /qq\s+гома/
+            /qq\s+гома/,
+            /детектив\s+конан/,
+            /detective\s+conan/
         ];
         return patterns.some((re) => re.test(title));
     }

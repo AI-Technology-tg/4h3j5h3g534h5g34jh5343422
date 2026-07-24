@@ -193,8 +193,23 @@ body.theme-dark .home-hero-fav-title {
     color: rgba(243, 232, 255, 0.92) !important;
 }
 
-body.theme-dark .home-hero-favs-more {
+body.theme-dark .home-hero-favs-more,
+body.theme-dark .home-hero-watch-more {
     color: rgba(196, 181, 253, 0.98) !important;
+}
+
+body.theme-dark .home-hero-watch-poster {
+    border-color: rgba(157, 77, 255, 0.4) !important;
+    background: rgba(18, 8, 31, 0.7) !important;
+}
+
+body.theme-dark .home-hero-watch-title {
+    color: rgba(243, 232, 255, 0.92) !important;
+}
+
+body.theme-dark .home-hero-watch-ep-badge {
+    background: rgba(10, 8, 22, 0.9) !important;
+    border-color: rgba(157, 77, 255, 0.5) !important;
 }
 
 body.theme-dark .home-section,

@@ -2,7 +2,8 @@ name: Anime Automation
 
 on:
   schedule:
-    - cron: "10 1 * * *"
+    # Каждые 3 часа в :20 UTC (не в ровное :00) — ≈ 02:20 / 05:20 / 08:20 / … по Киеву (UTC+2/+3)
+    - cron: "20 */3 * * *"
   workflow_dispatch:
 
 permissions:

@@ -4,7 +4,7 @@
 (function (global) {
     'use strict';
 
-    const KODIK_HOME_LIMIT = 56;
+    const KODIK_HOME_LIMIT = 120;
     const KODIK_ANNOUNCED_LIMIT = 120;
     const KODIK_POPULAR_LIMIT = 50;
     const POPULAR_YEAR_FROM = 2022;
@@ -181,6 +181,24 @@
         if (!effective) return false;
         if (anime.type === 'Фильм') return true;
         return kodikReleasedEpisodes(anime) >= 1;
+    }
+
+    /** Детские / ежедневные мультсериалы — не в ленте «Сейчас выходят». */
+    function isKidsCartoonForHomeAiring(anime) {
+        if (!anime) return false;
+        const row = {
+            mal_id: anime.mal_id,
+            title_ru: anime.title,
+            title: anime.title,
+        };
+        const filter = kodikAnnouncedFilter();
+        if (filter && typeof filter.isKidsCartoonRow === 'function' && filter.isKidsCartoonRow(row, anime)) {
+            return true;
+        }
+        if (typeof global.reminkoIsKidsCartoonCalendarRow === 'function') {
+            return global.reminkoIsKidsCartoonCalendarRow(row, anime);
+        }
+        return false;
     }
 
     function malPosterUrl(malId) {
@@ -392,7 +410,12 @@
         if (normalizeMediaType(mediaType) === 'film') {
             return pickAiringFilmsThisMonth(all);
         }
-        const list = all.filter((a) => matchMedia(a, mediaType) && isKodikHomeAiring(a));
+        const list = all.filter(
+            (a) =>
+                matchMedia(a, mediaType) &&
+                isKodikHomeAiring(a) &&
+                !isKidsCartoonForHomeAiring(a)
+        );
         list.sort((a, b) => {
             const ac = mergedCalendarRowForMal(a.mal_id) || a._calendar;
             const bc = mergedCalendarRowForMal(b.mal_id) || b._calendar;

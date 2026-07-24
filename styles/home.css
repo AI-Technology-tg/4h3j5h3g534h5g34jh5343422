@@ -178,14 +178,41 @@
 
 .home-hero-watch-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 0.65rem;
+    flex-wrap: nowrap;
+    gap: 0.55rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    padding: 0.1rem 0.05rem 0.35rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(168, 85, 247, 0.55) transparent;
+    touch-action: pan-x;
+    cursor: grab;
+    user-select: none;
+}
+
+.home-hero-watch-row.is-dragging {
+    cursor: grabbing;
+}
+
+.home-hero-watch-row.is-dragging .home-hero-watch-item {
+    pointer-events: none;
+}
+
+.home-hero-watch-row::-webkit-scrollbar {
+    height: 6px;
+}
+
+.home-hero-watch-row::-webkit-scrollbar-thumb {
+    background: rgba(168, 85, 247, 0.5);
+    border-radius: 999px;
 }
 
 .home-hero-watch-card {
     position: relative;
-    display: flex;
-    align-items: stretch;
+    flex: 0 0 72px;
+    width: 72px;
 }
 
 .home-hero-watch-remove {
@@ -224,32 +251,27 @@
 }
 
 .home-hero-watch-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    max-width: 100%;
-    padding: 0.35rem 0.55rem 0.35rem 0.35rem;
-    border-radius: 10px;
-    background: rgba(15, 23, 42, 0.45);
-    border: 1px solid rgba(168, 85, 247, 0.22);
+    display: block;
+    width: 72px;
     text-decoration: none;
     color: inherit;
-    transition: border-color 0.2s, background 0.2s;
+    transition: transform 0.15s ease;
 }
 
 .home-hero-watch-item:hover {
-    border-color: rgba(168, 85, 247, 0.45);
-    background: rgba(30, 20, 50, 0.55);
+    transform: translateY(-2px);
 }
 
 .home-hero-watch-poster {
     position: relative;
-    width: 40px;
-    height: 56px;
-    flex-shrink: 0;
-    border-radius: 6px;
     display: block;
+    width: 72px;
+    height: 102px;
+    border-radius: 10px;
     overflow: hidden;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(168, 85, 247, 0.28);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
 }
 
 .home-hero-watch-poster-img {
@@ -257,44 +279,34 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    border-radius: 6px;
-}
-
-.home-hero-watch-countdown {
-    position: static;
-    z-index: 1;
-    padding: 0.06rem 0.35rem;
-    border-radius: 4px;
-    font-size: 0.62rem;
-    text-align: center;
-    line-height: 1.2;
     pointer-events: none;
-    white-space: nowrap;
 }
 
-.home-hero-watch-ep-row {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    flex-wrap: wrap;
-    min-width: 0;
-}
-
-.home-hero-watch-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    min-width: 0;
+.home-hero-watch-ep-badge {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    z-index: 1;
+    padding: 0.1rem 0.3rem;
+    border-radius: 5px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #f8fafc;
+    background: rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    pointer-events: none;
 }
 
 .home-hero-watch-title {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #f3e8ff;
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.68rem;
+    line-height: 1.25;
+    color: rgba(243, 232, 255, 0.88);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 11rem;
 }
 
 .home-hero-watch-empty {
@@ -304,9 +316,18 @@
     color: rgba(255, 255, 255, 0.55);
 }
 
-.home-hero-watch-ep {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
+.home-hero-watch-more {
+    display: inline-block;
+    margin-top: 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(196, 181, 253, 0.95);
+    text-decoration: none;
+}
+
+.home-hero-watch-more:hover {
+    color: #fff;
+    text-decoration: underline;
 }
 
 /* Панель соцсетей напротив текста hero */

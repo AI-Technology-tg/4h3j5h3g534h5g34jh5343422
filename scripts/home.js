@@ -1251,7 +1251,7 @@ async function homeHeroIsLoggedIn() {
     return !!(sync && sync.id && !sync.isAnonymous);
 }
 
-/** Компактная история (до 5 тайтлов) в hero */
+/** История в hero — тот же формат, что избранное (горизонтальные постеры + ссылка «вся история»). */
 async function loadHeroWatchHistory() {
     const box = document.getElementById('heroWatchHistory');
     const bigSection = document.getElementById('recentlyWatchedSection');
@@ -1259,31 +1259,26 @@ async function loadHeroWatchHistory() {
 
     if (!box) return;
 
-    const showEmpty = (html) => {
+    const showEmpty = (text) => {
         box.hidden = false;
-        box.innerHTML = html;
+        box.innerHTML =
+            '<p class="home-hero-watch-label">Недавно смотрели</p>' +
+            `<p class="home-hero-watch-empty">${text}</p>`;
     };
 
-    const guestEmpty =
-        '<p class="home-hero-watch-label">Недавно смотрели</p>' +
-        '<p class="home-hero-watch-empty">Войдите в аккаунт — тогда история просмотров появится здесь.</p>';
-
     if (!(await homeHeroIsLoggedIn())) {
-        showEmpty(guestEmpty);
+        showEmpty('Войдите в аккаунт — тогда история просмотров появится здесь.');
         return;
     }
     const user = typeof getCurrentUserSync === 'function' ? getCurrentUserSync() : null;
     if (!user?.id) {
-        showEmpty(guestEmpty);
+        showEmpty('Войдите в аккаунт — тогда история просмотров появится здесь.');
         return;
     }
 
-    const entries = getGroupedRecentAnimeHistory(user.id, 5);
+    const entries = getGroupedRecentAnimeHistory(user.id, 12);
     if (!entries.length) {
-        showEmpty(
-            '<p class="home-hero-watch-label">Недавно смотрели</p>' +
-                '<p class="home-hero-watch-empty">Откройте тайтл в каталоге и посмотрите серию минуту — история сохранится здесь.</p>'
-        );
+        showEmpty('Откройте тайтл в каталоге и посмотрите серию минуту — история сохранится здесь.');
         return;
     }
 
@@ -1295,19 +1290,19 @@ async function loadHeroWatchHistory() {
             continue;
         }
         rows.push({ anime, episodeNumber: entry.episodeNumber });
+        if (rows.length >= 12) break;
     }
 
     if (!rows.length) {
-        showEmpty(
-            '<p class="home-hero-watch-label">Недавно смотрели</p>' +
-                '<p class="home-hero-watch-empty">История есть, но тайтлы не найдены в каталоге. Смотрите аниме из раздела «Каталог».</p>'
-        );
+        showEmpty('История есть, но тайтлы не найдены в каталоге. Смотрите аниме из раздела «Каталог».');
         return;
     }
 
     box.hidden = false;
     box.innerHTML =
-        '<p class="home-hero-watch-label">Недавно смотрели</p><div class="home-hero-watch-row"></div>';
+        '<p class="home-hero-watch-label">Недавно смотрели</p>' +
+        '<div class="home-hero-watch-row" tabindex="0" role="list" aria-label="Недавно смотрели"></div>' +
+        '<a class="home-hero-watch-more" href="history.html">Вся история →</a>';
     const rowEl = box.querySelector('.home-hero-watch-row');
 
     for (const row of rows) {
@@ -1317,17 +1312,16 @@ async function loadHeroWatchHistory() {
             typeof generateGradient === 'function'
                 ? generateGradient(a.id)
                 : 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
-        const needsCountdown =
-            typeof reminkoAnimeNeedsEpisodeCountdown === 'function' &&
-            reminkoAnimeNeedsEpisodeCountdown(a);
+
         const card = document.createElement('div');
         card.className = 'home-hero-watch-card';
         card.dataset.animeId = String(a.id);
+        card.setAttribute('role', 'listitem');
 
         const item = document.createElement('a');
         item.className = 'home-hero-watch-item';
         item.href = href;
-        item.title = a.title || 'Аниме';
+        item.title = `${a.title || 'Аниме'} · серия ${row.episodeNumber}`;
 
         const posterWrap = document.createElement('span');
         posterWrap.className = 'home-hero-watch-poster';
@@ -1339,30 +1333,20 @@ async function loadHeroWatchHistory() {
         posterImg.decoding = 'async';
         posterImg.referrerPolicy = 'no-referrer';
         const knownPoster = a.posterUrl || '';
-        if (knownPoster) {
-            posterImg.src = knownPoster;
-        }
+        if (knownPoster) posterImg.src = knownPoster;
         posterWrap.appendChild(posterImg);
 
-        const meta = document.createElement('span');
-        meta.className = 'home-hero-watch-meta';
-        meta.innerHTML = `
-            <span class="home-hero-watch-title">${a.title || 'Аниме'}</span>
-            <span class="home-hero-watch-ep-row">
-                <span class="home-hero-watch-ep">Серия ${row.episodeNumber}</span>
-            </span>
-        `;
+        const epBadge = document.createElement('span');
+        epBadge.className = 'home-hero-watch-ep-badge';
+        epBadge.textContent = `С${row.episodeNumber}`;
+        posterWrap.appendChild(epBadge);
 
-        if (needsCountdown) {
-            const countdownEl = document.createElement('span');
-            countdownEl.className = 'home-hero-watch-countdown jikan-card-countdown';
-            countdownEl.hidden = true;
-            countdownEl.setAttribute('aria-live', 'polite');
-            meta.querySelector('.home-hero-watch-ep-row')?.appendChild(countdownEl);
-        }
+        const title = document.createElement('span');
+        title.className = 'home-hero-watch-title';
+        title.textContent = a.title || 'Аниме';
 
         item.appendChild(posterWrap);
-        item.appendChild(meta);
+        item.appendChild(title);
 
         const malId = a.mal_id != null ? parseInt(a.mal_id, 10) : NaN;
         if (Number.isFinite(malId) && malId > 0 && typeof attachJikanPosterFallback === 'function') {
@@ -1378,9 +1362,7 @@ async function loadHeroWatchHistory() {
                 if (typeof getAnimePosterFast !== 'function') return;
                 const url = await getAnimePosterFast(searchTitles);
                 const ph = typeof POSTER_PLACEHOLDER !== 'undefined' ? POSTER_PLACEHOLDER : '';
-                if (url && url !== ph && posterImg.isConnected) {
-                    posterImg.src = url;
-                }
+                if (url && url !== ph && posterImg.isConnected) posterImg.src = url;
             })();
         }
 
@@ -1403,8 +1385,10 @@ async function loadHeroWatchHistory() {
         rowEl.appendChild(card);
     }
 
+    if (typeof reminkoEnhanceHorizontalDragScroll === 'function') {
+        reminkoEnhanceHorizontalDragScroll(rowEl, { linkSelector: 'a.home-hero-watch-item' });
+    }
     if (typeof initPosterObserver === 'function') initPosterObserver();
-    void hydrateHeroWatchCountdowns(rows);
 }
 
 async function hydrateHeroWatchCountdowns(rows) {
