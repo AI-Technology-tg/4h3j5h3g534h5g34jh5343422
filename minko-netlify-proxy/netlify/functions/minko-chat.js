@@ -1179,10 +1179,35 @@ function formatSearchSources(results) {
 
 /** Tavily Search API — рекомендуемый search backend */
 async function searchTavily(query) {
-    if (!TAVILY_KEY) return [];
+    if (!TAVILY_KEY) {
+        console.warn('[minko-chat] TAVILY_API_KEY не задан в env Netlify');
+        return [];
+    }
     const ac = new AbortController();
     const tid = setTimeout(() => ac.abort(), 9000);
     try {
+        const payload = {
+            api_key: TAVILY_KEY,
+            query: String(query || '').slice(0, 400),
+            max_results: 6,
+            search_depth: 'advanced',
+            include_answer: false,
+            include_raw_content: false,
+            // Приоритет аниме-сайтам (не жёсткий блок остальных)
+            include_domains: [
+                'myanimelist.net',
+                'anilist.co',
+                'shikimori.one',
+                'animenewsnetwork.com',
+                'anime-planet.com',
+                'en.wikipedia.org',
+                'wikipedia.org',
+                'fandom.com',
+                'crunchyroll.com',
+                'livechart.me',
+                'anitrendz.com'
+            ]
+        };
         const r = await fetch('https://api.tavily.com/search', {
             method: 'POST',
             signal: ac.signal,
@@ -1190,14 +1215,44 @@ async function searchTavily(query) {
                 'Content-Type': 'application/json',
                 Authorization: 'Bearer ' + TAVILY_KEY
             },
-            body: JSON.stringify({
-                query: String(query || '').slice(0, 400),
-                max_results: 6,
-                search_depth: 'basic',
-                include_answer: false
-            })
+            body: JSON.stringify(payload)
         });
-        if (!r.ok) return [];
+        if (!r.ok) {
+            const errText = await r.text().catch(() => '');
+            console.error('[minko-chat] Tavily HTTP', r.status, errText.slice(0, 300));
+            // Повтор без include_domains (на случай ограничений тарифа)
+            if (r.status === 400 || r.status === 422) {
+                const r2 = await fetch('https://api.tavily.com/search', {
+                    method: 'POST',
+                    signal: ac.signal,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: 'Bearer ' + TAVILY_KEY
+                    },
+                    body: JSON.stringify({
+                        api_key: TAVILY_KEY,
+                        query: String(query || '').slice(0, 400),
+                        max_results: 6,
+                        search_depth: 'basic',
+                        include_answer: false
+                    })
+                });
+                if (!r2.ok) {
+                    console.error('[minko-chat] Tavily retry HTTP', r2.status);
+                    return [];
+                }
+                const j2 = await r2.json();
+                const rows2 = Array.isArray(j2.results) ? j2.results : [];
+                return rows2
+                    .map((x) => ({
+                        title: x.title || '',
+                        url: x.url || '',
+                        content: x.content || x.snippet || ''
+                    }))
+                    .filter((x) => x.url || x.content);
+            }
+            return [];
+        }
         const j = await r.json();
         const rows = Array.isArray(j.results) ? j.results : [];
         return rows
@@ -1207,7 +1262,8 @@ async function searchTavily(query) {
                 content: x.content || x.snippet || ''
             }))
             .filter((x) => x.url || x.content);
-    } catch {
+    } catch (e) {
+        console.error('[minko-chat] Tavily error', e && e.message ? e.message : e);
         return [];
     } finally {
         clearTimeout(tid);
