@@ -18,11 +18,11 @@
 | **KODIK_API_TOKEN** | Прокси Kodik (`/.netlify/functions/kodik-proxy`) — поиск плеера |
 | **ALLOHA_API_TOKEN** | Прокси Alloha TV (`/.netlify/functions/alloha-proxy`) — второй плеер на странице аниме |
 | **OPENAI_API_KEY** | Ответ модели (факты — только из поиска, не «из памяти») |
-| **TAVILY_API_KEY** | Поиск ([tavily.com](https://tavily.com)) — ~1000/мес, используется только если бесплатные пустые |
-| **UNSEARCH_API_KEY** | Бесплатнее: [unsearch.dev](https://unsearch.dev) — ~**5000**/мес, API как у Tavily |
-| **SEARCHX_API_KEY** | Очень щедрый free: [searchx.dev](https://searchx.dev) — до ~**3000/день** |
-| **SERPAPI_API_KEY** | Платный Google (не нужен, если хватает бесплатных) |
-| **MINKO_SEARCH_FREE_FIRST** | `1` (по умолчанию) — сначала бесплатный scrape DDG/Bing/Google без ключей |
+| **SEARCHX_API_KEY** | **Основной бесплатный** поиск: [searchx.dev](https://searchx.dev) — до ~**3000/день** |
+| **TAVILY_API_KEY** | Запасной: включается **только когда у SearchX кончился лимит** (429/402/403) |
+| **UNSEARCH_API_KEY** | Опционально: [unsearch.dev](https://unsearch.dev) — ~5000/мес (если регистрация заработает) |
+| **SERPAPI_API_KEY** | Платный Google — не нужен |
+| **MINKO_SEARCH_FREE_FIRST** | `1` — доп. бесплатный scrape, пока SearchX в лимите |
 | **MINKO_OPENAI_WEB_SEARCH** | `1` — запасной OpenAI `web_search` |
 | **MINKO_WEB_SEARCH** | `1` — веб-поиск по аниме |
 | **MINKO_OPENAI_MODEL** | Модель (по умолчанию `gpt-5.6`) |

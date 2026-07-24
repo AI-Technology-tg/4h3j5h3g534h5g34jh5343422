@@ -1350,9 +1350,12 @@ async function searchUnsearch(query) {
     }
 }
 
-/** SearchX — бесплатно до ~3000 запросов/день: https://searchx.dev */
-async function searchSearchX(query) {
-    if (!SEARCHX_KEY) return [];
+/**
+ * SearchX — бесплатно до ~3000 запросов/день: https://searchx.dev
+ * @returns {{ results: Array, quotaExceeded: boolean, httpStatus: number }}
+ */
+async function searchSearchXDetailed(query) {
+    if (!SEARCHX_KEY) return { results: [], quotaExceeded: false, httpStatus: 0 };
     const ac = new AbortController();
     const tid = setTimeout(() => ac.abort(), 9000);
     try {
@@ -1364,9 +1367,18 @@ async function searchSearchX(query) {
             signal: ac.signal,
             headers: { Authorization: 'Bearer ' + SEARCHX_KEY, Accept: 'application/json' }
         });
+        const httpStatus = r.status;
+        // Лимит / квота кончилась → можно переходить на Tavily
+        if (httpStatus === 429 || httpStatus === 402 || httpStatus === 403) {
+            console.warn('[minko-chat] SearchX quota/limit', httpStatus);
+            return { results: [], quotaExceeded: true, httpStatus };
+        }
         if (!r.ok) {
-            console.error('[minko-chat] SearchX HTTP', r.status);
-            return [];
+            const errBody = await r.text().catch(() => '');
+            console.error('[minko-chat] SearchX HTTP', httpStatus, errBody.slice(0, 200));
+            // Некоторые API отдают 400 с текстом про limit
+            const quotaHint = /limit|quota|rate|exceed|credits?/i.test(errBody);
+            return { results: [], quotaExceeded: quotaHint, httpStatus };
         }
         const j = await r.json();
         const rows = Array.isArray(j.results)
@@ -1376,16 +1388,17 @@ async function searchSearchX(query) {
               : Array.isArray(j.items)
                 ? j.items
                 : [];
-        return rows
+        const results = rows
             .map((x) => ({
                 title: x.title || x.name || '',
                 url: x.url || x.link || x.href || '',
                 content: x.content || x.snippet || x.description || x.text || ''
             }))
             .filter((x) => x.url || x.content);
+        return { results, quotaExceeded: false, httpStatus };
     } catch (e) {
         console.error('[minko-chat] SearchX error', e && e.message ? e.message : e);
-        return [];
+        return { results: [], quotaExceeded: false, httpStatus: 0 };
     } finally {
         clearTimeout(tid);
     }
@@ -1405,8 +1418,8 @@ async function searchFreeScrape(userText) {
 }
 
 /**
- * Поиск в интернете для аниме-вопроса.
- * Приоритет: SearchX (если ключ) → бесплатный scrape → UnSearch → Tavily → SerpAPI.
+ * Поиск: 1) SearchX (бесплатно) → 2) бесплатный scrape → 3) UnSearch
+ * Tavily — ТОЛЬКО когда у SearchX кончился дневной лимит (429/402/403).
  */
 async function searchAnimeWeb(userText) {
     const q = buildAnimeWebQuery(userText);
@@ -1415,32 +1428,68 @@ async function searchAnimeWeb(userText) {
 
     let provider = '';
     let results = [];
+    let searchxQuotaExceeded = false;
 
-    const tryProvider = async (name, fn) => {
-        if (results.length) return;
-        try {
-            const got = await fn();
-            if (got && got.length) {
-                results = got;
-                provider = name;
-            }
-        } catch (e) {
-            console.warn('[minko-chat] search provider fail', name, e && e.message ? e.message : e);
+    // 1) SearchX — основной бесплатный
+    if (SEARCHX_KEY) {
+        const sx = await searchSearchXDetailed(qAnime);
+        searchxQuotaExceeded = !!sx.quotaExceeded;
+        if (sx.results && sx.results.length) {
+            results = sx.results;
+            provider = 'searchx';
         }
-    };
+    }
 
-    // SearchX первым, если ключ есть (~3000/день бесплатно)
-    await tryProvider('searchx', () => searchSearchX(qAnime));
-    if (SEARCH_FREE_FIRST) {
-        await tryProvider('free-scrape', () => searchFreeScrape(userText));
+    // 2) Другие бесплатные (пока лимит SearchX не исчерпан или ключа нет)
+    if (!results.length && !searchxQuotaExceeded) {
+        if (SEARCH_FREE_FIRST) {
+            const free = await searchFreeScrape(userText);
+            if (free.length) {
+                results = free;
+                provider = 'free-scrape';
+            }
+        }
+        if (!results.length && UNSEARCH_KEY) {
+            const u = await searchUnsearch(qAnime);
+            if (u.length) {
+                results = u;
+                provider = 'unsearch';
+            }
+        }
+        if (!results.length && !SEARCH_FREE_FIRST) {
+            const free = await searchFreeScrape(userText);
+            if (free.length) {
+                results = free;
+                provider = 'free-scrape';
+            }
+        }
     }
-    await tryProvider('unsearch', () => searchUnsearch(qAnime));
-    if (!SEARCH_FREE_FIRST) {
-        await tryProvider('free-scrape', () => searchFreeScrape(userText));
+
+    // 3) Tavily — только после исчерпания лимита SearchX (или если SearchX нет и всё пусто)
+    const allowTavily =
+        TAVILY_KEY &&
+        !results.length &&
+        (searchxQuotaExceeded || !SEARCHX_KEY);
+    if (allowTavily) {
+        const t = await searchTavily(qAnime);
+        if (t.length) {
+            results = t;
+            provider = 'tavily';
+            console.warn(
+                '[minko-chat] fallback → Tavily',
+                searchxQuotaExceeded ? '(SearchX лимит)' : '(нет SearchX)'
+            );
+        }
     }
-    // Tavily/SerpAPI — запас, чтобы не жечь кредиты зря
-    await tryProvider('tavily', () => searchTavily(qAnime));
-    await tryProvider('serpapi', () => searchSerpApi(qAnime));
+
+    // 4) SerpAPI — самый крайний случай (платно)
+    if (!results.length && SERPAPI_KEY && (searchxQuotaExceeded || !SEARCHX_KEY)) {
+        const s = await searchSerpApi(qAnime);
+        if (s.length) {
+            results = s;
+            provider = 'serpapi';
+        }
+    }
 
     const preferred = results.filter((r) => isAnimePreferredUrl(r.url));
     const ordered = preferred.length
@@ -1450,7 +1499,8 @@ async function searchAnimeWeb(userText) {
     return {
         provider,
         results: top,
-        sourcesText: formatSearchSources(top)
+        sourcesText: formatSearchSources(top),
+        searchxQuotaExceeded
     };
 }
 
