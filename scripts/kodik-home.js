@@ -522,43 +522,25 @@
         };
     }
 
-    function pickAnnouncedCatalogSerialSupplement(existingMals) {
-        const filter = kodikAnnouncedFilter();
-        const out = [];
-        for (const anime of _catalog) {
-            if (!anime || anime.type !== 'Сериал' || anime.isKodikCatalog === false) continue;
-            const mal = parseInt(anime.mal_id, 10);
-            if (!Number.isFinite(mal) || mal <= 0 || existingMals.has(mal)) continue;
-            if (anime.status !== 'Анонс' || kodikReleasedEpisodes(anime) > 0) continue;
-            if (filter && filter.isKidsCartoonRow({ mal_id: mal, title_ru: anime.title }, anime)) {
-                continue;
-            }
-            out.push({ ...anime, isKodikCatalogAnnounced: true });
-        }
-        return out;
-    }
-
     function pickAnnounced(_all, mediaType) {
         const m = normalizeMediaType(mediaType);
         const catMap = catalogByMalMap();
         const list = [];
 
+        // Только календарные анонсы (kodik-announced.json).
+        // Дополнение из каталога по status=«Анонс» убивало ленту: туда попадали
+        // Блич/Чёрный клевер с плеером и фильмы с кривым статусом.
         for (const row of _kodikAnnouncedItems || []) {
             if (!isKodikAnnouncedRowActive(row)) continue;
             if (!calendarRowMatchesMedia(row, m)) continue;
             const card = announcedCardFromKodikRow(row, catMap);
-            if (card) list.push(card);
-        }
-
-        const existingMals = new Set(
-            list.map((a) => parseInt(a.mal_id, 10)).filter((mal) => Number.isFinite(mal) && mal > 0)
-        );
-
-        if (m === 'serial') {
-            for (const extra of pickAnnouncedCatalogSerialSupplement(existingMals)) {
-                list.push(extra);
-                existingMals.add(extra.mal_id);
-            }
+            if (!card) continue;
+            // Карточка из каталога с плеером/онгоингом — не анонс
+            const st = String(card.status || '');
+            if (st === 'Онгоинг' || st === 'Завершён' || st === 'Вышел') continue;
+            if (card._kodik && card._kodik.link) continue;
+            if (kodikReleasedEpisodes(card) >= 1) continue;
+            list.push(card);
         }
 
         list.sort((a, b) => {

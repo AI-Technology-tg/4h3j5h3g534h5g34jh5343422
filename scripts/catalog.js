@@ -617,6 +617,17 @@ function getFilters() {
 
 const CATALOG_SHIKI_PREFETCH = 14;
 
+function shikiGenresToLabels(sh) {
+    if (!sh || !Array.isArray(sh.genres)) return [];
+    return sh.genres
+        .map((g) => {
+            if (!g) return '';
+            if (typeof g === 'string') return g.trim();
+            return String(g.russian || g.name || '').trim();
+        })
+        .filter(Boolean);
+}
+
 function applyCatalogShikiToCard(anime, sh) {
     if (!anime || anime.mal_id == null) return;
     if (typeof patchJikanVirtualShiki === 'function') patchJikanVirtualShiki(anime.mal_id, sh);
@@ -625,9 +636,17 @@ function applyCatalogShikiToCard(anime, sh) {
     const card = document.querySelector(`#catalogResults .anime-card[data-id="${id}"]`);
     if (!card) return;
     const h = card.querySelector('.anime-title');
-    if (sh && sh.russian && h) {
+    if (sh && sh.russian && h && anime.isJikanVirtual) {
         h.textContent = sh.russian;
         h.setAttribute('title', sh.russian);
+    }
+    // Жанры с Shikimori — как на странице тайтла (Kodik часто отдаёт шаблонный набор)
+    const labels = shikiGenresToLabels(sh);
+    const slot = card.querySelector('[data-genres-slot]');
+    if (slot && labels.length) {
+        slot.textContent = labels.slice(0, 3).join(', ');
+        slot.hidden = false;
+        anime.genres = labels;
     }
 }
 
@@ -635,17 +654,18 @@ function scheduleCatalogShikimoriForPage(container, pageItems) {
     if (!window.shikimoriApi || typeof window.shikimoriApi.enqueueFetchShikimoriByMalId !== 'function') {
         return;
     }
-    const jikanKeyed = [];
+    const keyed = [];
     const seenMal = new Set();
     for (const a of pageItems) {
-        if (!a || a.isJikanVirtual !== true || !a.mal_id || !a._jikanRaw) continue;
-        if (seenMal.has(a.mal_id)) continue;
-        seenMal.add(a.mal_id);
-        jikanKeyed.push(a);
+        const mal = parseInt(a && a.mal_id, 10);
+        if (!a || !Number.isFinite(mal) || mal <= 0) continue;
+        if (seenMal.has(mal)) continue;
+        seenMal.add(mal);
+        keyed.push(a);
     }
-    if (jikanKeyed.length === 0) return;
+    if (keyed.length === 0) return;
 
-    const prefetch = jikanKeyed.slice(0, CATALOG_SHIKI_PREFETCH);
+    const prefetch = keyed.slice(0, CATALOG_SHIKI_PREFETCH);
     prefetch.forEach((anime) => {
         const t = anime.titleAlt || anime.title || '';
         window.shikimoriApi.enqueueFetchShikimoriByMalId(anime.mal_id, t).then((sh) => {
@@ -653,10 +673,10 @@ function scheduleCatalogShikimoriForPage(container, pageItems) {
         });
     });
 
-    const rest = jikanKeyed.slice(CATALOG_SHIKI_PREFETCH);
+    const rest = keyed.slice(CATALOG_SHIKI_PREFETCH);
     if (rest.length === 0) return;
 
-    const loaded = new Set(prefetch.map((x) => x.mal_id));
+    const loaded = new Set(prefetch.map((x) => parseInt(x.mal_id, 10)));
     if (typeof IntersectionObserver === 'undefined') {
         rest.forEach((anime) => {
             const t = anime.titleAlt || anime.title || '';
@@ -676,7 +696,7 @@ function scheduleCatalogShikimoriForPage(container, pageItems) {
                 io.unobserve(cardEl);
                 if (!mid || loaded.has(mid)) return;
                 loaded.add(mid);
-                const anime = jikanKeyed.find((x) => x.mal_id === mid);
+                const anime = keyed.find((x) => parseInt(x.mal_id, 10) === mid);
                 if (!anime) return;
                 const t = anime.titleAlt || anime.title || '';
                 window.shikimoriApi.enqueueFetchShikimoriByMalId(anime.mal_id, t).then((sh) => {

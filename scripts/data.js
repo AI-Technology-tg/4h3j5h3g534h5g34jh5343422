@@ -1047,8 +1047,11 @@ function filterAnime(filters) {
         results = results.filter((anime) =>
             filters.status.some((s) => {
                 if (!statusAliases(s, effectiveStatus(anime))) return false;
-                // «Анонс» только без вышедших серий (иначе это онгоинг с кривым статусом)
-                if (s === 'Анонс' && releasedEps(anime) >= 1) return false;
+                // «Анонс» только реально не вышедшие (фильмы с плеером / серии — отсекаем)
+                if (s === 'Анонс') {
+                    if (releasedEps(anime) >= 1) return false;
+                    if (anime.type === 'Фильм' && anime._kodik && anime._kodik.link) return false;
+                }
                 return true;
             })
         );

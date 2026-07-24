@@ -499,6 +499,14 @@ function createAnimeCard(anime, clickHandler) {
     const gradient = generateGradient(anime.id);
     const posterUrl = stats.posterUrl || anime.posterUrl || null;
     const posterSafe = posterUrl ? String(posterUrl).replace(/'/g, "\\'") : '';
+    const effectiveStatus =
+        typeof reminkoEffectiveAnimeStatus === 'function'
+            ? reminkoEffectiveAnimeStatus(anime)
+            : stats.status || anime.status || '';
+    const genreList = Array.isArray(stats.genres)
+        ? stats.genres.map((g) => String(g || '').trim()).filter(Boolean)
+        : [];
+    const genresText = genreList.slice(0, 3).join(', ');
 
     // Постер: только url() — иначе градиент сверху перекрывал картинку
     const posterStyle = posterSafe
@@ -512,7 +520,7 @@ function createAnimeCard(anime, clickHandler) {
     const needsCountdown =
         typeof reminkoAnimeNeedsEpisodeCountdown === 'function'
             ? reminkoAnimeNeedsEpisodeCountdown(anime)
-            : anime.status === 'Онгоинг' && anime.type !== 'Фильм';
+            : effectiveStatus === 'Онгоинг' && anime.type !== 'Фильм';
 
     card.innerHTML = `
         <a class="anime-card-seo-link" href="${seoHref}" tabindex="-1" aria-hidden="true">${stats.title}</a>
@@ -521,7 +529,7 @@ function createAnimeCard(anime, clickHandler) {
                 <button type="button" class="anime-poster-go-btn">Перейти</button>
             </div>
             <div class="anime-year">${stats.year}</div>
-            ${stats.status ? `<div class="anime-status">${stats.status}</div>` : ''}
+            ${effectiveStatus ? `<div class="anime-status">${effectiveStatus}</div>` : ''}
             ${needsCountdown ? '<div class="anime-poster-countdown" data-countdown-slot aria-live="polite" hidden></div>' : ''}
         </div>
         <div class="anime-info">
@@ -538,7 +546,7 @@ function createAnimeCard(anime, clickHandler) {
                 ${stats.views ? `<span class="stat-item">👁 ${formatNumber(stats.views)}</span>` : ''}
                 ${stats.favoritesCount ? `<span class="stat-item">❤️ ${formatNumber(stats.favoritesCount)}</span>` : ''}
             </div>
-            ${stats.genres ? `<div class="anime-genres">${stats.genres.slice(0, 2).join(', ')}</div>` : ''}
+            ${genresText ? `<div class="anime-genres" data-genres-slot>${genresText}</div>` : `<div class="anime-genres" data-genres-slot hidden></div>`}
         </div>
     `;
 

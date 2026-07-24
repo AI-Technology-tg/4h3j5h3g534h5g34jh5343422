@@ -30,8 +30,27 @@
         return prefix + path;
     }
 
+    function sanitizeCatalogStatus(item) {
+        if (!item || typeof item !== 'object') return item;
+        const hasLink = !!(item._kodik && item._kodik.link);
+        const last = parseInt(item._kodik && item._kodik.lastEpisode, 10);
+        const released = Number.isFinite(last) ? Math.max(0, last) : 0;
+        const st = String(item.status || '');
+        if (st !== 'Анонс') return item;
+        if (item.type === 'Фильм' && (hasLink || released >= 1)) {
+            return { ...item, status: 'Завершён' };
+        }
+        if (item.type === 'Сериал' && released >= 1) {
+            const total = parseInt(item.totalEpisodes, 10) || 0;
+            if (total > 0 && released >= total) return { ...item, status: 'Завершён' };
+            return { ...item, status: 'Онгоинг' };
+        }
+        return item;
+    }
+
     function indexItems(list) {
-        _items = Array.isArray(list) ? list : [];
+        const raw = Array.isArray(list) ? list : [];
+        _items = raw.map(sanitizeCatalogStatus);
         _byId = new Map();
         for (const a of _items) {
             if (a && a.id != null) _byId.set(parseInt(a.id, 10), a);

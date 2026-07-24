@@ -92,21 +92,15 @@ function noMalDedupeKey(item) {
 
 function releasedEpisodeCount(row) {
     const md = row.material_data || {};
-    const st = String(md.anime_status || md.all_status || '').toLowerCase();
-    const aired = parseInt(md.episodes_aired, 10);
-    if ((st === 'anons' || st === 'announcement') && (!Number.isFinite(aired) || aired <= 0)) {
-        return 0;
-    }
-    const candidates = [
-        row.last_episode,
-        md.episodes_aired,
-    ]
+    // Не зануляем last_episode только из‑за material status=anons:
+    // у Kodik часто «anons» висит на уже вышедших фильмах/сезонах.
+    const candidates = [row.last_episode, md.episodes_aired]
         .map((v) => parseInt(v, 10))
         .filter((n) => Number.isFinite(n) && n >= 0);
     return candidates.length ? Math.max(...candidates) : 0;
 }
 
-function mapStatus(row) {
+function mapStatus(row, isSerial) {
     const md = row.material_data || {};
     const st = String(md.anime_status || md.all_status || '').toLowerCase();
     const released = releasedEpisodeCount(row);
@@ -114,13 +108,15 @@ function mapStatus(row) {
         parseInt(md.episodes_total, 10) ||
         parseInt(row.episodes_count, 10) ||
         0;
+    const hasPlayer = !!(row.link || row.player_link);
 
-    if (st === 'anons' || st === 'announcement') return 'Анонс';
-    // ongoing раньше, чем released>=total: у Kodik episodes_total часто = уже вышедшим сериям
-    if (st === 'ongoing' || st === 'currently airing') return 'Онгоинг';
+    // Сначала факты (серии / finished), потом ярлык anons из material_data
     if (st === 'released' || st === 'finished') return 'Завершён';
-    if (total > 0 && released >= total) return 'Завершён';
+    if (st === 'ongoing' || st === 'currently airing') return 'Онгоинг';
+    if (!isSerial && hasPlayer) return 'Завершён';
+    if (total > 0 && released >= total && released > 0) return 'Завершён';
     if (released > 0) return 'Онгоинг';
+    if (st === 'anons' || st === 'announcement') return 'Анонс';
     if (row.last_episode != null && parseInt(row.last_episode, 10) === 0) return 'Анонс';
     return 'Анонс';
 }
@@ -200,9 +196,10 @@ function rowToCatalog(row, isSerial) {
         genres,
         episodes: isSerial ? (releasedEp > 0 ? `1-${releasedEp}` : '0') : '1',
         totalEpisodes: safeTotalEp,
-        status: mapStatus(row),
+        status: mapStatus(row, isSerial),
         type: isSerial ? 'Сериал' : 'Фильм',
         rating: pickRating(row),
+        contentRating: String(md.rating_mpaa || md.mpaa_rating || md.age_rating || '').trim(),
         description,
         studio,
         duration: md.duration || '',

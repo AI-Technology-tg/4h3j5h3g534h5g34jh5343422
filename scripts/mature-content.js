@@ -51,7 +51,12 @@
             n === 'erotica' ||
             n === 'эротика' ||
             n.includes('erotic') ||
-            n.includes('эротик')
+            n.includes('эротик') ||
+            n === 'для взрослых' ||
+            n.includes('для взрослых') ||
+            n === 'rx' ||
+            n === 'adult' ||
+            n.includes('порн')
         );
     }
 
@@ -65,12 +70,18 @@
 
     function animeHasRestrictedGenre(anime) {
         if (!anime) return false;
+        if (anime.isAdult === true || anime.adult === true) return true;
         if (Array.isArray(anime.genres) && anime.genres.some((g) => isRestrictedGenreName(g))) {
             return true;
         }
         if (anime._jikanRaw && jikanItemHasRestrictedGenre(anime._jikanRaw)) return true;
-        const rating = String(anime.contentRating || anime.jikanRating || '').toLowerCase();
+        const rating = String(
+            anime.contentRating || anime.jikanRating || anime.rating_mpaa || anime.mpaa || ''
+        ).toLowerCase();
         if (rating.includes('rx') || rating.includes('hentai')) return true;
+        // Типичные маркеры в названии, если Kodik «забыл» жанр
+        const title = `${anime.title || ''} ${anime.titleAlt || ''}`.toLowerCase();
+        if (/\bhentai\b|хентай/.test(title)) return true;
         return false;
     }
 

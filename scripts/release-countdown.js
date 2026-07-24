@@ -602,7 +602,20 @@
     function reminkoEffectiveAnimeStatus(anime) {
         if (!anime) return '';
         if (reminkoIsAnimeCatalogFinished(anime)) return 'Завершён';
-        return anime.status || '';
+        const st = String(anime.status || '');
+        const last = parseInt(anime._kodik && anime._kodik.lastEpisode, 10);
+        const released = Number.isFinite(last) ? Math.max(0, last) : 0;
+        const hasLink = !!(anime._kodik && anime._kodik.link);
+        // Кривой «Анонс» у уже доступных фильмов / сериалов с сериями
+        if (st === 'Анонс') {
+            if (anime.type === 'Фильм' && (hasLink || released >= 1)) return 'Завершён';
+            if (released >= 1) {
+                const total = parseInt(anime.totalEpisodes, 10) || 0;
+                if (total > 0 && released >= total) return 'Завершён';
+                return 'Онгоинг';
+            }
+        }
+        return st;
     }
 
     function reminkoIsTrueAiringAnime(anime) {
