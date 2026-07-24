@@ -444,6 +444,9 @@ CREATE INDEX IF NOT EXISTS idx_dm_sender ON public.direct_messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_dm_receiver ON public.direct_messages(receiver_id);
 CREATE INDEX IF NOT EXISTS idx_dm_created ON public.direct_messages(created_at);
 
+-- Нужно для Realtime DELETE/UPDATE: в payload.old полные поля (sender_id/receiver_id)
+ALTER TABLE public.direct_messages REPLICA IDENTITY FULL;
+
 ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "dm_select" ON public.direct_messages;

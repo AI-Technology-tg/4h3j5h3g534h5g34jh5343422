@@ -331,8 +331,13 @@ const DirectMessagesService = {
     subscribeToChat(otherUserId, onNewMessage, onMessageChange) {
         this.unsubscribeFromChat();
         this._currentChatUserId = otherUserId;
-        const relevant = (msg) =>
-            msg && (msg.sender_id === otherUserId || msg.receiver_id === otherUserId);
+        const peer = String(otherUserId || '');
+        const relevant = (msg) => {
+            if (!msg) return false;
+            // DELETE без REPLICA IDENTITY FULL часто даёт только id — пропускаем по id в UI
+            if (!msg.sender_id && !msg.receiver_id && msg.id) return true;
+            return String(msg.sender_id) === peer || String(msg.receiver_id) === peer;
+        };
 
         this._realtimeChannel = supabaseClient
             .channel(`dm-${Date.now()}-${otherUserId}`)

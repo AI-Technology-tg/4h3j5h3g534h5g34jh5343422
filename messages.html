@@ -221,7 +221,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase-config.js"></script>
-    <script src="scripts/direct-messages.js?v=20260724h"></script>
+    <script src="scripts/direct-messages.js?v=20260724j"></script>
     <script src="scripts/friends.js"></script>
     <script src="scripts/oauth-auth.js"></script>
     <script src="scripts/config.js?v=20260718b"></script>
@@ -1642,20 +1642,42 @@
             scrollToBottom();
         }
 
+        function syncMessagesFromServer(msgs) {
+            const container = document.getElementById('msgV2Messages');
+            if (!container) return;
+            const list = msgs || [];
+            const serverIds = new Set(list.map((m) => String(m.id)));
+            container.querySelectorAll('.msg-v2-row[data-msg-id]').forEach((el) => {
+                const id = String(el.dataset.msgId || '');
+                if (id && !serverIds.has(id)) el.remove();
+            });
+            const existing = new Set(
+                [...container.querySelectorAll('[data-msg-id]')].map((e) => String(e.dataset.msgId))
+            );
+            for (const msg of list) {
+                const id = String(msg.id);
+                if (!existing.has(id)) {
+                    appendMessage(msg);
+                    continue;
+                }
+                const row = container.querySelector(`.msg-v2-row[data-msg-id="${id}"]`);
+                if (!row) continue;
+                const prevEdited = row.dataset.editedAt || '';
+                const nextEdited = msg.edited_at || '';
+                const prevRaw = row.dataset.rawMessage || '';
+                if (prevEdited !== nextEdited || prevRaw !== String(msg.message || '')) {
+                    replaceMessageInUi(msg);
+                }
+            }
+        }
+
         function startGroupChatPolling(groupId) {
             stopChatPolling();
             chatPollInterval = setInterval(async () => {
                 if (activeChatKind !== 'group' || activeGroupId !== groupId) return;
                 const msgs = await DirectMessagesService.getGroupMessages(groupId);
-                const container = document.getElementById('msgV2Messages');
-                if (!container) return;
-                const existing = new Set(
-                    [...container.querySelectorAll('[data-msg-id]')].map((e) => e.dataset.msgId)
-                );
-                for (const msg of msgs) {
-                    if (!existing.has(msg.id)) appendMessage(msg);
-                }
-            }, 3000);
+                syncMessagesFromServer(msgs);
+            }, 2000);
         }
 
         function autoResizeTextarea(el) {
@@ -1697,7 +1719,7 @@
         function handleRealtimeMessageChange(ev) {
             if (!ev || !ev.msg) return;
             if (ev.type === 'delete') {
-                removeMessageFromUi(ev.msg.id);
+                if (ev.msg.id) removeMessageFromUi(ev.msg.id);
                 return;
             }
             if (ev.type === 'update') {
@@ -1706,9 +1728,15 @@
         }
 
         function removeMessageFromUi(messageId) {
-            const el = document.querySelector(
-                `#msgV2Messages .msg-v2-row[data-msg-id="${CSS.escape(String(messageId))}"]`
-            );
+            const id = String(messageId || '');
+            if (!id) return;
+            const el =
+                document.querySelector(`#msgV2Messages .msg-v2-row[data-msg-id="${id}"]`) ||
+                (typeof CSS !== 'undefined' && CSS.escape
+                    ? document.querySelector(
+                          `#msgV2Messages .msg-v2-row[data-msg-id="${CSS.escape(id)}"]`
+                      )
+                    : null);
             if (el) el.remove();
             void loadConversations(lastConvFilter, { forceRefresh: true });
         }
@@ -2220,21 +2248,23 @@
         function startChatPolling(userId) {
             stopChatPolling();
             chatPollInterval = setInterval(async () => {
-                if (activeChatUserId !== userId) return;
+                if (activeChatKind === 'group' || String(activeChatUserId) !== String(userId)) return;
                 const msgs = await DirectMessagesService.getMessages(userId);
                 const profile = await DirectMessagesService.getProfile(userId);
                 setPeerTypingStatus(profile);
-                const container = document.getElementById('msgV2Messages');
-                if (!container) return;
-                const existing = new Set([...container.querySelectorAll('[data-msg-id]')].map((e) => e.dataset.msgId));
-                for (const msg of msgs) {
-                    if (!existing.has(msg.id)) {
-                        appendMessage(msg);
-                        if (msg.sender_id === userId) DirectMessagesService.markAsRead(userId);
+                const before = new Set(
+                    [...document.querySelectorAll('#msgV2Messages [data-msg-id]')].map(
+                        (e) => e.dataset.msgId
+                    )
+                );
+                syncMessagesFromServer(msgs);
+                for (const msg of msgs || []) {
+                    if (!before.has(msg.id) && msg.sender_id === userId) {
+                        DirectMessagesService.markAsRead(userId);
                     }
                 }
                 syncMessageDeliveryStates(msgs);
-            }, 3000);
+            }, 2000);
         }
 
         function stopChatPolling() {
