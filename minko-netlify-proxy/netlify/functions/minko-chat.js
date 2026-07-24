@@ -1,7 +1,9 @@
 /**
- * Netlify Function — OpenAI Responses + web_search (как ChatGPT) для Minko AI.
+ * Netlify Function — аниме-ассистент с обвязкой поиска (как советует OpenAI):
+ * 1) вопрос про аниме?  2) search API → источники  3) OpenAI отвечает ТОЛЬКО по источникам.
  * POST JSON: { messages, isVip?, sessionKey?, researchContext? }
- * Факты по аниме/манге — из интернета (hosted web_search), не из «памяти» и не из Kodik.
+ *
+ * Поиск (по приоритету): Tavily → SerpAPI → OpenAI web_search → scrape Google/Bing/DDG.
  */
 const GPT_URL = 'https://api.openai.com/v1/chat/completions';
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
@@ -10,8 +12,10 @@ const GPT_KEY = process.env.OPENAI_API_KEY || process.env.MINKO_GPT_API_KEY || '
 const MODEL_DEFAULT = (process.env.MINKO_OPENAI_MODEL || 'gpt-5.6').trim();
 const MODEL_VIP = (process.env.MINKO_OPENAI_MODEL_VIP || MODEL_DEFAULT).trim();
 const WEB_ON = String(process.env.MINKO_WEB_SEARCH || '1').trim() === '1';
-/** Нативный поиск OpenAI (Responses API + web_search). 0 = только наш scrape fallback */
+/** Нативный поиск OpenAI (Responses API + web_search) — fallback, если нет Tavily/SerpAPI */
 const OPENAI_WEB_SEARCH = String(process.env.MINKO_OPENAI_WEB_SEARCH || '1').trim() === '1';
+const TAVILY_KEY = (process.env.TAVILY_API_KEY || process.env.MINKO_TAVILY_API_KEY || '').trim();
+const SERPAPI_KEY = (process.env.SERPAPI_API_KEY || process.env.MINKO_SERPAPI_KEY || '').trim();
 const JIKAN = 'https://api.jikan.moe/v4';
 
 /** Домены аниме/манги для web_search filters (как «гугл только по теме») */
@@ -1130,30 +1134,181 @@ ${dataBlock}
 Ответь на последнее сообщение пользователя максимально полезно.`;
 }
 
-/** Промпт для Responses API + web_search (как ChatGPT Browse) */
-function buildWebSearchSystemPrompt(userGender, isVip) {
+/** Промпт: ответ СТРОГО по переданным источникам поиска (схема OpenAI) */
+function buildSourcesOnlySystemPrompt(userGender, isVip) {
     const g = genderLine(userGender);
     const sleepy = isVip
-        ? 'VIP: глубже, но 1 *ремарка* сонности в каждом ответе.'
-        : 'Обычный режим: 1–2 короткие *ремарки* сонности после полезного ответа.';
-    return `Ты — Minko AI сайта Re-Minko. Образ — Рэм из Re:Zero. Создатель — Дубина. Сейчас 2026.
+        ? 'VIP: глубже, но 1 *ремарка* сонности.'
+        : '1–2 короткие *ремарки* сонности после пользы.';
+    return `Ты — Minko, ассистент по аниме сайта Re-Minko (образ Рэм из Re:Zero, создатель — Дубина). Сейчас 2026.
 
-У тебя есть инструмент веб-поиска — пользуйся им как ChatGPT с Browse / Google:
-1) Сформулируй поисковый запрос по вопросу пользователя.
-2) Открой релевантные страницы из выдачи.
-3) Сопоставь источники и ответь цифрами/фактами.
-4) Если источники расходятся — скажи об этом коротко.
-
-ТОЛЬКО аниме и манга (и коротко про сайт Re-Minko / тебя / Дубину). Не отвечай по футболу, политике и прочему оффтопу.
-
-ЗАПРЕЩЕНО:
-- говорить «у меня нет интернета / браузера / не могу искать»;
-- отмахиваться «проверь сам в календаре» вместо цифр;
-- выдумывать серии/даты, если поиск ничего не дал — тогда честно «в выдаче не нашла».
-
-Отвечай на русском, на «ты». ${sleepy}
+Правила:
+1. Отвечай только на вопросы про аниме, мангу, персонажей, студии, даты выхода, эпизоды/сезоны и сайт Re-Minko.
+2. Если вопрос не про аниме — вежливо откажись.
+3. Используй ТОЛЬКО предоставленные источники поиска. Не опирайся на устаревшую «память», если источники есть.
+4. Не выдумывай факты. Если источников недостаточно — честно скажи, что не удалось найти подтверждение.
+5. Если источники противоречивы — скажи об этом.
+6. Для актуальных вопросов (сколько серий, последняя серия, дата выхода) — отвечай цифрами из источников.
+7. Короткий, чёткий, полезный ответ на русском, на «ты». ${sleepy}
 ${g}
-Не называй внешние ИИ-бренды и техно-стек.`;
+Не говори «у меня нет браузера». Не называй внешние ИИ-бренды.`;
+}
+
+/** Промпт для Responses API + web_search (fallback) */
+function buildWebSearchSystemPrompt(userGender, isVip) {
+    return buildSourcesOnlySystemPrompt(userGender, isVip) +
+        '\n\nУ тебя есть инструмент веб-поиска — сначала ищи в интернете, потом отвечай по найденному.';
+}
+
+function isAnimePreferredUrl(url) {
+    const u = String(url || '').toLowerCase();
+    return ANIME_SEARCH_DOMAINS.some((d) => u.includes(d));
+}
+
+function formatSearchSources(results) {
+    return (results || [])
+        .slice(0, 8)
+        .map((r, i) => {
+            const title = String(r.title || 'Без названия').slice(0, 200);
+            const url = String(r.url || '').slice(0, 400);
+            const content = String(r.content || r.snip || '').slice(0, 900);
+            return `${i + 1}. ${title}\n${url}\n${content}`;
+        })
+        .join('\n\n');
+}
+
+/** Tavily Search API — рекомендуемый search backend */
+async function searchTavily(query) {
+    if (!TAVILY_KEY) return [];
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 9000);
+    try {
+        const r = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            signal: ac.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + TAVILY_KEY
+            },
+            body: JSON.stringify({
+                query: String(query || '').slice(0, 400),
+                max_results: 6,
+                search_depth: 'basic',
+                include_answer: false
+            })
+        });
+        if (!r.ok) return [];
+        const j = await r.json();
+        const rows = Array.isArray(j.results) ? j.results : [];
+        return rows
+            .map((x) => ({
+                title: x.title || '',
+                url: x.url || '',
+                content: x.content || x.snippet || ''
+            }))
+            .filter((x) => x.url || x.content);
+    } catch {
+        return [];
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+/** SerpAPI (Google) — альтернатива Tavily */
+async function searchSerpApi(query) {
+    if (!SERPAPI_KEY) return [];
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 9000);
+    try {
+        const url =
+            'https://serpapi.com/search.json?engine=google&hl=ru&gl=ru&num=8&q=' +
+            encodeURIComponent(String(query || '').slice(0, 400)) +
+            '&api_key=' +
+            encodeURIComponent(SERPAPI_KEY);
+        const r = await fetch(url, { signal: ac.signal });
+        if (!r.ok) return [];
+        const j = await r.json();
+        const organic = Array.isArray(j.organic_results) ? j.organic_results : [];
+        return organic
+            .map((x) => ({
+                title: x.title || '',
+                url: x.link || '',
+                content: x.snippet || ''
+            }))
+            .filter((x) => x.url || x.content);
+    } catch {
+        return [];
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+/**
+ * Поиск в интернете для аниме-вопроса.
+ * Приоритет: Tavily → SerpAPI → наш scrape (Google/Bing/DDG + страницы).
+ */
+async function searchAnimeWeb(userText) {
+    const q = buildAnimeWebQuery(userText);
+    if (!q) return { provider: '', results: [], sourcesText: '' };
+
+    let provider = '';
+    let results = [];
+
+    if (TAVILY_KEY) {
+        results = await searchTavily(q + ' anime');
+        if (results.length) provider = 'tavily';
+    }
+    if (!results.length && SERPAPI_KEY) {
+        results = await searchSerpApi(q + ' anime');
+        if (results.length) provider = 'serpapi';
+    }
+    if (!results.length) {
+        // scrape → превратим в «источники»
+        try {
+            const web = await fetchInternetResearch(userText);
+            if (web && web.length > 80) {
+                provider = 'scrape';
+                results = [{ title: 'Веб-сводка', url: '', content: web.slice(0, 6000) }];
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+
+    // Предпочитаем аниме-домены, но не выкидываем всё остальное
+    const preferred = results.filter((r) => isAnimePreferredUrl(r.url));
+    const ordered = preferred.length ? [...preferred, ...results.filter((r) => !isAnimePreferredUrl(r.url))] : results;
+    const top = ordered.slice(0, 6);
+    return {
+        provider,
+        results: top,
+        sourcesText: formatSearchSources(top)
+    };
+}
+
+/** OpenAI отвечает только по источникам поиска (не «из головы») */
+async function openaiAnswerWithSources(userGender, isVip, nonSystem, lastUser, sourcesText, watchHint) {
+    const system = buildSourcesOnlySystemPrompt(userGender, isVip);
+    const recent = (nonSystem || [])
+        .filter((m) => m && (m.role === 'user' || m.role === 'assistant'))
+        .slice(-8)
+        .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
+
+    const userBlock =
+        `Вопрос пользователя: ${String(lastUser || '').trim()}\n\n` +
+        `=== ИСТОЧНИКИ ИЗ ИНТЕРНЕТА (единственный источник фактов) ===\n` +
+        (sourcesText || 'Источники пусты.') +
+        (watchHint
+            ? `\n\n=== Кнопки Re-Minko (не факты, только ссылки смотреть) ===\n${watchHint.slice(0, 1500)}`
+            : '');
+
+    // Последнее user = вопрос + источники
+    const msgs = [
+        { role: 'system', content: system },
+        ...recent.slice(0, -1),
+        { role: 'user', content: userBlock.slice(0, 12000) }
+    ];
+    return callOpenAI(msgs, MODEL_DEFAULT, 2500, 0.4);
 }
 
 function extractResponsesText(data) {
@@ -1342,59 +1497,78 @@ exports.handler = async (event) => {
     const researchQuery = researchQueryFromHistory(nonSystem, lastUser);
     const wantsAnimeWeb =
         WEB_ON && researchQuery.length > 2 && isAnimeResearchTopic(researchQuery);
+    const watchHint =
+        clientResearch && /\[\[watch:|id=\d+/i.test(clientResearch)
+            ? clientResearch.slice(0, 1800)
+            : '';
 
-    // Главный путь: как ChatGPT — OpenAI web_search по аниме/манга-сайтам
-    if (wantsAnimeWeb && OPENAI_WEB_SEARCH) {
+    // === Схема OpenAI: anime? → search API → ответ только по источникам ===
+    if (wantsAnimeWeb) {
         try {
-            let instructions = buildWebSearchSystemPrompt(userGender, isVip);
-            const watchOnly = String(clientResearch || '').trim();
-            if (watchOnly.length > 40 && /\[\[watch:|id=\d+/i.test(watchOnly)) {
-                instructions +=
-                    '\n\nКнопки Re-Minko (не источник фактов, только ссылки смотреть):\n' +
-                    watchOnly.slice(0, 1800);
+            const searched = await searchAnimeWeb(researchQuery);
+            if (searched.sourcesText && searched.sourcesText.length > 60) {
+                const text = await openaiAnswerWithSources(
+                    userGender,
+                    isVip,
+                    nonSystem,
+                    lastUser,
+                    searched.sourcesText,
+                    watchHint
+                );
+                void remoteServerLog('info', 'anime answer from search sources', {
+                    provider: searched.provider,
+                    sources: (searched.results || []).length
+                });
+                return ok({
+                    choices: [{ message: { role: 'assistant', content: text || '…' } }]
+                }, headers);
             }
-            const text = await callOpenAIWithWebSearch(instructions, nonSystem, model);
-            return ok({ choices: [{ message: { role: 'assistant', content: text || '…' } }] }, headers);
         } catch (e) {
-            console.error('[minko-chat] OpenAI web_search failed, fallback scrape', e);
-            void remoteServerLog('warn', 'web_search failed, fallback', {
-                err: String(e.message || e)
-            });
-            // дальше — scrape + chat completions
+            console.error('[minko-chat] search→sources failed', e);
+            void remoteServerLog('warn', 'search→sources failed', { err: String(e.message || e) });
         }
+
+        // Fallback: hosted OpenAI web_search (если нет Tavily/SerpAPI или они пустые)
+        if (OPENAI_WEB_SEARCH) {
+            try {
+                let instructions = buildWebSearchSystemPrompt(userGender, isVip);
+                if (watchHint) {
+                    instructions +=
+                        '\n\nКнопки Re-Minko (не факты):\n' + watchHint;
+                }
+                const text = await callOpenAIWithWebSearch(instructions, nonSystem, model);
+                return ok({
+                    choices: [{ message: { role: 'assistant', content: text || '…' } }]
+                }, headers);
+            } catch (e) {
+                console.error('[minko-chat] OpenAI web_search failed', e);
+                void remoteServerLog('warn', 'web_search failed', { err: String(e.message || e) });
+            }
+        }
+
+        // Совсем пусто — честный отказ без выдумок
+        return ok(
+            {
+                choices: [
+                    {
+                        message: {
+                            role: 'assistant',
+                            content:
+                                '*трёт глазки* В интернете по этому аниме сейчас ничего надёжного не нашла… Не хочу врать цифрами из головы 💤 Переформулируй вопрос или кинь точное название тайтла.'
+                        }
+                    }
+                ]
+            },
+            headers
+        );
     }
 
-    let researchBlock = '';
-    if (WEB_ON && researchQuery.length > 2) {
-        try {
-            researchBlock = await fetchResearchBundle(researchQuery, clientResearch);
-        } catch (_) {
-            researchBlock = clientResearch;
-        }
-    } else if (clientResearch) {
-        researchBlock = clientResearch;
-    }
-
-    const systemContent = buildSystemPrompt(userGender, isVip, researchBlock);
-    const msgs = nonSystem.map((m, idx, arr) => {
-        if (idx !== arr.length - 1 || m.role !== 'user') return m;
-        if (!researchBlock || researchBlock.length < 40) return m;
-        return {
-            role: 'user',
-            content:
-                String(m.content || '') +
-                '\n\n[РЕЗУЛЬТАТЫ ВЕБ-ПОИСКА — ответь по ним]\n' +
-                researchBlock.slice(0, 4500)
-        };
-    });
-    msgs.unshift({ role: 'system', content: systemContent });
-    const maxTok = 4096;
-    const temp = 0.72;
-
+    // Не аниме-research (сайт / приветствия и т.п.) — обычный чат без веб-поиска
+    const systemContent = buildSystemPrompt(userGender, isVip, clientResearch || '');
+    const msgs = [{ role: 'system', content: systemContent }, ...nonSystem];
     try {
-        const text = await callOpenAI(msgs, model, maxTok, temp);
-        const reply = text || '…';
-        return ok({ choices: [{ message: { role: 'assistant', content: reply } }] }, headers);
+        const text = await callOpenAI(msgs, model, 2048, 0.72);
+        return ok({ choices: [{ message: { role: 'assistant', content: text || '…' } }] }, headers);
     } catch (e) {
         console.error('[minko-chat]', e);
         void remoteServerLog('error', 'OpenAI call failed', { err: String(e.message || e) });

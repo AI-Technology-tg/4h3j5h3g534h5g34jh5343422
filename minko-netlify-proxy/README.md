@@ -17,10 +17,21 @@
 | **MINKO_FREE_API_KEY** | «Сонная Minko», бесплатный поток (как в локальном `.env`) |
 | **KODIK_API_TOKEN** | Прокси Kodik (`/.netlify/functions/kodik-proxy`) — поиск плеера |
 | **ALLOHA_API_TOKEN** | Прокси Alloha TV (`/.netlify/functions/alloha-proxy`) — второй плеер на странице аниме |
-| **OPENAI_API_KEY** | Основной чат + **веб-поиск** (Responses API `web_search`, как ChatGPT) |
-| **MINKO_OPENAI_WEB_SEARCH** | `1` (по умолчанию) — искать в интернете по аниме-вопросам; `0` — выключить |
-| **MINKO_WEB_SEARCH_ANIME_DOMAINS** | `1` — только аниме-сайты; `0` (по умолчанию) — весь веб, тема «аниме» в промпте |
+| **OPENAI_API_KEY** | Ответ модели (факты — только из поиска, не «из памяти») |
+| **TAVILY_API_KEY** | **Главный поиск в интернете** ([tavily.com](https://tavily.com)) — как в схеме OpenAI |
+| **SERPAPI_API_KEY** | Альтернатива Tavily (Google через SerpAPI) |
+| **MINKO_OPENAI_WEB_SEARCH** | `1` — fallback: Responses API `web_search`, если нет Tavily/SerpAPI |
+| **MINKO_WEB_SEARCH** | `1` — включить веб-поиск по аниме; `0` — выключить |
 | **MINKO_OPENAI_MODEL** | Модель (по умолчанию `gpt-5.6`) |
+
+### Логика чата (обязательная обвязка)
+
+```
+вопрос → аниме? → search (Tavily/SerpAPI) → источники → OpenAI отвечает ТОЛЬКО по источникам
+              └─ не аниме → отказ / шутка
+```
+
+Без **TAVILY_API_KEY** (или SerpAPI) остаётся scrape/OpenAI web_search — хуже и нестабильнее. Для «как ChatGPT» добавьте Tavily в Netlify → Environment variables.
 | **XAI_API_KEY** | Grok, если Free API вернул мусор или ошибку |
 | **SUPABASE_URL** | URL проекта Supabase (для «выключателя» чата и логов) |
 | **SUPABASE_ANON_KEY** | anon key — функция читает `minko_ai_public_state` |
