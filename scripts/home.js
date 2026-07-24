@@ -278,12 +278,19 @@ document.addEventListener('DOMContentLoaded', () => {
             initKodikHomeSections();
         }
 
-        if (typeof window.RemangaCatalogStore?.load === 'function') {
+        // Манга-каталог (~16 МБ) — после idle, чтобы не бить по первому скроллу
+        function loadRemangaWhenIdle() {
+            if (typeof window.RemangaCatalogStore?.load !== 'function') return;
             window.RemangaCatalogStore.load()
                 .catch((e) => console.warn('[Home] ReManga catalog:', e))
                 .finally(() => {
                     if (typeof updateHeroStats === 'function') updateHeroStats();
                 });
+        }
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(loadRemangaWhenIdle, { timeout: 6000 });
+        } else {
+            setTimeout(loadRemangaWhenIdle, 2800);
         }
 
         if (typeof loadHeroWatchHistory === 'function') {
@@ -425,6 +432,9 @@ function registerCarouselEl(container) {
     if (typeof window === 'undefined' || !window.__homeCarouselEls) return;
     window.__homeCarouselEls.add(container);
     ensureHomeCarouselMaster();
+    if (typeof window.__homeCarouselRegisterHook === 'function') {
+        window.__homeCarouselRegisterHook(container);
+    }
 }
 
 function unregisterCarouselEl(container) {
@@ -435,17 +445,114 @@ function unregisterCarouselEl(container) {
 function ensureHomeCarouselMaster() {
     if (typeof window === 'undefined' || window.__homeCarouselMasterStarted) return;
     window.__homeCarouselMasterStarted = true;
-    let lastTick = 0;
-    function frame(now) {
-        if (!document.hidden && now - lastTick >= HOME_CAROUSEL_INTERVAL_MS) {
-            lastTick = now;
-            window.__homeCarouselEls.forEach((el) => {
-                if (typeof el._homeCarouselAdvance === 'function') el._homeCarouselAdvance();
-            });
+    if (!window.__homeCarouselVisible) window.__homeCarouselVisible = new WeakSet();
+
+    // Fallback без IntersectionObserver — старое поведение
+    if (typeof IntersectionObserver === 'undefined') {
+        let lastTick = 0;
+        function frame(now) {
+            if (!document.hidden && now - lastTick >= HOME_CAROUSEL_INTERVAL_MS) {
+                lastTick = now;
+                window.__homeCarouselEls.forEach((el) => {
+                    if (typeof el._homeCarouselAdvance === 'function') el._homeCarouselAdvance();
+                });
+            }
+            requestAnimationFrame(frame);
         }
         requestAnimationFrame(frame);
+        return;
     }
-    requestAnimationFrame(frame);
+
+    // Крутим rAF только когда хотя бы одна лента видна и вкладка активна
+    let lastTick = 0;
+    let rafId = 0;
+    let running = false;
+
+    function anyVisible() {
+        let found = false;
+        window.__homeCarouselEls.forEach((el) => {
+            if (window.__homeCarouselVisible.has(el)) found = true;
+        });
+        return found;
+    }
+
+    function frame(now) {
+        rafId = 0;
+        if (document.hidden || !anyVisible()) {
+            running = false;
+            return;
+        }
+        if (now - lastTick >= HOME_CAROUSEL_INTERVAL_MS) {
+            lastTick = now;
+            window.__homeCarouselEls.forEach((el) => {
+                if (
+                    window.__homeCarouselVisible.has(el) &&
+                    typeof el._homeCarouselAdvance === 'function'
+                ) {
+                    el._homeCarouselAdvance();
+                }
+            });
+        }
+        rafId = requestAnimationFrame(frame);
+    }
+
+    function startLoop() {
+        if (running || document.hidden || !anyVisible()) return;
+        running = true;
+        rafId = requestAnimationFrame(frame);
+    }
+
+    function stopLoop() {
+        running = false;
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = 0;
+        }
+    }
+
+    if (!window.__homeCarouselIo) {
+        window.__homeCarouselIo = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    const el = entry.target;
+                    if (entry.isIntersecting && entry.intersectionRatio > 0.05) {
+                        window.__homeCarouselVisible.add(el);
+                    } else {
+                        window.__homeCarouselVisible.delete(el);
+                    }
+                });
+                if (anyVisible() && !document.hidden) startLoop();
+                else stopLoop();
+            },
+            { root: null, threshold: [0, 0.05, 0.2] }
+        );
+    }
+
+    window.__homeCarouselEls.forEach((el) => {
+        try {
+            window.__homeCarouselIo.observe(el);
+        } catch (_) {
+            /* ignore */
+        }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopLoop();
+        else startLoop();
+    });
+
+    const prevRegister = window.__homeCarouselRegisterHook;
+    window.__homeCarouselRegisterHook = function (container) {
+        if (typeof prevRegister === 'function') prevRegister(container);
+        try {
+            window.__homeCarouselIo.observe(container);
+        } catch (_) {
+            /* ignore */
+        }
+        startLoop();
+    };
+
+    startLoop();
 }
 
 function teardownHomeHorizontalScroll(container) {

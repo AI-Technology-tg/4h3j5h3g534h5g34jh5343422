@@ -78,6 +78,18 @@
 
 (function injectLive2dWidgetEverywhere() {
     if (typeof window === 'undefined' || window.__reminkoLive2dInjected) return;
+    // Live2D тяжёлый для скролла на телефонах — только desktop (>900px)
+    var isMobile = false;
+    try {
+        if (typeof window.reminkoIsMobileLayout === 'function') {
+            isMobile = !!window.reminkoIsMobileLayout();
+        } else if (window.matchMedia) {
+            isMobile = window.matchMedia('(max-width: 900px)').matches;
+        }
+    } catch (_) {
+        isMobile = false;
+    }
+    if (isMobile) return;
     window.__reminkoLive2dInjected = true;
     try {
         var cur = document.currentScript;
@@ -88,7 +100,7 @@
         if (!cur || !cur.src) return;
         var base = cur.src.replace(/[^/]+$/, '');
         var s = document.createElement('script');
-        s.src = base + 'live2d-widget-init.js?v=live2d-tab-fix-1';
+        s.src = base + 'live2d-widget-init.js?v=live2d-desktop-only-1';
         s.async = true;
         (document.head || document.documentElement).appendChild(s);
     } catch (e) {
@@ -99,20 +111,38 @@
 (function injectSupportMinkoChatScript() {
     if (typeof window === 'undefined' || window.__reminkoSupportChatInjected) return;
     window.__reminkoSupportChatInjected = true;
+    var base = '';
     try {
         var cur = document.currentScript;
         if (!cur || !cur.src) {
             var list = document.querySelectorAll('script[src*="apply-navigation"]');
             cur = list[list.length - 1];
         }
-        if (!cur || !cur.src) return;
-        var base = cur.src.replace(/[^/]+$/, '');
-        var s = document.createElement('script');
-        s.src = base + 'support-minko-chat.js';
-        (document.body || document.documentElement).appendChild(s);
-    } catch (e) {
-        console.warn('[Support Minko] inject:', e);
+        if (cur && cur.src) base = cur.src.replace(/[^/]+$/, '');
+    } catch (_) {
+        base = '';
     }
+    if (!base) return;
+    function doInject() {
+        try {
+            var s = document.createElement('script');
+            s.src = base + 'support-minko-chat.js?v=20260723a';
+            s.async = true;
+            (document.body || document.documentElement).appendChild(s);
+        } catch (e) {
+            console.warn('[Support Minko] inject:', e);
+        }
+    }
+    // После первого paint / idle — меньше удар по скроллу на мобилке
+    function schedule() {
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(function () { doInject(); }, { timeout: 2500 });
+        } else {
+            setTimeout(doInject, 1200);
+        }
+    }
+    if (document.readyState === 'complete') schedule();
+    else window.addEventListener('load', schedule, { once: true });
 })();
 
 (function() {

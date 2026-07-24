@@ -551,9 +551,9 @@ async function renderProfile(userData, isViewMode = false) {
                                 <p class="vip-card-desc vip-active-label">Подписка активна</p>
                                 <a href="https://billing.stripe.com/p/login/dRm00keVF91mfZz1EmcEw00" class="btn btn-danger vip-card-btn" target="_blank">Управление</a>
                             ` : `
-                                <p class="vip-card-desc">VIP «Смотреть вместе»: создание комнаты и расширенные лимиты.</p>
-                                <p class="vip-card-desc" style="font-size:0.85rem;opacity:0.88;margin-top:0.35rem;">Бета-тест: возможны баги и недоработки. Скидка 50% — промокод <strong>${REMINKO_VIP_BETA_PROMO_CODE}</strong> (на странице оплаты подставляется автоматически; при необходимости введите вручную).</p>
-                                <a href="${reminkoBuildVipWatchCheckoutUrl(ownUserId)}" class="btn btn-primary vip-card-btn" target="_blank" rel="noopener noreferrer">Купить VIP Watch</a>
+                                <p class="vip-card-desc">Доступ к созданию комнат «Смотреть вместе» и расширенным лимитам.</p>
+                                <p class="vip-card-desc" style="font-size:0.85rem;opacity:0.88;margin-top:0.35rem;">Пока бета: возможны сбои. При оплате можно указать промокод <strong>${REMINKO_VIP_BETA_PROMO_CODE}</strong> (−50%; обычно подставляется сам).</p>
+                                <a href="${reminkoBuildVipWatchCheckoutUrl(ownUserId)}" class="btn btn-primary vip-card-btn" target="_blank" rel="noopener noreferrer">Оформить VIP</a>
                             `}
                         </div>
                     </div>
@@ -574,7 +574,7 @@ async function renderProfile(userData, isViewMode = false) {
                         </span>
                         <span class="avatar-tool-btn__txt">Загрузить с устройства</span>
                     </button>
-                    <input type="file" id="avatarFileInput" accept="image/*" hidden />
+                    <input type="file" id="avatarFileInput" accept="image/*" hidden tabindex="-1" aria-hidden="true" style="pointer-events:none;position:absolute;width:1px;height:1px;opacity:0;" />
                     <div class="avatar-gen-stack">
                         <label class="avatar-gen-label" for="avatarGenPrompt">Описание для ИИ (аниме-стиль)</label>
                         <textarea id="avatarGenPrompt" class="avatar-gen-textarea" maxlength="400" rows="3" placeholder="Например: парень в худи, бирюзовые волосы, наушники, нейтральный фон…"></textarea>
@@ -772,9 +772,7 @@ async function reminkoRunAvatarGeneration() {
     }
     const url = reminkoGetMinkoAvatarProxyUrl();
     if (!url) {
-        const msg =
-            'ИИ-аватар не настроен. В config.local.js укажите minkoAvatarGrokUrl на Netlify (…/minko-avatar-grok).';
-        if (typeof showError === 'function') showError(msg);
+        if (typeof showError === 'function') showError('ИИ-аватар временно недоступен. Попробуйте позже.');
         return;
     }
     if (!window.supabaseClient) {
@@ -1017,11 +1015,22 @@ function initAvatarPicker() {
     document.addEventListener('click', (e) => {
         const t = e.target;
         if (t && t.closest && t.closest('#avatarUploadBtn')) {
+            // Только реальный жест пользователя по кнопке (не синтетический клик)
+            if (!e.isTrusted) return;
             e.preventDefault();
-            document.getElementById('avatarFileInput')?.click();
+            e.stopPropagation();
+            const modal = document.getElementById('avatarModal');
+            if (modal && !modal.classList.contains('active')) return;
+            const inp = document.getElementById('avatarFileInput');
+            if (!inp) return;
+            inp.setAttribute('tabindex', '-1');
+            inp.setAttribute('aria-hidden', 'true');
+            inp.style.pointerEvents = 'none';
+            inp.click();
             return;
         }
         if (t && t.closest && t.closest('#avatarGenerateBtn')) {
+            if (!e.isTrusted) return;
             e.preventDefault();
             void reminkoRunAvatarGeneration();
         }

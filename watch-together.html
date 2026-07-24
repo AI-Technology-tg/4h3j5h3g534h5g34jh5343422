@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru" class="h-full">
 <head>
     <meta charset="UTF-8">
@@ -291,7 +291,7 @@
     <script src="scripts/watch-together-voice.js"></script>
     <script src="scripts/loading.js"></script>
     <script src="scripts/navigation.js"></script>
-    <script src="scripts/apply-navigation.js?v=20260720h" defer></script>
+    <script src="scripts/apply-navigation.js?v=20260723a" defer></script>
 
     <script>
         let currentUser = null;
@@ -1458,7 +1458,7 @@
                     <div style="text-align: center; position: relative; z-index: 1;">
                         <i data-lucide="play-circle" style="width: 48px; height: 48px; opacity: 0.25;"></i>
                         <div style="font-size: 14px; font-weight: 700; margin-top: 12px;">Плеер недоступен</div>
-                        <div style="font-size: 11px; color: rgba(232,224,236,0.35); margin-top: 8px; max-width: 280px;">Как на странице аниме: проверьте токен Kodik и доступность Kodik API</div>
+                        <div style="font-size: 11px; color: rgba(232,224,236,0.35); margin-top: 8px; max-width: 280px;">Плеер временно недоступен. Попробуйте позже или откройте тайтл в каталоге.</div>
                     </div>`;
                 wtLucideRefresh();
             }
@@ -1468,8 +1468,7 @@
             playerArea.className = 'wt-player-live';
             playerArea.innerHTML = `
                 <div class="anime-kodik-hint anime-kodik-hint--warn wt-kodik-token-hint">
-                    Нужен токен Kodik API — тот же, что для просмотра в каталоге. В <code>config.local.js</code> задайте
-                    <code>window.APP_CONFIG.kodik.apiToken</code> и подключите файл до <code>scripts/config.js?v=20260720h</code>.
+                    Плеер временно недоступен. Попробуйте позже или откройте тайтл в каталоге.
                 </div>`;
         }
 

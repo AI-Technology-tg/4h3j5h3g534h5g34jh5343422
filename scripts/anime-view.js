@@ -1733,6 +1733,12 @@ async function renderAnimeDetail(anime) {
                             <span class="genre-tag" onclick="window.location.href='../catalog/anime.html?genre=${encodeURIComponent(genre)}'">${genre}</span>
                         `).join('')}
                     </div>
+
+                    <div class="anime-detail-actions">
+                        <button type="button" class="btn btn-secondary favorite-btn" id="favoriteBtn" onclick="handleFavoriteClick(${animeIdInt})">
+                            ${typeof isInFavorites === 'function' && isInFavorites(animeIdInt) ? '❤️ В избранном' : '🤍 В избранное'}
+                        </button>
+                    </div>
                     
                     ${isAnnounced ? '' : animeNextEpisodeCountdownBarHtml()}
                     <div class="anime-franchise-strip anime-franchise-strip--empty" id="animeFranchiseStrip" aria-label="Сезоны"></div>
@@ -1750,10 +1756,12 @@ async function renderAnimeDetail(anime) {
     wireAnimePlayerTabs();
     refreshAnimeViewCountdown(anime, anime._jikanRaw || null, null);
     void hydrateAnimeViewCountdownSchedule(anime);
+    updateFavoriteButton(animeIdInt);
     queueMicrotask(() => {
         if (typeof window.reminkoApplySidebarMaintenanceLocks === 'function') {
             window.reminkoApplySidebarMaintenanceLocks();
         }
+        updateFavoriteButton(animeIdInt);
         void hydrateFranchiseSeasonsStrip(
             animeIdInt,
             anime.title,
@@ -2567,13 +2575,23 @@ async function applyAllohaIframeSrc(anime, episode) {
 
     if (!window.AllohaApi || typeof AllohaApi.hasToken !== 'function' || !AllohaApi.hasToken()) {
         if (hintEl) {
-            hintEl.hidden = false;
             hintEl.className = 'anime-kodik-hint anime-kodik-hint--warn';
-            hintEl.innerHTML =
-                'Плеер Alloha недоступен: задайте <code>ALLOHA_API_TOKEN</code> в Netlify ' +
-                '(или <code>alloha.apiToken</code> в config.local.js для локальной разработки).';
+            if (typeof reminkoDevOnlySetElement === 'function') {
+                reminkoDevOnlySetElement(
+                    hintEl,
+                    'Плеер Alloha недоступен: задайте <code>ALLOHA_API_TOKEN</code> в Netlify ' +
+                        '(или <code>alloha.apiToken</code> в config.local.js для локальной разработки).',
+                    'Скрыто от пользователей'
+                );
+            } else {
+                hintEl.hidden = false;
+                hintEl.textContent = 'Плеер временно недоступен. Попробуйте позже.';
+            }
         }
-        if (ph) ph.hidden = true;
+        if (ph) {
+            ph.hidden = false;
+            if (phTx) phTx.textContent = 'Плеер временно недоступен. Попробуйте позже.';
+        }
         if (iframe) iframe.removeAttribute('src');
         return;
     }

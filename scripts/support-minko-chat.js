@@ -230,7 +230,9 @@
         if (document.getElementById('support-minko-chat-styles')) return;
         const cur = document.querySelector('script[src*="support-minko-chat.js"]');
         if (!cur || !cur.src) return;
-        const href = cur.src.replace(/\/scripts\/support-minko-chat\.js$/i, '/styles/support-minko-chat.css');
+        const href = cur.src
+            .replace(/[?#].*$/, '')
+            .replace(/\/scripts\/support-minko-chat\.js$/i, '/styles/support-minko-chat.css');
         const link = document.createElement('link');
         link.id = 'support-minko-chat-styles';
         link.rel = 'stylesheet';
@@ -409,7 +411,7 @@
         } catch (e) {
             status.remove();
             const errText =
-                'Сейчас не удаётся связаться с ИИ. Проверьте интернет или адрес прокси (minkoChatProxy в config.local.js). Полный чат — в разделе «Minko AI» в меню.';
+                'Сейчас не удаётся связаться с ИИ. Проверьте интернет и попробуйте позже. Полный чат — в разделе «Minko AI» в меню.';
             appendBubble('assistant', errText);
             chatHistory.push({ role: 'assistant', content: errText });
         } finally {
