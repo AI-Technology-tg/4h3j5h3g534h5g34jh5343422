@@ -391,6 +391,9 @@ async function renderProfile(userData, isViewMode = false) {
             }
         } catch (_) {}
     }
+    if (isCreatorAccount) {
+        watchTimeLabel = 'Несколько лет';
+    }
 
     const profileName = userData.username || 'Пользователь';
 
