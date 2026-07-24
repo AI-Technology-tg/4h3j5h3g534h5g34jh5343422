@@ -1,6 +1,7 @@
 /**
- * Netlify Function — OpenAI + Jikan/MAL + DuckDuckGo для Minko AI (+ Supabase-ворота).
+ * Netlify Function — OpenAI + веб-поиск (Google/Bing/DDG) для Minko AI (+ Supabase-ворота).
  * POST JSON: { messages, isVip?, sessionKey?, researchContext? }
+ * Факты по аниме — из интернета, не из Jikan/AniList.
  */
 const GPT_URL = 'https://api.openai.com/v1/chat/completions';
 const GPT_KEY = process.env.OPENAI_API_KEY || process.env.MINKO_GPT_API_KEY || '';
@@ -588,11 +589,289 @@ async function fetchWikipediaSnippet(query) {
     return '';
 }
 
+const BROWSER_UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+
+function buildAnimeWebQuery(userText) {
+    const base = String(userText || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .slice(0, 160);
+    if (base.length < 2) return '';
+    if (/аниме|anime|манга|manga|myanimelist|anilist|shikimori/i.test(base)) return base;
+    return base + ' аниме';
+}
+
+function uniqSearchHits(hits, max) {
+    const out = [];
+    const seen = new Set();
+    for (const h of hits) {
+        if (!h || !h.title) continue;
+        const key = String(h.url || h.title)
+            .toLowerCase()
+            .replace(/^https?:\/\/(www\.)?/, '')
+            .slice(0, 120);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(h);
+        if (out.length >= (max || 8)) break;
+    }
+    return out;
+}
+
+async function fetchGoogleCseHits(query) {
+    const key = (process.env.GOOGLE_CSE_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+    const cx = (process.env.GOOGLE_CSE_CX || process.env.GOOGLE_CSE_ID || '').trim();
+    if (!key || !cx) return [];
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 7000);
+    try {
+        const url =
+            'https://www.googleapis.com/customsearch/v1?key=' +
+            encodeURIComponent(key) +
+            '&cx=' +
+            encodeURIComponent(cx) +
+            '&q=' +
+            encodeURIComponent(query) +
+            '&num=8&hl=ru';
+        const r = await fetch(url, { signal: ac.signal });
+        if (!r.ok) return [];
+        const j = await r.json();
+        return (Array.isArray(j.items) ? j.items : [])
+            .map((it) => ({
+                title: String(it.title || '').slice(0, 180),
+                snip: String(it.snippet || '').slice(0, 400),
+                url: String(it.link || '')
+            }))
+            .filter((x) => x.title);
+    } catch {
+        return [];
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+/** Google basic HTML (gbv=1) — без JS, часто доступен из serverless */
+async function fetchGoogleHtmlHits(query) {
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 7000);
+    try {
+        const url =
+            'https://www.google.com/search?gbv=1&hl=ru&num=10&q=' + encodeURIComponent(query);
+        const r = await fetch(url, {
+            signal: ac.signal,
+            headers: {
+                'User-Agent': BROWSER_UA,
+                Accept: 'text/html,application/xhtml+xml',
+                'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8'
+            }
+        });
+        if (!r.ok) return [];
+        const html = await r.text();
+        if (/unusual traffic|captcha|sorry\/index/i.test(html)) return [];
+        const hits = [];
+        const re =
+            /<a[^>]+href="(?:\/url\?q=|https?:\/\/)([^"&]+)[^"]*"[^>]*>\s*<h3[^>]*>([\s\S]*?)<\/h3>/gi;
+        let m;
+        while ((m = re.exec(html)) !== null && hits.length < 8) {
+            let href = decodeHtmlEntities(m[1] || '');
+            try {
+                href = decodeURIComponent(href);
+            } catch {
+                /* keep */
+            }
+            if (!/^https?:\/\//i.test(href)) href = 'https://' + href.replace(/^\/+/, '');
+            if (/google\./i.test(href)) continue;
+            const title = decodeHtmlEntities(stripHtml(m[2])).slice(0, 180);
+            if (title.length < 3) continue;
+            hits.push({ title, snip: '', url: href.slice(0, 400) });
+        }
+        // запас: старый формат /url?q=
+        if (!hits.length) {
+            const re2 = /href="\/url\?q=([^"&]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+            while ((m = re2.exec(html)) !== null && hits.length < 8) {
+                let href = decodeHtmlEntities(m[1] || '');
+                try {
+                    href = decodeURIComponent(href);
+                } catch {
+                    /* keep */
+                }
+                if (!/^https?:\/\//i.test(href) || /google\./i.test(href)) continue;
+                const title = decodeHtmlEntities(stripHtml(m[2])).slice(0, 180);
+                if (title.length < 3 || /cached|похожие|similar/i.test(title)) continue;
+                hits.push({ title, snip: '', url: href.slice(0, 400) });
+            }
+        }
+        return hits;
+    } catch {
+        return [];
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+async function fetchBingHtmlHits(query) {
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 7000);
+    try {
+        const url = 'https://www.bing.com/search?setlang=ru-RU&q=' + encodeURIComponent(query);
+        const r = await fetch(url, {
+            signal: ac.signal,
+            headers: {
+                'User-Agent': BROWSER_UA,
+                Accept: 'text/html',
+                'Accept-Language': 'ru-RU,ru;q=0.9'
+            }
+        });
+        if (!r.ok) return [];
+        const html = await r.text();
+        const hits = [];
+        const blocks = html.split(/class="b_algo"/i).slice(1, 10);
+        for (const block of blocks) {
+            const am = block.match(/<h2[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+            if (!am) continue;
+            const href = decodeHtmlEntities(am[1] || '').slice(0, 400);
+            const title = decodeHtmlEntities(stripHtml(am[2])).slice(0, 180);
+            if (!/^https?:\/\//i.test(href) || title.length < 3) continue;
+            const sm = block.match(/class="b_caption"[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i);
+            const snip = sm ? decodeHtmlEntities(stripHtml(sm[1])).slice(0, 400) : '';
+            hits.push({ title, snip, url: href });
+            if (hits.length >= 8) break;
+        }
+        return hits;
+    } catch {
+        return [];
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+async function fetchDuckDuckGoHtmlHits(query) {
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 6500);
+    try {
+        const r = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query), {
+            signal: ac.signal,
+            headers: {
+                'User-Agent': BROWSER_UA,
+                Accept: 'text/html'
+            }
+        });
+        if (!r.ok) return [];
+        const html = await r.text();
+        const hits = [];
+        const re =
+            /class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?class="result__snippet"[^>]*>([\s\S]*?)<\/(?:a|td|div)>/gi;
+        let m;
+        while ((m = re.exec(html)) !== null && hits.length < 8) {
+            const title = decodeHtmlEntities(stripHtml(m[2])).slice(0, 180);
+            const snip = decodeHtmlEntities(stripHtml(m[3])).slice(0, 400);
+            let href = decodeHtmlEntities(m[1] || '');
+            const uddg = href.match(/[?&]uddg=([^&]+)/);
+            if (uddg) {
+                try {
+                    href = decodeURIComponent(uddg[1]);
+                } catch {
+                    /* keep */
+                }
+            }
+            if (title.length < 3) continue;
+            hits.push({ title, snip, url: href.slice(0, 400) });
+        }
+        return hits;
+    } catch {
+        return [];
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+/** Текст страницы через Jina Reader (без своих API-ключей) */
+async function fetchPageTextViaJina(pageUrl) {
+    const u = String(pageUrl || '').trim();
+    if (!/^https?:\/\//i.test(u)) return '';
+    if (/google\.|bing\.|duckduckgo\.|youtube\.com\/watch/i.test(u)) return '';
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 4500);
+    try {
+        const r = await fetch('https://r.jina.ai/' + u, {
+            signal: ac.signal,
+            headers: {
+                Accept: 'text/plain',
+                'User-Agent': BROWSER_UA,
+                'X-Return-Format': 'text'
+            }
+        });
+        if (!r.ok) return '';
+        const text = String((await r.text()) || '')
+            .replace(/\r/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+        return text.slice(0, 2800);
+    } catch {
+        return '';
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+function formatHitsBlock(hits) {
+    return hits
+        .map((h, i) => {
+            const n = i + 1;
+            const sn = h.snip ? ' — ' + h.snip : '';
+            const link = h.url ? `\n  ${h.url}` : '';
+            return `${n}. ${h.title}${sn}${link}`;
+        })
+        .join('\n');
+}
+
+async function fetchInternetResearch(userText) {
+    const q = buildAnimeWebQuery(userText);
+    if (!q) return '';
+
+    const [cse, google, bing, ddg] = await Promise.all([
+        fetchGoogleCseHits(q).catch(() => []),
+        fetchGoogleHtmlHits(q).catch(() => []),
+        fetchBingHtmlHits(q).catch(() => []),
+        fetchDuckDuckGoHtmlHits(q).catch(() => [])
+    ]);
+
+    // Приоритет: Google CSE → Google HTML → Bing → DDG
+    const hits = uniqSearchHits([...(cse || []), ...(google || []), ...(bing || []), ...(ddg || [])], 8);
+    if (!hits.length) {
+        try {
+            const snip = await fetchDuckDuckGoSnippet(userText);
+            return snip ? 'Краткая сводка:\n' + snip : '';
+        } catch {
+            return '';
+        }
+    }
+
+    const parts = ['Результаты поиска по запросу: «' + q + '»', formatHitsBlock(hits)];
+
+    // Одна страница целиком (лимит Netlify ~10с: поиск уже параллельный)
+    const prefer =
+        /myanimelist|anilist|shikimori|animenewsnetwork|anime-planet|wikipedia|crunchyroll/i;
+    const toRead =
+        hits.find((h) => h.url && prefer.test(h.url)) || hits.find((h) => h.url) || null;
+    if (toRead) {
+        const txt = await fetchPageTextViaJina(toRead.url).catch(() => '');
+        if (txt && txt.length >= 80) {
+            parts.push(
+                '--- Страница: ' + (toRead.title || toRead.url) + ' ---\n' + txt.slice(0, 2800)
+            );
+        }
+    }
+
+    return parts.join('\n\n').slice(0, 9000);
+}
+
 async function fetchResearchBundle(userText, clientResearch) {
     const parts = [];
     const client = String(clientResearch || '').trim();
     if (client.length > 30) {
-        parts.push('=== С сайта (Jikan / каталог) ===\n' + client.slice(0, 6000));
+        parts.push('=== Каталог Re-Minko (локально) ===\n' + client.slice(0, 4500));
     }
 
     // Интернет только по аниме — иначе модель не кормим общим вебом
@@ -605,57 +884,21 @@ async function fetchResearchBundle(userText, clientResearch) {
         return parts.join('\n\n').slice(0, 9500);
     }
 
-    // Jikan часто 504 — не блокируем AniList/wiki/DDG ожиданием MAL
-    let jikan = '';
-    let al = '';
-    let wiki = '';
-    let html = '';
     try {
-        const bundle = await Promise.all([
-            fetchJikanResearch(userText).catch(() => ''),
-            fetchAniListResearch(userText).catch(() => ''),
-            fetchWikipediaSnippet(userText).catch(() => ''),
-            fetchDuckDuckGoHtmlAnime(userText).catch(() => '')
-        ]);
-        jikan = bundle[0] || '';
-        al = bundle[1] || '';
-        wiki = bundle[2] || '';
-        html = bundle[3] || '';
+        const web = await fetchInternetResearch(userText);
+        if (web) {
+            parts.push(
+                '=== ПОИСК В ИНТЕРНЕТЕ (главный источник, актуальнее знаний модели) ===\n' + web
+            );
+        } else {
+            parts.push(
+                '=== ПОИСК В ИНТЕРНЕТЕ ===\nСводка пуста (поисковики не ответили). Не выдумывай свежие даты/сезоны — скажи, что не нашла в сети.'
+            );
+        }
     } catch (_) {
-        /* ignore */
-    }
-
-    let jikanMalId = null;
-    if (jikan) {
-        parts.push('=== Сервер: Jikan / MAL ===\n' + jikan);
-        const m = jikan.match(/MAL\s+(\d+)/);
-        if (m) jikanMalId = parseInt(m[1], 10);
-    }
-    if (!jikanMalId && al) {
-        const m2 = al.match(/MAL\s+(\d+)/);
-        if (m2) jikanMalId = parseInt(m2[1], 10);
-    }
-    if (al) parts.push('=== AniList ===\n' + al);
-    if (wiki) parts.push('=== Wikipedia (аниме) ===\n' + wiki);
-    if (html) parts.push('=== Веб (только аниме-сайты) ===\n' + html);
-
-    let rel = '';
-    if (jikanMalId) {
-        try {
-            rel = await fetchJikanRelations(jikanMalId);
-        } catch (_) {
-            rel = '';
-        }
-    }
-    if (rel) parts.push('=== Связи франшизы ===\n' + rel);
-
-    if (parts.join('\n').length < 1200) {
-        try {
-            const ddg = await fetchDuckDuckGoSnippet(userText);
-            if (ddg) parts.push('=== DuckDuckGo (аниме) ===\n' + ddg);
-        } catch (_) {
-            /* ignore */
-        }
+        parts.push(
+            '=== ПОИСК В ИНТЕРНЕТЕ ===\nОшибка поиска. Не выдумывай свежие даты/сезоны.'
+        );
     }
 
     return parts.join('\n\n').slice(0, 9500);
@@ -711,8 +954,8 @@ function buildSystemPrompt(userGender, isVip, researchBlock) {
 
     const dataBlock =
         researchBlock && researchBlock.trim().length > 40
-            ? `\n\n=== ПРОВЕРЕННЫЕ ДАННЫЕ (Jikan/MAL, каталог, поиск) ===\nИспользуй этот блок как главный источник фактов. Отвечай уверенно, подробно, как фанат-эксперт. Не противоречь этим данным. Если чего-то нет в блоке — честно скажи и добавь общий контекст из знаний.\n${researchBlock.trim().slice(0, 8500)}`
-            : `\n\n=== ПРОВЕРЕННЫЕ ДАННЫЕ ===\nСводка не пришла — отвечай из знаний об аниме, но не выдумывай точные даты/номера серий; предложи уточнить название.`;
+            ? `\n\n=== ДАННЫЕ ИЗ ИНТЕРНЕТА + КАТАЛОГ ===\nГлавный источник — блок «ПОИСК В ИНТЕРНЕТЕ». Если интернет и твои знания расходятся (даты, сезоны, число серий, статус) — ВЕРЬ ИНТЕРНЕТУ, а не памяти. Отвечай уверенно по этим данным с первого ответа, без «переспроси меня». Каталог Re-Minko — для ссылок [[watch:ID|…]] на сайте. Если в поиске пусто — не выдумывай свежие факты.\n${researchBlock.trim().slice(0, 8500)}`
+            : `\n\n=== ДАННЫЕ ===\nИнтернет-сводка не пришла — не выдумывай точные даты/номера серий/статус онгоинга; скажи, что не нашла в сети, и предложи уточнить название.`;
 
     return `Ты — Minko, лучший AI-ассистент сайта Re-Minko (каталог аниме и манги). Образ и характер — в духе Рэм из Re:Zero. Создатель — Дубина (он сделал сайт и тебя, фанат Re:Zero).
 
@@ -727,12 +970,11 @@ function buildSystemPrompt(userGender, isVip, researchBlock) {
 
 ПРАВИЛА ОТВЕТА:
 - Пересказ серии / сюжет / «что произошло» — развёрнуто, по пунктам, со спойлер-меткой если нужно.
-- Новости и премьеры аниме — конкретные названия, без воды. Даты/сезоны бери ТОЛЬКО из блока данных; если пусто — скажи «не уверена по году», не выдумывай «вышел в этом году».
-- Запрос «на сайте / в каталоге дай аниме про X» — если в блоке есть каталог с id, дай ИМЕННО эти тайтлы (для франшизы — сам тайтл, не «похожее» из головы). Маркер только [[watch:ЧИСЛО|Название]] из блока. Никаких slug вроде the-rising-of-….
-- Не уходи от темы общими фразами. Не отвечай «на отъебись».
-- Интернет-сводка подмешивается ТОЛЬКО по аниме/манге. Не тащи факты из общего интернета.
-- Опирайся на блок ПРОВЕРЕННЫЕ ДАННЫЕ в первую очередь.
-- Если в данных есть факты — отвечай уверенно по ним. Если данных мало — скажи что не нашла в сводке.
+- Новости и премьеры аниме — конкретные названия из блока поиска. Даты/сезоны/статус — ТОЛЬКО из интернета в блоке; если пусто — «не нашла в сети», не выдумывай.
+- Запрос «на сайте / в каталоге дай аниме про X» — если в блоке есть каталог с id, дай ИМЕННО эти тайтлы. Маркер только [[watch:ЧИСЛО|Название]] из блока.
+- Не уходи от темы общими фразами.
+- Интернет-сводка только по аниме/манге.
+- С первого ответа опирайся на свежий поиск; не давай устаревшую «память», если в блоке есть другие факты.
 - Русский язык, обращение на «ты».
 - Давай только допустимую для обычных пользователей информацию; чужое и служебное не разглашай.
 - В каждом ответе держи сонность: короткие *ремарки* — но ПОСЛЕ полезного ответа, не вместо него.

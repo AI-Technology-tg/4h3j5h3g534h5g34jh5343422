@@ -3249,15 +3249,20 @@ document.addEventListener('DOMContentLoaded', () => {
             let researchContext = '';
             if (typeof window.minkoBuildResearchContext === 'function') {
                 _setChatStatusHtml(
-                    '<span class="sleepy-typing-status">🔍 Думаю… ' +
+                    '<span class="sleepy-typing-status">🔍 Ищу в интернете… ' +
                         '<span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>'
                 );
                 try {
+                    // Только каталог локально; веб — на сервере (без AniList/Jikan)
                     researchContext = await window.minkoBuildResearchContext(message);
                 } catch (e) {
                     console.warn('[Minko] research:', e);
                 }
             }
+            _setChatStatusHtml(
+                '<span class="sleepy-typing-status">🌐 Читаю выдачу… ' +
+                    '<span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>'
+            );
 
             const userMessage = message;
             
