@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="styles/sidebar-layout.css?v=20260724a">
     <link rel="stylesheet" href="styles/loading.css">
     <link rel="stylesheet" href="styles/notifications.css">
-    <link rel="stylesheet" href="styles/messages.css">
+    <link rel="stylesheet" href="styles/messages.css?v=20260724g">
 </head>
 <body>
     <div class="loading-screen" id="loadingScreen">
@@ -76,14 +76,26 @@
                 <aside class="msg-v2-sidebar" id="msgV2Sidebar">
                     <div class="msg-v2-head">
                         <h1 class="msg-v2-title">Сообщения</h1>
-                        <a href="friends.html" class="msg-v2-head-btn" title="Друзья — написать кому-то новому" aria-label="К друзьям">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                            </svg>
-                        </a>
+                        <div class="msg-v2-head-actions">
+                            <button type="button" class="msg-v2-head-btn" id="msgV2CreateGroupBtn" title="Создать группу (до 4 человек)" aria-label="Создать группу">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                    <path d="M19 8v6"></path>
+                                    <path d="M16 11h6"></path>
+                                </svg>
+                            </button>
+                            <a href="friends.html" class="msg-v2-head-btn" title="Друзья — написать кому-то новому" aria-label="К друзьям">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                            </a>
+                        </div>
                     </div>
                     <div class="msg-v2-search-wrap">
                         <div class="msg-v2-search-inner">
@@ -130,7 +142,9 @@
                                 </button>
                                 <div class="msg-v2-dropdown" id="msgV2Dropdown">
                                     <button type="button" id="msgV2PinBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16h14v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a2 2 0 0 0-2-2H11a2 2 0 0 0-2 2z"></path></svg> Закрепить</button>
-                                    <button type="button" class="danger" id="msgV2DeleteBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg> Скрыть из списка</button>
+                                    <button type="button" id="msgV2AddMemberBtn" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg> Добавить участника</button>
+                                    <button type="button" id="msgV2LeaveGroupBtn" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Выйти из группы</button>
+                                    <button type="button" class="danger" id="msgV2DeleteBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg> Удалить чат</button>
                                 </div>
                             </div>
                         </div>
@@ -158,9 +172,42 @@
 
     <div class="msg-v2-toast" id="msgV2Toast" role="status"></div>
 
+    <div class="msg-v2-modal" id="msgV2GroupModal" hidden>
+        <div class="msg-v2-modal-card" role="dialog" aria-modal="true" aria-labelledby="msgV2GroupModalTitle">
+            <div class="msg-v2-modal-head">
+                <h2 id="msgV2GroupModalTitle">Новая группа</h2>
+                <button type="button" class="msg-v2-modal-close" id="msgV2GroupModalClose" aria-label="Закрыть">&times;</button>
+            </div>
+            <p class="msg-v2-modal-lead" id="msgV2GroupModalLead">До 4 человек вместе с вами. Выберите друзей и название.</p>
+            <div id="msgV2GroupNameWrap">
+                <label class="msg-v2-modal-label" for="msgV2GroupName">Название</label>
+                <input type="text" id="msgV2GroupName" class="msg-v2-modal-input" maxlength="60" placeholder="Например, Аниме-вечер" autocomplete="off">
+            </div>
+            <div class="msg-v2-modal-label">Участники <span id="msgV2GroupPickCount">0/3</span></div>
+            <div class="msg-v2-group-pick-list" id="msgV2GroupPickList"></div>
+            <p class="msg-v2-modal-err" id="msgV2GroupErr" hidden></p>
+            <div class="msg-v2-modal-actions">
+                <button type="button" class="msg-v2-modal-btn ghost" id="msgV2GroupCancel">Отмена</button>
+                <button type="button" class="msg-v2-modal-btn primary" id="msgV2GroupCreate">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="msg-v2-modal" id="msgV2ConfirmModal" hidden>
+        <div class="msg-v2-modal-card msg-v2-modal-card--sm" role="dialog" aria-modal="true" aria-labelledby="msgV2ConfirmTitle">
+            <h2 id="msgV2ConfirmTitle" class="msg-v2-confirm-title">Удалить чат?</h2>
+            <p class="msg-v2-modal-lead" id="msgV2ConfirmText">Переписка будет удалена полностью.</p>
+            <div class="msg-v2-modal-actions">
+                <button type="button" class="msg-v2-modal-btn ghost" id="msgV2ConfirmCancel">Отмена</button>
+                <button type="button" class="msg-v2-modal-btn danger" id="msgV2ConfirmOk">Подтвердить</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase-config.js"></script>
-    <script src="scripts/direct-messages.js"></script>
+    <script src="scripts/direct-messages.js?v=20260724g"></script>
+    <script src="scripts/friends.js"></script>
     <script src="scripts/oauth-auth.js"></script>
     <script src="scripts/config.js?v=20260718b"></script>
     <script src="scripts/utils-notifications.js"></script>
@@ -180,6 +227,9 @@
 
         let currentUserId = null;
         let activeChatUserId = null;
+        let activeChatKind = 'dm'; // dm | group
+        let activeGroupId = null;
+        let activeGroupMeta = null;
         let chatPollInterval = null;
         let convPollInterval = null;
         let lastConvFilter = '';
@@ -187,6 +237,9 @@
         let guestCreatorMode = false;
         let currentUserIsSiteCreator = false;
         let siteCreatorUserIdResolved = null;
+        let groupPickSelected = new Set();
+        let groupModalMode = 'create'; // create | add
+        let __msgConfirmResolve = null;
         let __reminkoMsgGuestBusy = false;
         let guestSelectedAvatar = 'Fons/1 b.jpg';
         let unreadOnlyMode = false;
@@ -232,6 +285,54 @@
             const map = getHiddenTsMap();
             map[userId] = Date.now();
             setHiddenTsMap(map);
+        }
+
+        function isGroupConv(conv) {
+            return !!(conv && (conv.isGroup || conv.kind === 'group' || String(conv.userId || '').startsWith('g:')));
+        }
+
+        function askMsgConfirm(title, text, okLabel) {
+            return new Promise((resolve) => {
+                __msgConfirmResolve = resolve;
+                const modal = document.getElementById('msgV2ConfirmModal');
+                const t = document.getElementById('msgV2ConfirmTitle');
+                const p = document.getElementById('msgV2ConfirmText');
+                const ok = document.getElementById('msgV2ConfirmOk');
+                if (t) t.textContent = title || 'Подтвердите';
+                if (p) p.textContent = text || '';
+                if (ok) ok.textContent = okLabel || 'Подтвердить';
+                if (modal) modal.hidden = false;
+            });
+        }
+
+        function closeMsgConfirm(result) {
+            const modal = document.getElementById('msgV2ConfirmModal');
+            if (modal) modal.hidden = true;
+            const r = __msgConfirmResolve;
+            __msgConfirmResolve = null;
+            if (typeof r === 'function') r(!!result);
+        }
+
+        function updateChatMenuForMode() {
+            const leaveBtn = document.getElementById('msgV2LeaveGroupBtn');
+            const addBtn = document.getElementById('msgV2AddMemberBtn');
+            const delBtn = document.getElementById('msgV2DeleteBtn');
+            const isGroup = activeChatKind === 'group';
+            const isOwner = !!(activeGroupMeta && activeGroupMeta.myRole === 'owner');
+            const memberCount = isGroup ? (activeGroupMeta?.members || []).length : 0;
+            if (leaveBtn) leaveBtn.hidden = !isGroup;
+            if (addBtn) addBtn.hidden = !(isGroup && isOwner && memberCount < 4);
+            if (delBtn) {
+                if (isGroup) {
+                    delBtn.hidden = !isOwner;
+                    delBtn.innerHTML =
+                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg> Удалить группу';
+                } else {
+                    delBtn.hidden = false;
+                    delBtn.innerHTML =
+                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg> Удалить чат';
+                }
+            }
         }
 
         function hashColor(id) {
@@ -388,6 +489,8 @@
             if (title) title.textContent = 'Subarik';
             const friendsBtn = document.querySelector('.msg-v2-head a[href="friends.html"]');
             if (friendsBtn) friendsBtn.style.display = 'none';
+            const createGroupBtn = document.getElementById('msgV2CreateGroupBtn');
+            if (createGroupBtn) createGroupBtn.style.display = 'none';
             const sw = document.querySelector('.msg-v2-search-wrap');
             if (sw) sw.style.display = 'none';
             const menuW = document.querySelector('.msg-v2-menu-wrap');
@@ -805,7 +908,42 @@
                     }
                     if (t.closest('#msgV2DeleteBtn')) {
                         e.stopPropagation();
-                        deleteActiveChat();
+                        void deleteActiveChat();
+                        return;
+                    }
+                    if (t.closest('#msgV2LeaveGroupBtn')) {
+                        e.stopPropagation();
+                        void leaveActiveGroup();
+                        return;
+                    }
+                    if (t.closest('#msgV2AddMemberBtn')) {
+                        e.stopPropagation();
+                        void openAddGroupMemberModal();
+                        return;
+                    }
+                    if (t.closest('#msgV2CreateGroupBtn')) {
+                        e.preventDefault();
+                        void openCreateGroupModal();
+                        return;
+                    }
+                    if (t.closest('#msgV2GroupModalClose') || t.closest('#msgV2GroupCancel')) {
+                        e.preventDefault();
+                        closeCreateGroupModal();
+                        return;
+                    }
+                    if (t.closest('#msgV2GroupCreate')) {
+                        e.preventDefault();
+                        void submitGroupModal();
+                        return;
+                    }
+                    if (t.closest('#msgV2ConfirmCancel')) {
+                        e.preventDefault();
+                        closeMsgConfirm(false);
+                        return;
+                    }
+                    if (t.closest('#msgV2ConfirmOk')) {
+                        e.preventDefault();
+                        closeMsgConfirm(true);
                         return;
                     }
                     if (t.closest('#msgV2AttachBtn')) {
@@ -1059,7 +1197,7 @@
         }
 
         async function sendTypingSignal() {
-            if (!activeChatUserId || guestCreatorMode) return;
+            if (!activeChatUserId || guestCreatorMode || activeChatKind === 'group') return;
             try {
                 await DirectMessagesService.updateActivity({
                     type: 'typing_dm',
@@ -1099,6 +1237,10 @@
                 window.__reminkoSiteCreatorUserId = siteCreatorUserIdResolved || null;
             }
             let conversations = await DirectMessagesService.getConversations();
+            if (!guestCreatorMode) {
+                const groups = await DirectMessagesService.getGroupConversations();
+                conversations = conversations.concat(groups || []);
+            }
             if (guestCreatorMode && siteCreatorUserIdResolved) {
                 conversations = conversations.filter((c) => c.userId === siteCreatorUserIdResolved);
             }
@@ -1124,11 +1266,19 @@
             const empty = document.getElementById('msgV2ListEmpty');
             if (!list) return;
 
-            let filtered = conversations.filter((c) => !isConvHidden(c.userId, c.lastMessage.created_at));
+            let filtered = conversations.filter((c) => {
+                if (isGroupConv(c)) return true;
+                return !isConvHidden(c.userId, c.lastMessage?.created_at);
+            });
 
             if (filter) {
                 const q = filter.toLowerCase();
-                filtered = filtered.filter((c) => c.profile?.username?.toLowerCase().includes(q));
+                filtered = filtered.filter((c) => {
+                    const name = isGroupConv(c)
+                        ? c.name || c.profile?.username || ''
+                        : c.profile?.username || '';
+                    return String(name).toLowerCase().includes(q);
+                });
             }
             if (unreadOnlyMode) {
                 filtered = filtered.filter((c) => (c.unreadCount || 0) > 0);
@@ -1145,42 +1295,78 @@
             empty.style.display = 'none';
 
             const pinned = getPinnedOrder();
+            const activeKey =
+                activeChatKind === 'group' && activeGroupId
+                    ? 'g:' + activeGroupId
+                    : activeChatUserId;
 
             for (const conv of filtered) {
+                const group = isGroupConv(conv);
                 const profile = conv.profile || {};
-                const isOnline = profile.last_online && Date.now() - new Date(profile.last_online).getTime() < 5 * 60 * 1000;
+                const isOnline =
+                    !group &&
+                    profile.last_online &&
+                    Date.now() - new Date(profile.last_online).getTime() < 5 * 60 * 1000;
                 const activity = profile.current_activity;
                 const isWatching = isOnline && activity?.type === 'watching';
 
-                const lastMsg = conv.lastMessage;
+                const lastMsg = conv.lastMessage || {};
                 const isMine = lastMsg.sender_id === currentUserId;
-                const parsedPreview = parseDmMessagePayload(lastMsg.message);
+                const parsedPreview = parseDmMessagePayload(lastMsg.message || '');
                 let previewText = parsedPreview.text;
                 if (parsedPreview.media) {
                     previewText = (previewText ? previewText + ' · ' : '') + '📎 Вложение';
                 }
                 let preview = (isMine ? 'Вы: ' : '') + truncate(previewText, 42);
-                if (lastMsg.id === 'stub' || lastMsg.id === 'stub-creator' || !String(lastMsg.message || '').trim()) {
-                    preview = 'Написать сообщение';
+                if (
+                    lastMsg.id === 'stub' ||
+                    lastMsg.id === 'stub-creator' ||
+                    lastMsg.id === 'stub-group' ||
+                    !String(lastMsg.message || '').trim()
+                ) {
+                    preview = group ? 'Групповой чат' : 'Написать сообщение';
                 }
                 if (isWatching && !isMine) preview = '📺 Смотрит: ' + (activity.title || '');
                 const time = formatShortTime(lastMsg.created_at);
 
-                const isPinned = pinned.includes(String(conv.userId));
-                const col = hashColor(conv.userId);
-                const creatorBadge = dmCreatorBadgeForUser(conv.userId, profile);
+                const listId = String(conv.userId);
+                const isPinned = pinned.includes(listId);
+                const col = hashColor(listId);
+                const creatorBadge = group ? '' : dmCreatorBadgeForUser(conv.userId, profile);
                 const isCreatorPinned =
-                    siteCreatorUserIdResolved && String(conv.userId) === String(siteCreatorUserIdResolved);
-                const name = escapeHtml(profile.username || (isCreatorPinned ? 'Subarik' : 'Пользователь'));
-                const initials = escapeHtml(userInitials(profile.username));
+                    !group &&
+                    siteCreatorUserIdResolved &&
+                    String(conv.userId) === String(siteCreatorUserIdResolved);
+                const memberCount = group ? (conv.members || []).length : 0;
+                const name = escapeHtml(
+                    group
+                        ? conv.name || 'Группа'
+                        : profile.username || (isCreatorPinned ? 'Subarik' : 'Пользователь')
+                );
+                const initials = escapeHtml(
+                    group ? '👥' : userInitials(profile.username)
+                );
 
                 const div = document.createElement('div');
-                div.className = 'msg-v2-item' + (activeChatUserId === conv.userId ? ' active' : '');
-                div.dataset.userId = conv.userId;
-                div.onclick = () => openChat(conv.userId);
+                div.className =
+                    'msg-v2-item' +
+                    (String(activeKey) === listId ? ' active' : '') +
+                    (group ? ' is-group' : '');
+                div.dataset.userId = listId;
+                if (group) div.dataset.groupId = conv.groupId;
+                div.onclick = () => {
+                    if (group) openGroupChat(conv.groupId);
+                    else openChat(conv.userId);
+                };
 
-                const dotClass = isWatching ? 'watching' : isOnline ? '' : 'offline';
-                const avResolved = dmAvatarSrcForUser(profile, conv.userId);
+                const dotClass = group
+                    ? 'offline'
+                    : isWatching
+                      ? 'watching'
+                      : isOnline
+                        ? ''
+                        : 'offline';
+                const avResolved = group ? null : dmAvatarSrcForUser(profile, conv.userId);
                 const avatarBlock = avResolved
                     ? `<img class="msg-v2-item-avatar reminko-avatar-img" src="${escapeHtml(avResolved)}" alt="" width="44" height="44" decoding="async" data-dm-user-id="${escapeHtml(String(conv.userId))}">`
                     : `<div class="msg-v2-item-initial" style="background:${col}22;color:${col}">${initials}</div>`;
@@ -1193,7 +1379,7 @@
                     <div class="msg-v2-item-body">
                         <div class="msg-v2-item-top">
                             <div class="msg-v2-item-name-row">
-                                <span class="msg-v2-item-name">${name}</span>${creatorBadge}
+                                <span class="msg-v2-item-name">${name}${group ? ` <span class="msg-v2-group-badge">${memberCount}/4</span>` : ''}</span>${creatorBadge}
                                 ${isPinned ? '<span class="msg-v2-item-pin" title="Закреплён"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16h14v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a2 2 0 0 0-2-2H11a2 2 0 0 0-2 2z"></path></svg></span>' : ''}
                             </div>
                             <span class="msg-v2-item-time">${time}</span>
@@ -1254,9 +1440,13 @@
                 return;
             }
             void clearTypingSignal();
+            activeChatKind = 'dm';
+            activeGroupId = null;
+            activeGroupMeta = null;
             activeChatUserId = userId;
             window.__reminkoDmOpenChatId = userId;
             dmSelectedAttachment = null;
+            updateChatMenuForMode();
             renderAttachmentPreview();
             setMobileChatOpen(true);
             setEmptyMainVisible(false);
@@ -1331,6 +1521,93 @@
             loadConversations(lastConvFilter, { forceRefresh: true });
         }
 
+        async function openGroupChat(groupId) {
+            if (!groupId || guestCreatorMode) return;
+            void clearTypingSignal();
+            const cached = cachedConversations.find(
+                (c) => isGroupConv(c) && String(c.groupId) === String(groupId)
+            );
+            activeChatKind = 'group';
+            activeGroupId = groupId;
+            activeChatUserId = 'g:' + groupId;
+            activeGroupMeta = cached || { groupId, myRole: 'member', name: 'Группа', members: [] };
+            window.__reminkoDmOpenChatId = activeChatUserId;
+            dmSelectedAttachment = null;
+            renderAttachmentPreview();
+            updateChatMenuForMode();
+            setMobileChatOpen(true);
+            setEmptyMainVisible(false);
+
+            const members = activeGroupMeta.members || [];
+            const memberNames = members
+                .map((m) => m.profile?.username || 'Участник')
+                .slice(0, 4)
+                .join(', ');
+            const col = hashColor('g:' + groupId);
+            const wrap = document.getElementById('msgV2HeaderAvatarWrap');
+            wrap.innerHTML = '';
+            wrap.appendChild(makeHeaderInitialEl(col, '👥'));
+            document.getElementById('msgV2HeaderName').innerHTML =
+                '<span class="msg-v2-header-name-row">' +
+                escapeHtml(activeGroupMeta.name || 'Группа') +
+                ' <span class="msg-v2-group-badge">' +
+                members.length +
+                '/4</span></span>';
+            const st = document.getElementById('msgV2HeaderStatus');
+            if (st) {
+                st.className = 'msg-v2-header-status';
+                st.textContent = memberNames || 'Групповой чат';
+            }
+
+            document.getElementById('msgV2Dropdown').classList.remove('is-open');
+            const ta = document.getElementById('msgV2Textarea');
+            ta.value = '';
+            autoResizeTextarea(ta);
+
+            await loadGroupChatMessages(groupId);
+            startGroupChatPolling(groupId);
+            DirectMessagesService.subscribeToGroupChat(groupId, (msg) => {
+                if (msg && msg.group_id === groupId) appendMessage(msg);
+            });
+            loadConversations(lastConvFilter, { forceRefresh: true });
+        }
+
+        async function loadGroupChatMessages(groupId) {
+            const messages = await DirectMessagesService.getGroupMessages(groupId);
+            const container = document.getElementById('msgV2Messages');
+            if (!container) return;
+            container.innerHTML = '';
+            let lastDate = '';
+            for (const msg of messages) {
+                const date = new Date(msg.created_at).toLocaleDateString('ru-RU');
+                if (date !== lastDate) {
+                    lastDate = date;
+                    const d = document.createElement('div');
+                    d.className = 'msg-v2-date';
+                    d.textContent = formatDateLabel(msg.created_at);
+                    container.appendChild(d);
+                }
+                container.appendChild(createMsgElement(msg));
+            }
+            scrollToBottom();
+        }
+
+        function startGroupChatPolling(groupId) {
+            stopChatPolling();
+            chatPollInterval = setInterval(async () => {
+                if (activeChatKind !== 'group' || activeGroupId !== groupId) return;
+                const msgs = await DirectMessagesService.getGroupMessages(groupId);
+                const container = document.getElementById('msgV2Messages');
+                if (!container) return;
+                const existing = new Set(
+                    [...container.querySelectorAll('[data-msg-id]')].map((e) => e.dataset.msgId)
+                );
+                for (const msg of msgs) {
+                    if (!existing.has(msg.id)) appendMessage(msg);
+                }
+            }, 3000);
+        }
+
         function autoResizeTextarea(el) {
             if (!el) return;
             el.style.height = 'auto';
@@ -1383,8 +1660,15 @@
             });
         }
 
+        function groupSenderName(senderId) {
+            const members = activeGroupMeta?.members || [];
+            const m = members.find((x) => String(x.userId) === String(senderId));
+            return (m && m.profile && m.profile.username) || 'Участник';
+        }
+
         function createMsgElement(msg) {
             const isMine = msg.sender_id === currentUserId;
+            const isGroup = activeChatKind === 'group' || !!msg.group_id;
             const row = document.createElement('div');
             row.className = 'msg-v2-row ' + (isMine ? 'out' : 'in');
             row.dataset.msgId = msg.id;
@@ -1404,10 +1688,19 @@
                     mediaPart = `<a class="msg-v2-bubble-file" href="${escapeHtml(media.dataUrl)}" target="_blank" rel="noopener">📎 ${escapeHtml(media.name || 'Вложение')}</a>`;
                 }
             }
-            const meta = isMine
-                ? `<div class="msg-v2-bubble-meta"><span class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}</span><span class="msg-v2-delivery-status ${msg.read ? 'is-read' : ''}">${msg.read ? 'прочитано' : 'доставлено'}</span></div>`
-                : `<div class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}</div>`;
-            bubble.innerHTML = `${mediaPart}${textPart}${meta}`;
+            const senderLabel =
+                isGroup && !isMine
+                    ? `<div class="msg-v2-bubble-sender">${escapeHtml(groupSenderName(msg.sender_id))}</div>`
+                    : '';
+            let meta;
+            if (isMine) {
+                meta = isGroup
+                    ? `<div class="msg-v2-bubble-meta"><span class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}</span></div>`
+                    : `<div class="msg-v2-bubble-meta"><span class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}</span><span class="msg-v2-delivery-status ${msg.read ? 'is-read' : ''}">${msg.read ? 'прочитано' : 'доставлено'}</span></div>`;
+            } else {
+                meta = `<div class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}</div>`;
+            }
+            bubble.innerHTML = `${senderLabel}${mediaPart}${textPart}${meta}`;
             row.appendChild(bubble);
             return row;
         }
@@ -1428,14 +1721,17 @@
             if (sendBtn) sendBtn.disabled = true;
 
             const payloadText = buildDmMessagePayload(savedText, savedAttachment);
-            const result = await DirectMessagesService.sendMessage(activeChatUserId, payloadText);
+            const result =
+                activeChatKind === 'group' && activeGroupId
+                    ? await DirectMessagesService.sendGroupMessage(activeGroupId, payloadText)
+                    : await DirectMessagesService.sendMessage(activeChatUserId, payloadText);
             void clearTypingSignal();
 
             if (sendBtn) sendBtn.disabled = false;
 
             if (result && result.ok && result.data) {
                 appendMessage(result.data);
-                syncMessageDeliveryStates([result.data]);
+                if (activeChatKind !== 'group') syncMessageDeliveryStates([result.data]);
                 void loadConversations(lastConvFilter, { forceRefresh: true });
                 return;
             }
@@ -1477,17 +1773,71 @@
             loadConversations(lastConvFilter, { forceRefresh: true });
         }
 
-        function deleteActiveChat() {
+        async function deleteActiveChat() {
             if (!activeChatUserId) return;
-            if (!confirm('Скрыть этот диалог из списка? Новые сообщения снова покажут чат.')) return;
-            hideConversation(String(activeChatUserId));
-            document.getElementById('msgV2Dropdown').classList.remove('is-open');
-            showMsgToast('Диалог скрыт из списка');
+            document.getElementById('msgV2Dropdown')?.classList.remove('is-open');
+
+            if (activeChatKind === 'group' && activeGroupId) {
+                const ok = await askMsgConfirm(
+                    'Удалить группу?',
+                    'Группа и все сообщения будут удалены для всех участников.',
+                    'Удалить'
+                );
+                if (!ok) return;
+                const res = await DirectMessagesService.deleteGroup(activeGroupId);
+                if (!res.ok) {
+                    showMsgToast(res.error || 'Не удалось удалить группу');
+                    return;
+                }
+                showMsgToast('Группа удалена');
+                closeChat();
+                return;
+            }
+
+            const ok = await askMsgConfirm(
+                'Удалить чат?',
+                'Переписка будет удалена полностью у обоих участников.',
+                'Удалить'
+            );
+            if (!ok) return;
+            const peerId = String(activeChatUserId);
+            const res = await DirectMessagesService.deleteThread(peerId);
+            if (!res.ok) {
+                showMsgToast(res.error || 'Не удалось удалить чат');
+                return;
+            }
+            const map = getHiddenTsMap();
+            delete map[peerId];
+            setHiddenTsMap(map);
+            let pinned = getPinnedOrder().filter((id) => id !== peerId);
+            setPinnedOrder(pinned);
+            showMsgToast('Чат удалён');
+            closeChat();
+        }
+
+        async function leaveActiveGroup() {
+            if (activeChatKind !== 'group' || !activeGroupId) return;
+            document.getElementById('msgV2Dropdown')?.classList.remove('is-open');
+            const ok = await askMsgConfirm(
+                'Выйти из группы?',
+                'Вы перестанете получать сообщения этой группы.',
+                'Выйти'
+            );
+            if (!ok) return;
+            const res = await DirectMessagesService.leaveGroup(activeGroupId);
+            if (!res.ok) {
+                showMsgToast(res.error || 'Не удалось выйти');
+                return;
+            }
+            showMsgToast('Вы вышли из группы');
             closeChat();
         }
 
         function closeChat() {
             activeChatUserId = null;
+            activeChatKind = 'dm';
+            activeGroupId = null;
+            activeGroupMeta = null;
             window.__reminkoDmOpenChatId = null;
             stopChatPolling();
             DirectMessagesService.unsubscribeFromChat();
@@ -1499,6 +1849,209 @@
             document.getElementById('msgV2Messages').innerHTML = '';
             loadConversations(lastConvFilter, { forceRefresh: true });
             if (typeof reminkoUpdateDmBadge === 'function') reminkoUpdateDmBadge();
+        }
+
+        function groupPickMax() {
+            if (groupModalMode === 'add') {
+                const have = (activeGroupMeta?.members || []).length;
+                return Math.max(0, 4 - have);
+            }
+            return 3;
+        }
+
+        async function openCreateGroupModal() {
+            if (guestCreatorMode) {
+                showMsgToast('Группы доступны после входа в аккаунт');
+                return;
+            }
+            groupModalMode = 'create';
+            await fillGroupPickModal({
+                title: 'Новая группа',
+                lead: 'До 4 человек вместе с вами. Выберите друзей и название.',
+                submitLabel: 'Создать',
+                showName: true,
+                excludeIds: new Set([String(currentUserId || '')])
+            });
+        }
+
+        async function openAddGroupMemberModal() {
+            if (activeChatKind !== 'group' || !activeGroupId) return;
+            document.getElementById('msgV2Dropdown')?.classList.remove('is-open');
+            const have = (activeGroupMeta?.members || []).length;
+            if (have >= 4) {
+                showMsgToast('В группе уже 4 человека');
+                return;
+            }
+            groupModalMode = 'add';
+            const exclude = new Set(
+                (activeGroupMeta?.members || []).map((m) => String(m.userId || m.profile?.id || ''))
+            );
+            exclude.add(String(currentUserId || ''));
+            await fillGroupPickModal({
+                title: 'Добавить участника',
+                lead: 'Можно добавить ещё ' + (4 - have) + ' чел. Выберите друзей.',
+                submitLabel: 'Добавить',
+                showName: false,
+                excludeIds: exclude
+            });
+        }
+
+        async function fillGroupPickModal({ title, lead, submitLabel, showName, excludeIds }) {
+            groupPickSelected = new Set();
+            const err = document.getElementById('msgV2GroupErr');
+            if (err) {
+                err.hidden = true;
+                err.textContent = '';
+            }
+            const titleEl = document.getElementById('msgV2GroupModalTitle');
+            if (titleEl) titleEl.textContent = title || 'Группа';
+            const leadEl = document.getElementById('msgV2GroupModalLead');
+            if (leadEl) leadEl.textContent = lead || '';
+            const nameWrap = document.getElementById('msgV2GroupNameWrap');
+            if (nameWrap) nameWrap.hidden = !showName;
+            const nameInp = document.getElementById('msgV2GroupName');
+            if (nameInp) nameInp.value = '';
+            const createBtn = document.getElementById('msgV2GroupCreate');
+            if (createBtn) createBtn.textContent = submitLabel || 'Создать';
+            const list = document.getElementById('msgV2GroupPickList');
+            if (list) list.innerHTML = '<div class="msg-v2-group-pick-empty">Загрузка друзей…</div>';
+            document.getElementById('msgV2GroupModal').hidden = false;
+            updateGroupPickCount();
+
+            let friends = [];
+            try {
+                if (typeof FriendsService !== 'undefined') {
+                    const svc = new FriendsService();
+                    friends = await svc.getFriends(currentUserId);
+                }
+            } catch (_) {
+                friends = [];
+            }
+            if (!list) return;
+            const excluded = excludeIds || new Set();
+            friends = (friends || []).filter((f) => {
+                const id = String(f.friendUserId || f.friend?.id || '');
+                return id && !excluded.has(id);
+            });
+            if (!friends.length) {
+                list.innerHTML =
+                    '<div class="msg-v2-group-pick-empty">Нет доступных друзей для выбора.</div>';
+                return;
+            }
+            list.innerHTML = '';
+            for (const f of friends) {
+                const p = f.friend || {};
+                const id = String(f.friendUserId || p.id || '');
+                if (!id) continue;
+                const row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'msg-v2-group-pick-item';
+                row.dataset.userId = id;
+                const av =
+                    typeof reminkoProfileListAvatarSrc === 'function'
+                        ? reminkoProfileListAvatarSrc(p, 'Fons/1 b.jpg')
+                        : p.avatar || 'Fons/1 b.jpg';
+                row.innerHTML =
+                    `<img src="${escapeHtml(av)}" alt="" width="36" height="36" class="msg-v2-group-pick-ava">` +
+                    `<span>${escapeHtml(p.username || 'Друг')}</span>` +
+                    `<span class="msg-v2-group-pick-check" aria-hidden="true"></span>`;
+                row.addEventListener('click', () => toggleGroupPick(id, row));
+                list.appendChild(row);
+            }
+        }
+
+        function updateGroupPickCount() {
+            const el = document.getElementById('msgV2GroupPickCount');
+            const max = groupPickMax();
+            if (el) el.textContent = `${groupPickSelected.size}/${max}`;
+        }
+
+        function toggleGroupPick(userId, rowEl) {
+            const id = String(userId);
+            const max = groupPickMax();
+            if (groupPickSelected.has(id)) {
+                groupPickSelected.delete(id);
+                rowEl.classList.remove('is-selected');
+            } else {
+                if (groupPickSelected.size >= max) {
+                    showMsgToast(max <= 0 ? 'Группа заполнена' : 'Достигнут лимит участников');
+                    return;
+                }
+                groupPickSelected.add(id);
+                rowEl.classList.add('is-selected');
+            }
+            updateGroupPickCount();
+        }
+
+        function closeCreateGroupModal() {
+            const modal = document.getElementById('msgV2GroupModal');
+            if (modal) modal.hidden = true;
+            groupModalMode = 'create';
+        }
+
+        async function submitGroupModal() {
+            const err = document.getElementById('msgV2GroupErr');
+            if (err) {
+                err.hidden = true;
+                err.textContent = '';
+            }
+            if (!groupPickSelected.size) {
+                if (err) {
+                    err.textContent = 'Выберите хотя бы одного друга.';
+                    err.hidden = false;
+                }
+                return;
+            }
+            const btn = document.getElementById('msgV2GroupCreate');
+            if (btn) btn.disabled = true;
+
+            if (groupModalMode === 'add' && activeGroupId) {
+                let fail = null;
+                for (const uid of groupPickSelected) {
+                    const res = await DirectMessagesService.addGroupMember(activeGroupId, uid);
+                    if (!res.ok) {
+                        fail = res.error || 'Не удалось добавить.';
+                        break;
+                    }
+                }
+                if (btn) btn.disabled = false;
+                if (fail) {
+                    if (err) {
+                        err.textContent = fail;
+                        err.hidden = false;
+                    }
+                    return;
+                }
+                closeCreateGroupModal();
+                showMsgToast('Участник добавлен');
+                await loadConversations(lastConvFilter, { forceRefresh: true });
+                void openGroupChat(activeGroupId);
+                return;
+            }
+
+            const nameInp = document.getElementById('msgV2GroupName');
+            const name = (nameInp && nameInp.value ? nameInp.value : '').trim();
+            if (name.length < 1) {
+                if (btn) btn.disabled = false;
+                if (err) {
+                    err.textContent = 'Укажите название группы.';
+                    err.hidden = false;
+                }
+                return;
+            }
+            const res = await DirectMessagesService.createGroup(name, [...groupPickSelected]);
+            if (btn) btn.disabled = false;
+            if (!res.ok) {
+                if (err) {
+                    err.textContent = res.error || 'Не удалось создать группу.';
+                    err.hidden = false;
+                }
+                return;
+            }
+            closeCreateGroupModal();
+            showMsgToast('Группа создана');
+            await loadConversations(lastConvFilter, { forceRefresh: true });
+            if (res.groupId) void openGroupChat(res.groupId);
         }
 
         function startChatPolling(userId) {

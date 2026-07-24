@@ -377,6 +377,249 @@ const DirectMessagesService = {
     resetSessionCache() {
         this._cachedUserId = null;
         this._cachedAccessToken = null;
+    },
+
+    /** Полностью удалить переписку 1:1 (все сообщения с обеих сторон). */
+    async deleteThread(otherUserId) {
+        const userId = await this.getCurrentUserId(true);
+        const rid = String(otherUserId || '').trim();
+        if (!userId || !rid) return { ok: false, error: 'Нет сессии или собеседника.' };
+        try {
+            const { data, error } = await supabaseClient.rpc('reminko_delete_dm_thread', {
+                p_other_user_id: rid
+            });
+            if (error) {
+                console.error('DM deleteThread:', error);
+                return { ok: false, error: error.message || 'Не удалось удалить чат.' };
+            }
+            return { ok: true, deleted: typeof data === 'number' ? data : 0 };
+        } catch (e) {
+            return { ok: false, error: e.message || 'Ошибка удаления.' };
+        }
+    },
+
+    async getGroupConversations() {
+        const userId = await this.getCurrentUserId();
+        if (!userId) return [];
+        try {
+            const { data: memberships, error: mErr } = await supabaseClient
+                .from('dm_group_members')
+                .select('group_id, role')
+                .eq('user_id', userId);
+            if (mErr || !memberships?.length) return [];
+
+            const groupIds = memberships.map((m) => m.group_id);
+            const roleMap = Object.fromEntries(memberships.map((m) => [m.group_id, m.role]));
+
+            const { data: groups, error: gErr } = await supabaseClient
+                .from('dm_groups')
+                .select('id, name, created_by, created_at, updated_at')
+                .in('id', groupIds);
+            if (gErr || !groups?.length) return [];
+
+            const { data: allMembers } = await supabaseClient
+                .from('dm_group_members')
+                .select('group_id, user_id, role')
+                .in('group_id', groupIds);
+
+            const memberIds = [...new Set((allMembers || []).map((m) => m.user_id))];
+            const profileMap = await this.getProfilesMap(memberIds);
+
+            const out = [];
+            for (const g of groups) {
+                const members = (allMembers || [])
+                    .filter((m) => m.group_id === g.id)
+                    .map((m) => ({
+                        userId: m.user_id,
+                        role: m.role,
+                        profile: profileMap[m.user_id] || null
+                    }));
+
+                let lastMessage = {
+                    id: 'stub-group',
+                    message: '',
+                    created_at: g.created_at || g.updated_at || new Date(0).toISOString(),
+                    sender_id: g.created_by,
+                    receiver_id: null
+                };
+                const { data: lastRows } = await supabaseClient
+                    .from('dm_group_messages')
+                    .select('id, group_id, sender_id, message, created_at')
+                    .eq('group_id', g.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                if (lastRows && lastRows[0]) {
+                    lastMessage = lastRows[0];
+                }
+
+                out.push({
+                    kind: 'group',
+                    groupId: g.id,
+                    userId: 'g:' + g.id,
+                    name: g.name,
+                    createdBy: g.created_by,
+                    myRole: roleMap[g.id] || 'member',
+                    members,
+                    lastMessage,
+                    unreadCount: 0,
+                    profile: {
+                        username: g.name,
+                        avatar: null,
+                        isGroup: true
+                    },
+                    isGroup: true
+                });
+            }
+            return out;
+        } catch (e) {
+            console.warn('[DM] getGroupConversations:', e);
+            return [];
+        }
+    },
+
+    async createGroup(name, memberIds) {
+        const userId = await this.getCurrentUserId(true);
+        if (!userId) return { ok: false, error: 'Войдите в аккаунт.' };
+        const ids = [...new Set((memberIds || []).map(String).filter(Boolean))];
+        if (!String(name || '').trim()) return { ok: false, error: 'Укажите название группы.' };
+        if (!ids.length) return { ok: false, error: 'Выберите хотя бы одного участника.' };
+        if (ids.length > 3) return { ok: false, error: 'В группе максимум 4 человека (вы + 3).' };
+        try {
+            const { data, error } = await supabaseClient.rpc('reminko_create_dm_group', {
+                p_name: String(name).trim().slice(0, 60),
+                p_member_ids: ids
+            });
+            if (error) {
+                const msg = String(error.message || '');
+                if (/group_member_limit/i.test(msg)) {
+                    return { ok: false, error: 'В группе максимум 4 человека.' };
+                }
+                if (/need_members/i.test(msg)) {
+                    return { ok: false, error: 'Выберите участников группы.' };
+                }
+                return { ok: false, error: error.message || 'Не удалось создать группу.' };
+            }
+            return { ok: true, groupId: data };
+        } catch (e) {
+            return { ok: false, error: e.message || 'Ошибка создания группы.' };
+        }
+    },
+
+    async getGroupMessages(groupId, limit = 100) {
+        if (!groupId) return [];
+        try {
+            const { data, error } = await supabaseClient
+                .from('dm_group_messages')
+                .select('id, group_id, sender_id, message, created_at')
+                .eq('group_id', groupId)
+                .order('created_at', { ascending: true })
+                .limit(limit);
+            if (error) {
+                console.error('DM getGroupMessages:', error);
+                return [];
+            }
+            return data || [];
+        } catch (_) {
+            return [];
+        }
+    },
+
+    async sendGroupMessage(groupId, messageText) {
+        const userId = await this.getCurrentUserId(true);
+        const text = String(messageText || '').trim();
+        if (!userId) return { ok: false, error: 'Нет сессии.' };
+        if (!text) return { ok: false, error: 'Пустое сообщение.' };
+        if (!groupId) return { ok: false, error: 'Группа не указана.' };
+        try {
+            const { data, error } = await supabaseClient
+                .from('dm_group_messages')
+                .insert({ group_id: groupId, sender_id: userId, message: text })
+                .select()
+                .single();
+            if (error) {
+                return { ok: false, error: error.message || 'Не удалось отправить.' };
+            }
+            await supabaseClient
+                .from('dm_groups')
+                .update({ updated_at: new Date().toISOString() })
+                .eq('id', groupId);
+            return { ok: true, data };
+        } catch (e) {
+            return { ok: false, error: e.message || 'Ошибка отправки.' };
+        }
+    },
+
+    async leaveGroup(groupId) {
+        const userId = await this.getCurrentUserId(true);
+        if (!userId || !groupId) return { ok: false, error: 'Нет данных.' };
+        try {
+            const { error } = await supabaseClient
+                .from('dm_group_members')
+                .delete()
+                .eq('group_id', groupId)
+                .eq('user_id', userId);
+            if (error) return { ok: false, error: error.message };
+            const { count } = await supabaseClient
+                .from('dm_group_members')
+                .select('*', { count: 'exact', head: true })
+                .eq('group_id', groupId);
+            if (!count) {
+                await supabaseClient.from('dm_groups').delete().eq('id', groupId);
+            }
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: e.message || 'Не удалось выйти.' };
+        }
+    },
+
+    async deleteGroup(groupId) {
+        const userId = await this.getCurrentUserId(true);
+        if (!userId || !groupId) return { ok: false, error: 'Нет данных.' };
+        try {
+            const { error } = await supabaseClient.from('dm_groups').delete().eq('id', groupId);
+            if (error) return { ok: false, error: error.message || 'Только владелец может удалить группу.' };
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: e.message || 'Ошибка удаления группы.' };
+        }
+    },
+
+    async addGroupMember(groupId, memberId) {
+        try {
+            const { error } = await supabaseClient.rpc('reminko_add_dm_group_member', {
+                p_group_id: groupId,
+                p_user_id: memberId
+            });
+            if (error) {
+                if (/group_member_limit/i.test(error.message || '')) {
+                    return { ok: false, error: 'В группе уже 4 человека.' };
+                }
+                return { ok: false, error: error.message || 'Не удалось добавить.' };
+            }
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: e.message || 'Ошибка.' };
+        }
+    },
+
+    subscribeToGroupChat(groupId, onNewMessage) {
+        this.unsubscribeFromChat();
+        this._currentChatUserId = 'g:' + groupId;
+        this._realtimeChannel = supabaseClient
+            .channel(`dm-group-${Date.now()}-${groupId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'dm_group_messages',
+                    filter: `group_id=eq.${groupId}`
+                },
+                (payload) => {
+                    if (payload.new && onNewMessage) onNewMessage(payload.new);
+                }
+            )
+            .subscribe();
     }
 };
 

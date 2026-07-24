@@ -450,6 +450,274 @@ CREATE POLICY "dm_select" ON public.direct_messages FOR SELECT USING (
 );
 CREATE POLICY "dm_insert" ON public.direct_messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
 CREATE POLICY "dm_update" ON public.direct_messages FOR UPDATE USING (auth.uid() = receiver_id);
+DROP POLICY IF EXISTS "dm_delete" ON public.direct_messages;
+CREATE POLICY "dm_delete" ON public.direct_messages
+  FOR DELETE USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+
+CREATE OR REPLACE FUNCTION public.reminko_delete_dm_thread(p_other_user_id uuid)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  n integer := 0;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+  IF p_other_user_id IS NULL OR p_other_user_id = uid THEN
+    RAISE EXCEPTION 'invalid_peer';
+  END IF;
+
+  DELETE FROM public.direct_messages
+  WHERE (sender_id = uid AND receiver_id = p_other_user_id)
+     OR (sender_id = p_other_user_id AND receiver_id = uid);
+
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reminko_delete_dm_thread(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reminko_delete_dm_thread(uuid) TO authenticated;
+
+-- Группы ЛС (до 4 участников)
+CREATE TABLE IF NOT EXISTS public.dm_groups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL CHECK (char_length(trim(name)) BETWEEN 1 AND 60),
+  created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+CREATE TABLE IF NOT EXISTS public.dm_group_members (
+  group_id UUID NOT NULL REFERENCES public.dm_groups(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+  PRIMARY KEY (group_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dm_group_members_user ON public.dm_group_members(user_id);
+
+CREATE TABLE IF NOT EXISTS public.dm_group_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id UUID NOT NULL REFERENCES public.dm_groups(id) ON DELETE CASCADE,
+  sender_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+CREATE INDEX IF NOT EXISTS idx_dm_group_messages_group_created
+  ON public.dm_group_messages(group_id, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.reminko_is_dm_group_member(p_group_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.dm_group_members m
+    WHERE m.group_id = p_group_id AND m.user_id = auth.uid()
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.reminko_is_dm_group_member(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reminko_is_dm_group_member(uuid) TO authenticated, anon;
+
+CREATE OR REPLACE FUNCTION public.dm_group_members_enforce_limit()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  cnt integer;
+BEGIN
+  SELECT count(*) INTO cnt FROM public.dm_group_members WHERE group_id = NEW.group_id;
+  IF cnt >= 4 THEN
+    RAISE EXCEPTION 'group_member_limit';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_dm_group_members_limit ON public.dm_group_members;
+CREATE TRIGGER trg_dm_group_members_limit
+  BEFORE INSERT ON public.dm_group_members
+  FOR EACH ROW EXECUTE FUNCTION public.dm_group_members_enforce_limit();
+
+ALTER TABLE public.dm_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dm_group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dm_group_messages ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "dm_groups_select" ON public.dm_groups;
+DROP POLICY IF EXISTS "dm_groups_insert" ON public.dm_groups;
+DROP POLICY IF EXISTS "dm_groups_update" ON public.dm_groups;
+DROP POLICY IF EXISTS "dm_groups_delete" ON public.dm_groups;
+CREATE POLICY "dm_groups_select" ON public.dm_groups FOR SELECT
+  USING (public.reminko_is_dm_group_member(id));
+CREATE POLICY "dm_groups_insert" ON public.dm_groups FOR INSERT
+  WITH CHECK (auth.uid() = created_by);
+CREATE POLICY "dm_groups_update" ON public.dm_groups FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.dm_group_members m
+      WHERE m.group_id = id AND m.user_id = auth.uid() AND m.role = 'owner'
+    )
+  );
+CREATE POLICY "dm_groups_delete" ON public.dm_groups FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.dm_group_members m
+      WHERE m.group_id = id AND m.user_id = auth.uid() AND m.role = 'owner'
+    )
+  );
+
+DROP POLICY IF EXISTS "dm_group_members_select" ON public.dm_group_members;
+DROP POLICY IF EXISTS "dm_group_members_insert" ON public.dm_group_members;
+DROP POLICY IF EXISTS "dm_group_members_delete" ON public.dm_group_members;
+CREATE POLICY "dm_group_members_select" ON public.dm_group_members FOR SELECT
+  USING (public.reminko_is_dm_group_member(group_id));
+CREATE POLICY "dm_group_members_insert" ON public.dm_group_members FOR INSERT
+  WITH CHECK (
+    auth.uid() = user_id
+    OR EXISTS (
+      SELECT 1 FROM public.dm_group_members m
+      WHERE m.group_id = group_id AND m.user_id = auth.uid() AND m.role = 'owner'
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.dm_groups g
+      WHERE g.id = group_id AND g.created_by = auth.uid()
+    )
+  );
+CREATE POLICY "dm_group_members_delete" ON public.dm_group_members FOR DELETE
+  USING (
+    auth.uid() = user_id
+    OR EXISTS (
+      SELECT 1 FROM public.dm_group_members m
+      WHERE m.group_id = group_id AND m.user_id = auth.uid() AND m.role = 'owner'
+    )
+  );
+
+DROP POLICY IF EXISTS "dm_group_messages_select" ON public.dm_group_messages;
+DROP POLICY IF EXISTS "dm_group_messages_insert" ON public.dm_group_messages;
+CREATE POLICY "dm_group_messages_select" ON public.dm_group_messages FOR SELECT
+  USING (public.reminko_is_dm_group_member(group_id));
+CREATE POLICY "dm_group_messages_insert" ON public.dm_group_messages FOR INSERT
+  WITH CHECK (
+    auth.uid() = sender_id
+    AND public.reminko_is_dm_group_member(group_id)
+  );
+
+CREATE OR REPLACE FUNCTION public.reminko_create_dm_group(
+  p_name text,
+  p_member_ids uuid[]
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  gid uuid;
+  mid uuid;
+  uniq uuid[] := ARRAY[]::uuid[];
+  n text := left(trim(coalesce(p_name, '')), 60);
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+  IF n IS NULL OR char_length(n) < 1 THEN
+    RAISE EXCEPTION 'invalid_name';
+  END IF;
+
+  IF p_member_ids IS NOT NULL THEN
+    FOREACH mid IN ARRAY p_member_ids LOOP
+      IF mid IS NULL OR mid = uid THEN
+        CONTINUE;
+      END IF;
+      IF NOT (mid = ANY (uniq)) THEN
+        uniq := array_append(uniq, mid);
+      END IF;
+    END LOOP;
+  END IF;
+
+  IF coalesce(array_length(uniq, 1), 0) < 1 THEN
+    RAISE EXCEPTION 'need_members';
+  END IF;
+  IF coalesce(array_length(uniq, 1), 0) > 3 THEN
+    RAISE EXCEPTION 'group_member_limit';
+  END IF;
+
+  INSERT INTO public.dm_groups (name, created_by)
+  VALUES (n, uid)
+  RETURNING id INTO gid;
+
+  INSERT INTO public.dm_group_members (group_id, user_id, role)
+  VALUES (gid, uid, 'owner');
+
+  FOREACH mid IN ARRAY uniq LOOP
+    INSERT INTO public.dm_group_members (group_id, user_id, role)
+    VALUES (gid, mid, 'member');
+  END LOOP;
+
+  RETURN gid;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reminko_create_dm_group(text, uuid[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reminko_create_dm_group(text, uuid[]) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.reminko_add_dm_group_member(
+  p_group_id uuid,
+  p_user_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  cnt integer;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.dm_group_members
+    WHERE group_id = p_group_id AND user_id = uid AND role = 'owner'
+  ) THEN
+    RAISE EXCEPTION 'not_owner';
+  END IF;
+  IF p_user_id IS NULL OR p_user_id = uid THEN
+    RAISE EXCEPTION 'invalid_member';
+  END IF;
+  SELECT count(*) INTO cnt FROM public.dm_group_members WHERE group_id = p_group_id;
+  IF cnt >= 4 THEN
+    RAISE EXCEPTION 'group_member_limit';
+  END IF;
+  INSERT INTO public.dm_group_members (group_id, user_id, role)
+  VALUES (p_group_id, p_user_id, 'member')
+  ON CONFLICT DO NOTHING;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reminko_add_dm_group_member(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reminko_add_dm_group_member(uuid, uuid) TO authenticated;
+
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.dm_group_messages;
+  EXCEPTION WHEN duplicate_object THEN
+    NULL;
+  END;
+END $$;
 
 -- ============================================
 -- АДМИНЫ И МОДЕРАЦИЯ ЧАТА (используются admin-panel.js, admin-panel-creator.js)
@@ -592,6 +860,9 @@ DECLARE
     'avatar_ai_generations',
     'site_visit_events',
     'direct_messages',
+    'dm_groups',
+    'dm_group_members',
+    'dm_group_messages',
     'admins',
     'site_team_roles',
     'chat_mutes',

@@ -87,6 +87,11 @@
     background-clip: text;
 }
 
+.msg-v2-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+}
 .msg-v2-head-btn {
     padding: 0.5rem;
     border-radius: 0.75rem;
@@ -98,6 +103,7 @@
     align-items: center;
     justify-content: center;
     transition: color 0.2s, background 0.2s;
+    text-decoration: none;
 }
 .msg-v2-head-btn:hover {
     background: rgba(255, 255, 255, 0.05);
@@ -956,6 +962,252 @@
 
 body.msg-v2-creator-guest .msg-v2-list-empty .msg-v2-empty-hint {
     display: none;
+}
+
+.msg-v2-group-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.25rem;
+    padding: 0.05rem 0.35rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #e9d5ff;
+    background: rgba(227, 0, 255, 0.18);
+    border: 1px solid rgba(227, 0, 255, 0.28);
+    vertical-align: middle;
+}
+.msg-v2-header-name-row {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.15rem;
+}
+.msg-v2-bubble-sender {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #c084fc;
+    margin-bottom: 0.2rem;
+}
+.msg-v2-item.is-group .msg-v2-item-initial {
+    font-size: 1.05rem;
+}
+
+/* In-app modals (delete / create group) */
+.msg-v2-modal[hidden] {
+    display: none !important;
+}
+.msg-v2-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 12000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(5, 5, 14, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+.msg-v2-modal-card {
+    width: min(420px, 100%);
+    max-height: min(86vh, 640px);
+    overflow: auto;
+    border-radius: 1rem;
+    background: #161628;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    padding: 1.1rem 1.15rem 1.15rem;
+    color: #e2e8f0;
+}
+.msg-v2-modal-card--sm {
+    width: min(360px, 100%);
+}
+.msg-v2-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+}
+.msg-v2-modal-head h2,
+.msg-v2-confirm-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #f1f5f9;
+}
+.msg-v2-modal-close {
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.4rem;
+}
+.msg-v2-modal-close:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+}
+.msg-v2-modal-lead {
+    margin: 0 0 0.85rem;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: #94a3b8;
+}
+.msg-v2-modal-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #8888aa;
+    margin: 0.65rem 0 0.35rem;
+}
+.msg-v2-modal-input {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #12121f;
+    color: #e2e8f0;
+    font: inherit;
+    font-size: 0.95rem;
+    padding: 0.7rem 0.85rem;
+}
+.msg-v2-modal-input:focus {
+    outline: none;
+    border-color: rgba(227, 0, 255, 0.45);
+    box-shadow: 0 0 0 2px rgba(227, 0, 255, 0.12);
+}
+.msg-v2-group-pick-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-height: 240px;
+    overflow: auto;
+    margin-top: 0.15rem;
+    padding-right: 0.15rem;
+}
+.msg-v2-group-pick-empty {
+    font-size: 0.85rem;
+    color: #8888aa;
+    padding: 0.75rem 0.25rem;
+}
+.msg-v2-group-pick-item {
+    display: grid;
+    grid-template-columns: 36px 1fr 18px;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: #1c1c35;
+    color: #e2e8f0;
+    border-radius: 0.7rem;
+    padding: 0.45rem 0.6rem;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+.msg-v2-group-pick-item:hover {
+    border-color: rgba(227, 0, 255, 0.28);
+}
+.msg-v2-group-pick-item.is-selected {
+    border-color: rgba(227, 0, 255, 0.55);
+    background: rgba(227, 0, 255, 0.12);
+}
+.msg-v2-group-pick-ava {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.msg-v2-group-pick-check {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+}
+.msg-v2-group-pick-item.is-selected .msg-v2-group-pick-check {
+    border-color: #e300ff;
+    background: #e300ff;
+    box-shadow: inset 0 0 0 3px #1c1c35;
+}
+.msg-v2-modal-err {
+    margin: 0.65rem 0 0;
+    color: #fb7185;
+    font-size: 0.85rem;
+}
+.msg-v2-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+.msg-v2-modal-btn {
+    border: none;
+    border-radius: 0.65rem;
+    padding: 0.6rem 0.95rem;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.msg-v2-modal-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.msg-v2-modal-btn.ghost {
+    background: rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
+}
+.msg-v2-modal-btn.ghost:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+.msg-v2-modal-btn.primary {
+    background: linear-gradient(135deg, #e300ff, #7c3aed);
+    color: #fff;
+}
+.msg-v2-modal-btn.danger {
+    background: #e11d48;
+    color: #fff;
+}
+.msg-v2-modal-btn.danger:hover {
+    background: #be123c;
+}
+
+body.theme-dark .msg-v2-modal-card,
+html[data-rem-theme='dark'] .msg-v2-modal-card {
+    background: #12121f;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 900px) {
+    .msg-v2-modal {
+        align-items: flex-end;
+        padding: 0;
+    }
+    .msg-v2-modal-card {
+        width: 100%;
+        max-height: min(88vh, 720px);
+        border-radius: 1rem 1rem 0 0;
+        padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+    .msg-v2-group-pick-list {
+        max-height: 42vh;
+    }
+    .msg-v2-modal-actions {
+        flex-wrap: wrap;
+    }
+    .msg-v2-modal-btn {
+        flex: 1 1 auto;
+        min-height: 44px;
+    }
 }
 
 @media (max-width: 767px) {
