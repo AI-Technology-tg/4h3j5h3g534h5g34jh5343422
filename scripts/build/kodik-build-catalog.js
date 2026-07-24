@@ -145,11 +145,40 @@ function translationScore(row) {
     return s;
 }
 
+function isAdultGenreLabel(name) {
+    const n = String(name || '')
+        .toLowerCase()
+        .trim();
+    if (!n) return false;
+    return (
+        n.includes('hentai') ||
+        n.includes('хентай') ||
+        n.includes('erotic') ||
+        n.includes('эротик') ||
+        n.includes('для взрослых') ||
+        n === 'rx' ||
+        n === 'adult'
+    );
+}
+
+function pickGenresForCatalog(genresRaw) {
+    const all = [...new Set((genresRaw || []).map(normalizeGenre).filter(Boolean))];
+    const adult = all.filter(isAdultGenreLabel);
+    const rest = all.filter((g) => !isAdultGenreLabel(g));
+    // Adult-жанры всегда в выходном списке (не срезать .slice(0,8))
+    return [...adult, ...rest].slice(0, Math.max(8, adult.length));
+}
+
 function rowToCatalog(row, isSerial) {
     const md = row.material_data || {};
     const mal = row.shikimori_id != null ? parseInt(row.shikimori_id, 10) : null;
     const genresRaw = md.anime_genres || md.genres || md.all_genres || [];
-    const genres = [...new Set(genresRaw.map(normalizeGenre).filter(Boolean))].slice(0, 8);
+    const genres = pickGenresForCatalog(genresRaw);
+    const contentRating = String(md.rating_mpaa || md.mpaa_rating || md.age_rating || '').trim();
+    const isAdult =
+        genres.some(isAdultGenreLabel) ||
+        /rx|hentai/i.test(contentRating) ||
+        genresRaw.some((g) => isAdultGenreLabel(g));
     const year = parseInt(row.year, 10) || parseInt(md.year, 10) || null;
     const totalEp = parseInt(md.episodes_total, 10) || parseInt(row.episodes_count, 10) || 1;
     const title =
@@ -199,7 +228,8 @@ function rowToCatalog(row, isSerial) {
         status: mapStatus(row, isSerial),
         type: isSerial ? 'Сериал' : 'Фильм',
         rating: pickRating(row),
-        contentRating: String(md.rating_mpaa || md.mpaa_rating || md.age_rating || '').trim(),
+        contentRating,
+        isAdult: !!isAdult,
         description,
         studio,
         duration: md.duration || '',

@@ -26,24 +26,45 @@ function releasedOf(item) {
     return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+function isAdultGenreLabel(name) {
+    const n = String(name || '')
+        .toLowerCase()
+        .trim();
+    return (
+        n.includes('hentai') ||
+        n.includes('хентай') ||
+        n.includes('erotic') ||
+        n.includes('эротик') ||
+        n.includes('для взрослых')
+    );
+}
+
 function sanitizeItem(item) {
     if (!item || typeof item !== 'object') return item;
     const hasLink = !!(item._kodik && item._kodik.link);
     const released = releasedOf(item);
     const st = String(item.status || '');
     const type = String(item.type || '');
+    let next = item;
 
     // Фильмы с плеером / серией — уже вышли, не «Анонс»
     if (type === 'Фильм' && st === 'Анонс' && (hasLink || released >= 1)) {
-        return { ...item, status: 'Завершён' };
-    }
-    // Сериал: есть вышедшие серии — онгоинг/завершён, не анонс
-    if (type === 'Сериал' && st === 'Анонс' && released >= 1) {
+        next = { ...next, status: 'Завершён' };
+    } else if (type === 'Сериал' && st === 'Анонс' && released >= 1) {
         const total = parseInt(item.totalEpisodes, 10) || 0;
-        if (total > 0 && released >= total) return { ...item, status: 'Завершён' };
-        return { ...item, status: 'Онгоинг' };
+        if (total > 0 && released >= total) next = { ...next, status: 'Завершён' };
+        else next = { ...next, status: 'Онгоинг' };
     }
-    return item;
+
+    const genres = Array.isArray(next.genres) ? next.genres : [];
+    const rating = String(next.contentRating || '').toLowerCase();
+    if (
+        !next.isAdult &&
+        (genres.some(isAdultGenreLabel) || rating.includes('rx') || rating.includes('hentai'))
+    ) {
+        next = { ...next, isAdult: true };
+    }
+    return next;
 }
 
 function main() {

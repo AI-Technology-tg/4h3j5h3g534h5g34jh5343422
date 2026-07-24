@@ -305,21 +305,45 @@ function getAllAnime() {
     const mergedRaw = [...animeDatabase.all, ...customAnime, ...virtualAnime, ...kodikAnime];
     const dedupedMal = dedupeAnimeByMalId(mergedRaw);
 
+    // Если Jikan/virtual помечен 18+, а Kodik-дубликат без жанра — помечаем по mal_id
+    const restrictedMals = new Set();
+    if (typeof window !== 'undefined' && typeof window.animeHasRestrictedGenre === 'function') {
+        for (const a of dedupedMal) {
+            if (!a || !window.animeHasRestrictedGenre(a)) continue;
+            const mal =
+                a.mal_id != null
+                    ? parseInt(a.mal_id, 10)
+                    : a._jikanRaw?.mal_id != null
+                      ? parseInt(a._jikanRaw.mal_id, 10)
+                      : NaN;
+            if (Number.isFinite(mal) && mal > 0) restrictedMals.add(mal);
+        }
+    }
+    const withAdultPropagated =
+        restrictedMals.size === 0
+            ? dedupedMal
+            : dedupedMal.map((a) => {
+                  const mal = a && a.mal_id != null ? parseInt(a.mal_id, 10) : NaN;
+                  if (!Number.isFinite(mal) || !restrictedMals.has(mal) || a.isAdult) return a;
+                  return { ...a, isAdult: true };
+              });
+
     const adultOk =
         typeof window !== 'undefined' &&
         typeof window.isAdultContentEnabled === 'function' &&
         window.isAdultContentEnabled();
-    let merged = dedupedMal;
+    let merged = withAdultPropagated;
     if (!adultOk) {
         if (typeof window !== 'undefined' && typeof window.filterAdultAnimeList === 'function') {
-            merged = window.filterAdultAnimeList(dedupedMal);
+            merged = window.filterAdultAnimeList(withAdultPropagated);
         } else if (
             typeof window !== 'undefined' &&
             typeof window.animeHasRestrictedGenre === 'function'
         ) {
-            merged = dedupedMal.filter((a) => !window.animeHasRestrictedGenre(a));
+            merged = withAdultPropagated.filter((a) => !window.animeHasRestrictedGenre(a));
         } else {
-            merged = dedupedMal.filter((a) => {
+            merged = withAdultPropagated.filter((a) => {
+                if (a && a.isAdult) return false;
                 const genres = Array.isArray(a && a.genres) ? a.genres : [];
                 return !genres.some((g) => {
                     const n = String(g || '').toLowerCase();
