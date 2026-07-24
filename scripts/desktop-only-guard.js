@@ -6,7 +6,7 @@
     if (typeof window === 'undefined' || window.__reminkoAssetVersionGate) return;
     window.__reminkoAssetVersionGate = true;
 
-    var V = '20260720h';
+    var V = '20260724a';
     window.REMINKO_ASSET_VERSION = V;
     var KEY = 'reminko_asset_v';
 
@@ -117,7 +117,7 @@
                 var css = document.createElement('link');
                 css.id = 'rem-theme-dark-css';
                 css.rel = 'stylesheet';
-                css.href = root + 'styles/theme-dark.css?v=rem-theme-4';
+                css.href = root + 'styles/theme-dark.css?v=20260724a';
                 document.head.appendChild(css);
             }
             if (!document.getElementById('rem-dark-bg-preload')) {

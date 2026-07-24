@@ -745,18 +745,33 @@
     .top-nav-actions {
         order: 2;
     }
-    
+
+    /* Нижний таббар задаётся в main.css (@media ≤900px).
+       Старый drawer left:-100% прятал навигацию — больше не используем. */
     .sidebar {
-        position: fixed;
-        left: -100%;
-        top: 52px;
-        width: 220px;
-        z-index: 999;
-        transition: left 0.3s;
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none;
+        z-index: 1300 !important;
+        transition: none;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
     }
-    
+
     .sidebar.active {
-        left: 0;
+        left: 0 !important;
+    }
+
+    .sidebar-nav {
+        flex-direction: row !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        padding: 0 !important;
     }
     
     .main-content-wrapper {
@@ -765,50 +780,18 @@
     }
     
     .main-layout::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(5px);
-        z-index: 998;
-        display: none;
-        pointer-events: none;
+        content: none !important;
+        display: none !important;
     }
     
     .main-layout.sidebar-open::before {
-        display: block;
-        pointer-events: auto;
+        display: none !important;
+        pointer-events: none !important;
     }
     
-    /* Кнопка для открытия боковой панели на мобильных */
+    /* Drawer-toggle не нужен при нижнем таббаре */
     .sidebar-toggle {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: fixed;
-        left: 1rem;
-        top: 1rem;
-        z-index: 1001;
-        background: rgba(168, 85, 247, 0.7);
-        border: none;
-        color: white;
-        padding: 0.75rem;
-        border-radius: 8px;
-        cursor: pointer;
-        box-shadow: var(--neon-glow);
-        transition: all 0.3s;
-    }
-    
-    .sidebar-toggle:hover {
-        background: rgba(168, 85, 247, 0.9);
-        box-shadow: var(--neon-glow-strong);
-    }
-    
-    .top-nav-container {
-        margin-left: 3.5rem;
+        display: none !important;
     }
 }
 
