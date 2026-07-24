@@ -1015,12 +1015,30 @@ function _updateDeepSleepInputUi(remainMs) {
     }
 }
 
+const MINKO_WAKE_SORRY_LINES = [
+    '*зевает* Ой… прости, я совсем вырубилась 😴 Можешь повторить вопрос? Я теперь слушаю~',
+    '*трёт глазки* Упс… уснула на клавиатуре. Извини! Скажи ещё раз, что спрашивал(а)? 💤',
+    '*потягивается* Ммм… я не нарочно, честно. Повтори, пожалуйста, свой вопрос — отвечу уже без храпа~ 🌸',
+    '*сонно* Простиии… плед победил. Кинь вопрос ещё раз, ладно? ☕💤',
+    '*моргает* Я тут… вроде… Извини, что отключилась. Повтори вопрос — продолжим с того места~'
+];
+
 function _notifyMinkoWakeUp() {
     _setChatAsleepAtmosphere(false);
     if (typeof _showWakeBanner === 'function') _showWakeBanner();
     if (typeof window.reminkoNotifyMinkoWakeUp === 'function') {
         window.reminkoNotifyMinkoWakeUp();
     }
+    // Сонное извинение + просьба повторить вопрос (после удачи или выхода таймера)
+    setTimeout(() => {
+        try {
+            if (typeof window.__minkoPostWakeApology === 'function') {
+                window.__minkoPostWakeApology();
+            }
+        } catch (_) {
+            /* ignore */
+        }
+    }, 420);
 }
 
 function _startDeepSleepUiPoll() {
@@ -2526,19 +2544,18 @@ document.addEventListener('DOMContentLoaded', () => {
             checkMinkoOnlineStatus();
             if (typeof window._updateMinkoMsgCounter === 'function') window._updateMinkoMsgCounter();
             // После входа сессия появляется асинхронно — иначе таймер «обиды» без авторизации не снимается
-            void syncMinkoAuthGateUi();
+            checkMinkoAngryState();
         });
     }
     setTimeout(() => {
         if (typeof window._updateMinkoMsgCounter === 'function') window._updateMinkoMsgCounter();
     }, 1600);
-    // Гость не должен писать в Minko вообще — панель входа сразу
-    setTimeout(() => {
-        void syncMinkoAuthGateUi();
-    }, 200);
-    setTimeout(() => {
-        void syncMinkoAuthGateUi();
-    }, 1200);
+    // Убрать жёсткий guest-gate, если остался от прошлой версии
+    document.getElementById('guestAuthRequiredPanel')?.remove();
+    const guestForm = document.getElementById('chatForm');
+    if (guestForm && guestForm.style.display === 'none' && !getMinkoAngryState()) {
+        guestForm.style.display = '';
+    }
 
     // Проверка состояния обиды
     function checkMinkoAngryState() {
@@ -2605,7 +2622,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function blockInput(remaining = null) {
         const chatForm = document.getElementById('chatForm');
         const chatFoot = document.querySelector('.minko-ai-foot');
-        hideGuestAuthRequiredPanel();
+        document.getElementById('guestAuthRequiredPanel')?.remove();
         
         if (chatForm && remaining !== null) {
             chatForm.style.display = 'none';
@@ -2663,87 +2680,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Модальное окно не найдено:', id);
     }
 
-    function hideGuestAuthRequiredPanel() {
-        const panel = document.getElementById('guestAuthRequiredPanel');
-        if (panel) panel.remove();
-    }
-
-    /** Гость: чат закрыт сразу — только вход/регистрация (фразы/таймеры обиды остаются отдельно). */
-    function showGuestAuthRequiredPanel() {
-        if (resolveMinkoIsAuthedSync()) {
-            hideGuestAuthRequiredPanel();
-            return;
-        }
-        const angryState = getMinkoAngryState();
-        if (
-            angryState &&
-            ((angryState.blockedUntil && Date.now() < angryState.blockedUntil) || angryState.blockedForever)
-        ) {
-            return;
-        }
-
-        hideGuestAuthRequiredPanel();
-        const chatForm = document.getElementById('chatForm');
-        const chatFoot = document.querySelector('.minko-ai-foot');
-        const chatInputEl = document.getElementById('chatInput');
-        const sendButtonEl = document.getElementById('sendButton');
-
-        if (chatForm) chatForm.style.display = 'none';
-        if (chatInputEl) chatInputEl.disabled = true;
-        if (sendButtonEl) sendButtonEl.disabled = true;
-
-        const panel = document.createElement('div');
-        panel.id = 'guestAuthRequiredPanel';
-        panel.style.cssText =
-            'background: rgba(30, 30, 40, 0.95); border-radius: 15px; padding: 18px; margin-top: 10px; border: 2px solid rgba(168, 85, 247, 0.45); box-shadow: 0 0 20px rgba(168, 85, 247, 0.22);';
-        panel.innerHTML = `
-            <div style="color:#e9d5ff;font-weight:700;font-size:16px;margin-bottom:10px;text-align:center;">
-                *зевает* Сначала войди, потом болтаем~ 🌸💤
-            </div>
-            <div style="color:#e5e7eb;margin-bottom:14px;text-align:center;line-height:1.55;font-size:14px;">
-                Minko AI доступна только авторизованным пользователям.<br>
-                Войди или зарегистрируйся — и я снова буду отвечать на вопросы про аниме.
-            </div>
-            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                <button type="button" id="guestGateLoginBtn" style="padding:12px 22px;background:linear-gradient(135deg,#a855f7,#c084fc);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:15px;">
-                    Войти
-                </button>
-                <button type="button" id="guestGateRegisterBtn" style="padding:12px 22px;background:linear-gradient(135deg,#6c757d,#8a939c);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:15px;">
-                    Регистрация
-                </button>
-            </div>
-        `;
-        if (chatFoot) chatFoot.appendChild(panel);
-        else if (chatForm && chatForm.parentNode) chatForm.parentNode.appendChild(panel);
-
-        panel.addEventListener('click', (e) => {
-            if (e.target.id === 'guestGateLoginBtn' || e.target.closest('#guestGateLoginBtn')) {
-                e.preventDefault();
-                openMinkoAuthModal('login');
-            } else if (e.target.id === 'guestGateRegisterBtn' || e.target.closest('#guestGateRegisterBtn')) {
-                e.preventDefault();
-                openMinkoAuthModal('register');
-            }
-        });
-    }
-
-    async function syncMinkoAuthGateUi() {
-        const authed = await resolveMinkoIsAuthed();
-        if (authed) {
-            hideGuestAuthRequiredPanel();
-            const angryState = getMinkoAngryState();
-            const blocked =
-                angryState &&
-                ((angryState.blockedUntil && Date.now() < angryState.blockedUntil) || angryState.blockedForever);
-            if (!blocked) unblockInput();
-            checkMinkoAngryState();
-            return;
-        }
-        if (!checkMinkoAngryState()) {
-            showGuestAuthRequiredPanel();
-        }
-    }
-
     function unblockInput() {
         const chatForm = document.getElementById('chatForm');
         const timerBlock = document.getElementById('angryTimerBlock');
@@ -2753,19 +2689,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (timerBlock) timerBlock.remove();
         if (blockedPanel) blockedPanel.remove();
-        // Гостевую панель не снимаем здесь — только после реального входа
+        document.getElementById('guestAuthRequiredPanel')?.remove();
 
-        if (resolveMinkoIsAuthedSync()) {
-            hideGuestAuthRequiredPanel();
-            if (chatForm) chatForm.style.display = '';
-            if (chatInput) {
-                chatInput.disabled = false;
-                chatInput.placeholder = 'Написать Minko...';
-            }
-            if (sendButton) sendButton.disabled = false;
-        } else {
-            showGuestAuthRequiredPanel();
+        if (chatForm) chatForm.style.display = '';
+        
+        if (chatInput) {
+            chatInput.disabled = false;
+            chatInput.placeholder = 'Написать Minko...';
         }
+        if (sendButton) sendButton.disabled = false;
     }
 
     // Обновление таймера
@@ -2853,23 +2785,19 @@ document.addEventListener('DOMContentLoaded', () => {
         chatInput = chatInputEl;
         sendButton = sendButtonEl;
 
-        // Проверяем авторизацию (жёстко: без входа чат недоступен)
-        const isAuth = await resolveMinkoIsAuthed();
-
+        // Авторизация: гости пишут → заготовленные фразы + эскалация обид (как в старой версии)
+        let isAuth = typeof isAuthenticatedSync === 'function' ? isAuthenticatedSync() : false;
         if (!isAuth) {
-            chatInputEl.value = '';
-            chatInputEl.style.height = 'auto';
-            if (checkMinkoAngryState()) return;
-            showGuestAuthRequiredPanel();
-            // Сохраняем старую эскалацию «обиды», если кто-то обходит UI
-            const attempts = incrementUnauthAttempts();
-            getAIResponseForUnauth(attempts);
-            return;
+            try {
+                isAuth = await resolveMinkoIsAuthed();
+            } catch (_) {
+                isAuth = false;
+            }
         }
 
         if (checkForbiddenChat(message)) {
             let curseAvatar = '';
-            if (typeof getCurrentUser === 'function') {
+            if (isAuth && typeof getCurrentUser === 'function') {
                 const currentUser = await getCurrentUser();
                 curseAvatar = currentUser?.avatar || '';
             }
@@ -2890,6 +2818,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Проверяем блокировку (обиду)
         const angryState = getMinkoAngryState();
         const isBlocked = angryState && ((angryState.blockedUntil && Date.now() < angryState.blockedUntil) || angryState.blockedForever);
+
+        if (!isAuth) {
+            if (checkMinkoAngryState()) {
+                return;
+            }
+            addMessage('user', message, _minkoGetCurrentUserAvatarSync());
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            const attempts = incrementUnauthAttempts();
+            getAIResponseForUnauth(attempts);
+            return;
+        }
 
         // Если авторизован, но есть временная блокировка - не позволяем отправлять
         if (isBlocked && angryState && angryState.blockedUntil && Date.now() < angryState.blockedUntil) {
@@ -3925,6 +3865,18 @@ document.addEventListener('DOMContentLoaded', () => {
         _scrollChatToBottom();
         return messageDiv;
     }
+
+    window.__minkoPostWakeApology = function () {
+        if (_isMinkoDeepAsleep() > 0) return;
+        const line = MINKO_WAKE_SORRY_LINES[Math.floor(Math.random() * MINKO_WAKE_SORRY_LINES.length)];
+        addMessage('assistant', line);
+        try {
+            chatHistory.push({ role: 'assistant', content: line });
+            _saveChatToStorage();
+        } catch (_) {
+            /* ignore */
+        }
+    };
 
     function _buildCatalogWatchCardsHtml(hits) {
         if (!Array.isArray(hits) || !hits.length) return '';
