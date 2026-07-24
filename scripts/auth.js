@@ -729,7 +729,15 @@ function getCurrentUserSync() {
 
 // Синхронная проверка авторизации (использует localStorage/sessionStorage)
 function isAuthenticatedSync() {
-    return localStorage.getItem('isAuth') === 'true' && sessionStorage.getItem('currentUser') !== null;
+    if (localStorage.getItem('isAuth') !== 'true') return false;
+    const raw = sessionStorage.getItem('currentUser');
+    if (!raw) return false;
+    try {
+        const u = JSON.parse(raw);
+        return !!(u && u.id && !u.isAnonymous);
+    } catch (_) {
+        return false;
+    }
 }
 
 // Экспортируем синхронные версии
