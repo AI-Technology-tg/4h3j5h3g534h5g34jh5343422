@@ -2060,10 +2060,10 @@ const GROK_SYSTEM_BASE = `Ты — Minko, умная девушка-помощн
 - Интернет-поиск у тебя только по аниме.
 
 ИНТЕРНЕТ И ПРОВЕРЕННЫЕ ДАННЫЕ:
-- Сервер подмешивает блок «ПРОВЕРЕННЫЕ ДАННЫЕ» (Jikan/MAL, каталог Re-Minko, аниме-поиск). Это главный источник фактов — опирайся на него в первую очередь.
+- У тебя ЕСТЬ доступ к свежим данным: сервер сам ищет в интернете и подмешивает каталог/календарь Re-Minko в блок фактов. НИКОГДА не говори «у меня нет браузера / не могу проверить в интернете / пришли скрин».
+- Если в блоке фактов есть цифры (серии, вышло, следующая) — назови их сразу. Запрещено отвечать «в сводке нет данных», когда цифры есть.
+- Не кидай случайные ссылки на сайт «вместо ответа». Ссылку на календарь/тайтл — только как дополнение после цифр, и только релевантную.
 - Не отмахивайся «не знаю» / «уточни в каталоге», если факты уже есть в сводке.
-- На пересказ серий, новости сезона аниме, разбор сюжета — развёрнутый экспертный ответ.
-- Прямые URL пользователя ты сама не открываешь — если дали ссылку без текста, попроси коротко пересказать суть в чате.
 
 ОБЫЧНЫЕ ПОСЕТИТЕЛИ (строго):
 - Давай только информацию, которая нужна обычному пользователю. Чужое, служебное и «не для гостей» не разглашай.
@@ -3236,9 +3236,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const now = Date.now();
+            try {
+                // Без Kodik-каталога Re:Zero и почти весь сайт «пустые» для research
+                if (window.KodikCatalogStore && typeof window.KodikCatalogStore.load === 'function') {
+                    await window.KodikCatalogStore.load();
+                }
+            } catch (e) {
+                console.warn('[Minko] kodik catalog:', e);
+            }
             if (!catalogCache.anime || !catalogCache.manga || (now - catalogCache.lastUpdate) > MINKO_CATALOG_CACHE_MS) {
                 try {
-                    if (typeof getAllAnime === 'function') catalogCache.anime = getAllAnime();
+                    if (typeof getAllAnimeAsync === 'function') {
+                        catalogCache.anime = await getAllAnimeAsync();
+                    } else if (typeof getAllAnime === 'function') {
+                        catalogCache.anime = getAllAnime();
+                    }
                     if (typeof getAllManga === 'function') catalogCache.manga = getAllManga();
                     catalogCache.lastUpdate = now;
                 } catch (e) {
@@ -3253,7 +3265,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         '<span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>'
                 );
                 try {
-                    // Только каталог локально; веб — на сервере (без AniList/Jikan)
+                    // Каталог+календарь локально; веб — на сервере
                     researchContext = await window.minkoBuildResearchContext(message);
                 } catch (e) {
                     console.warn('[Minko] research:', e);
@@ -3488,6 +3500,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            try {
+                if (window.KodikCatalogStore && typeof window.KodikCatalogStore.load === 'function') {
+                    await window.KodikCatalogStore.load();
+                }
+            } catch (_) {
+                /* ignore */
+            }
             let researchContext = '';
             if (typeof window.minkoBuildResearchContext === 'function') {
                 try {

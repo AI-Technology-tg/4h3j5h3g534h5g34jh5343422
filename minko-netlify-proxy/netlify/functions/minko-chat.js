@@ -362,6 +362,44 @@ function isMinkoAllowedTopic(msg) {
     return isAnimeResearchTopic(msg) || isMinkoSiteOrSelfTopic(msg);
 }
 
+/** «проверь», «в инете», «точно?» — follow-up к прошлому аниме-вопросу */
+function isFollowUpProbe(msg) {
+    const t = String(msg || '').trim();
+    return /^(проверь|проверь\s+в\s+(инете|интернете)|в\s+(инете|интернете)|посмотри|узнай|точно\??|уверен\w*\??|ну\s+проверь|давай|ну)[\s!.?…]*$/i.test(
+        t
+    );
+}
+
+function recentUserTexts(nonSystem, limit) {
+    return (nonSystem || [])
+        .filter((m) => m && m.role === 'user' && m.content)
+        .slice(-(limit || 8))
+        .map((m) => String(m.content));
+}
+
+function researchQueryFromHistory(nonSystem, lastUser) {
+    const last = String(lastUser || '').trim();
+    if (isAnimeResearchTopic(last)) return last;
+    const users = recentUserTexts(nonSystem, 8);
+    for (let i = users.length - 2; i >= 0; i--) {
+        if (isAnimeResearchTopic(users[i])) {
+            return users[i] + '\n\nУточнение пользователя: ' + last;
+        }
+    }
+    return last;
+}
+
+function isOfftopicWithHistory(nonSystem, lastUser) {
+    const last = String(lastUser || '').trim();
+    if (!last) return false;
+    if (isMinkoAllowedTopic(last)) return false;
+    if (isFollowUpProbe(last)) {
+        const users = recentUserTexts(nonSystem, 6);
+        if (users.some((u) => isMinkoAllowedTopic(u))) return false;
+    }
+    return true;
+}
+
 const MINKO_OFFTOPIC_JOKE_SYSTEM = `Ты — Minko, сонная девушка-помощница Re-Minko (образ в духе Рэм из Re:Zero). Создатель — Дубина.
 
 Пользователь ушёл НЕ в тему: не аниме, не манга и не сайт Re-Minko.
@@ -1054,11 +1092,10 @@ function buildSystemPrompt(userGender, isVip, researchBlock) {
 
 ПРАВИЛА ОТВЕТА:
 - Пересказ серии / сюжет / «что произошло» — развёрнуто, по пунктам, со спойлер-меткой если нужно.
-- Новости и премьеры аниме — конкретные названия из блока поиска. Даты/сезоны/статус — ТОЛЬКО из интернета в блоке; если пусто — «не нашла в сети», не выдумывай.
-- Запрос «на сайте / в каталоге дай аниме про X» — если в блоке есть каталог с id, дай ИМЕННО эти тайтлы. Маркер только [[watch:ЧИСЛО|Название]] из блока.
-- Не уходи от темы общими фразами.
-- Интернет-сводка только по аниме/манге.
-- С первого ответа опирайся на свежий поиск; не давай устаревшую «память», если в блоке есть другие факты.
+- Новости и премьеры / «сколько серий / какая последняя» — бери цифры из КАЛЕНДАРЯ/КАТАЛОГА/интернета в блоке. НИКОГДА не пиши «нет доступа к браузеру» и не проси скрин вместо проверки.
+- Не кидай ссылку на calendar.html вместо цифр. Сначала ответ с числами.
+- Запрос «на сайте дай аниме» — только id из блока в [[watch:ЧИСЛО|Название]].
+- С первого ответа опирайся на блок фактов, не на устаревшую память.
 - Русский язык, обращение на «ты».
 - Давай только допустимую для обычных пользователей информацию; чужое и служебное не разглашай.
 - В каждом ответе держи сонность: короткие *ремарки* — но ПОСЛЕ полезного ответа, не вместо него.
@@ -1155,7 +1192,7 @@ exports.handler = async (event) => {
     const lastUser = (nonSystem.filter((m) => m.role === 'user').pop() || {}).content || '';
 
     const model = MODEL_DEFAULT;
-    const offtopic = lastUser.trim().length >= 2 && !isMinkoAllowedTopic(lastUser);
+    const offtopic = lastUser.trim().length >= 2 && isOfftopicWithHistory(nonSystem, lastUser);
 
     // Оффтоп: без веб-поиска, короткая «шутливая отмазка» (факты по теме запрещены промптом)
     if (offtopic) {
@@ -1186,10 +1223,11 @@ exports.handler = async (event) => {
         }
     }
 
+    const researchQuery = researchQueryFromHistory(nonSystem, lastUser);
     let researchBlock = '';
-    if (WEB_ON && lastUser.length > 2) {
+    if (WEB_ON && researchQuery.length > 2) {
         try {
-            researchBlock = await fetchResearchBundle(lastUser, clientResearch);
+            researchBlock = await fetchResearchBundle(researchQuery, clientResearch);
         } catch (_) {
             researchBlock = clientResearch;
         }
@@ -1198,7 +1236,19 @@ exports.handler = async (event) => {
     }
 
     const systemContent = buildSystemPrompt(userGender, isVip, researchBlock);
-    const msgs = [{ role: 'system', content: systemContent }, ...nonSystem];
+    // Дублируем факты в последнее user-сообщение — модели сложнее «не заметить» сводку
+    const msgs = nonSystem.map((m, idx, arr) => {
+        if (idx !== arr.length - 1 || m.role !== 'user') return m;
+        if (!researchBlock || researchBlock.length < 40) return m;
+        return {
+            role: 'user',
+            content:
+                String(m.content || '') +
+                '\n\n[СЛУЖЕБНЫЕ ФАКТЫ — ответь по ним, не отрицай их наличие]\n' +
+                researchBlock.slice(0, 4500)
+        };
+    });
+    msgs.unshift({ role: 'system', content: systemContent });
     const maxTok = 4096;
     const temp = 0.72;
 

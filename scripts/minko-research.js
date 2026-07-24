@@ -524,6 +524,15 @@
         const parts = [];
         let lastAnimeHits = [];
         try {
+            if (typeof global.getAllAnimeAsync === 'function') {
+                await global.getAllAnimeAsync();
+            } else if (global.KodikCatalogStore && typeof global.KodikCatalogStore.load === 'function') {
+                await global.KodikCatalogStore.load();
+            }
+        } catch (_) {
+            /* ignore */
+        }
+        try {
             if (typeof global.getAllAnime === 'function' || typeof global.getAllManga === 'function') {
                 const animeList = typeof global.getAllAnime === 'function' ? global.getAllAnime() : [];
                 const mangaList = typeof global.getAllManga === 'function' ? global.getAllManga() : [];
