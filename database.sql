@@ -582,6 +582,8 @@ CREATE TABLE IF NOT EXISTS public.dm_group_messages (
 ALTER TABLE public.dm_group_messages
   ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
 
+ALTER TABLE public.dm_group_messages REPLICA IDENTITY FULL;
+
 CREATE INDEX IF NOT EXISTS idx_dm_group_messages_group_created
   ON public.dm_group_messages(group_id, created_at DESC);
 
