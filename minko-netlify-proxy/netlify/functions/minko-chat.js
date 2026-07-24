@@ -220,7 +220,7 @@ function extractTitleCandidates(msg) {
     return uniq.slice(0, 5);
 }
 
-async function jikanGet(path, ms = 7000) {
+async function jikanGet(path, ms = 3500) {
     const ac = new AbortController();
     const tid = setTimeout(() => ac.abort(), ms);
     try {
@@ -260,15 +260,17 @@ async function fetchJikanResearch(userText) {
     if (!titles.length) titles = [msg.replace(/\?.*$/, '').slice(0, 80)];
 
     for (const title of titles.slice(0, 2)) {
-        const search = await jikanGet(`/anime?q=${encodeURIComponent(title)}&limit=2`);
+        // Короткий поиск без /full при таймаутах Jikan (часто 504)
+        const search = await jikanGet(`/anime?q=${encodeURIComponent(title)}&limit=2`, 3200);
         const hit = search?.data?.[0];
         if (!hit?.mal_id) continue;
-        const full = await jikanGet(`/anime/${hit.mal_id}/full`);
-        const a = full?.data || hit;
+        let a = hit;
+        const full = await jikanGet(`/anime/${hit.mal_id}/full`, 3200);
+        if (full?.data) a = full.data;
         parts.push('[Jikan / MyAnimeList]\n' + formatAnimeBlock(a, episodeHint));
         if (episodeHint && a.mal_id) {
             const page = Math.ceil(episodeHint / 100);
-            const eps = await jikanGet(`/anime/${a.mal_id}/episodes?page=${page}&limit=100`);
+            const eps = await jikanGet(`/anime/${a.mal_id}/episodes?page=${page}&limit=100`, 3200);
             const list = eps?.data;
             if (Array.isArray(list) && list.length) {
                 const ep = list.find((e) => e.mal_id === episodeHint || e.episode === episodeHint) || list[(episodeHint - 1) % 100];
@@ -603,30 +605,49 @@ async function fetchResearchBundle(userText, clientResearch) {
         return parts.join('\n\n').slice(0, 9500);
     }
 
-    let jikanMalId = null;
+    // Jikan часто 504 — не блокируем AniList/wiki/DDG ожиданием MAL
     let jikan = '';
+    let al = '';
+    let wiki = '';
+    let html = '';
     try {
-        jikan = await fetchJikanResearch(userText);
-        if (jikan) {
-            parts.push('=== Сервер: Jikan / MAL ===\n' + jikan);
-            const m = jikan.match(/MAL\s+(\d+)/);
-            if (m) jikanMalId = parseInt(m[1], 10);
-        }
+        const bundle = await Promise.all([
+            fetchJikanResearch(userText).catch(() => ''),
+            fetchAniListResearch(userText).catch(() => ''),
+            fetchWikipediaSnippet(userText).catch(() => ''),
+            fetchDuckDuckGoHtmlAnime(userText).catch(() => '')
+        ]);
+        jikan = bundle[0] || '';
+        al = bundle[1] || '';
+        wiki = bundle[2] || '';
+        html = bundle[3] || '';
     } catch (_) {
         /* ignore */
     }
 
-    // Параллельно: связи франшизы + AniList + wiki + аниме-веб (укладываемся в лимит Netlify)
-    const [rel, al, wiki, html] = await Promise.all([
-        jikanMalId ? fetchJikanRelations(jikanMalId).catch(() => '') : Promise.resolve(''),
-        fetchAniListResearch(userText).catch(() => ''),
-        fetchWikipediaSnippet(userText).catch(() => ''),
-        fetchDuckDuckGoHtmlAnime(userText).catch(() => '')
-    ]);
-    if (rel) parts.push('=== Связи франшизы ===\n' + rel);
+    let jikanMalId = null;
+    if (jikan) {
+        parts.push('=== Сервер: Jikan / MAL ===\n' + jikan);
+        const m = jikan.match(/MAL\s+(\d+)/);
+        if (m) jikanMalId = parseInt(m[1], 10);
+    }
+    if (!jikanMalId && al) {
+        const m2 = al.match(/MAL\s+(\d+)/);
+        if (m2) jikanMalId = parseInt(m2[1], 10);
+    }
     if (al) parts.push('=== AniList ===\n' + al);
     if (wiki) parts.push('=== Wikipedia (аниме) ===\n' + wiki);
     if (html) parts.push('=== Веб (только аниме-сайты) ===\n' + html);
+
+    let rel = '';
+    if (jikanMalId) {
+        try {
+            rel = await fetchJikanRelations(jikanMalId);
+        } catch (_) {
+            rel = '';
+        }
+    }
+    if (rel) parts.push('=== Связи франшизы ===\n' + rel);
 
     if (parts.join('\n').length < 1200) {
         try {

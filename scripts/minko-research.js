@@ -4,8 +4,9 @@
 (function (global) {
     'use strict';
 
+    // Без голого «новост» — иначе любой оффтоп с «новости» гоняет API
     const ANIME_TOPIC =
-        /аниме|манга|тайтл|сери|эпизод|сезон|новост|премьер|выход|студи|жанр|персонаж|сюжет|mal|myanimelist|рекоменд|похож|онгоинг|анонс|пересказ|что\s+произошло|смотреть|каталог|озвуч|студи|рейтинг|спойлер|арк|сэйю|сейю|шикимори|shiki|kodik|на\s+сайте|дай\s+\d/i;
+        /аниме|манга|тайтл|сери[яию]|эпизод|сезон|премьер|студи|жанр|персонаж|сюжет|mal|myanimelist|anilist|рекоменд|похож|онгоинг|анонс|пересказ|что\s+произошло|смотреть|каталог|озвуч|рейтинг|спойлер|арк|сэйю|сейю|шикимори|shiki|kodik|на\s+сайте|дай\s+\d|аниме.?новост/i;
 
     /** Народные названия → канонические запросы для каталога / Jikan */
     const TITLE_ALIASES = [
@@ -390,53 +391,143 @@
         return parts;
     }
 
+    function looksLikeAnimeTitleQuery(s) {
+        const t = String(s || '').trim();
+        if (t.length < 2 || t.length > 80) return false;
+        // Обычная речь / оффтоп — не слать в Jikan
+        if (
+            /^(уверена|уверен|правда|серьёзно|серьезно|ну\s+скажи|почему|зачем|как\s+дела|что\s+дела|посты|вылажив|футбо|аргентин|новост)/i.test(
+                t
+            )
+        ) {
+            return false;
+        }
+        if (/^(я|ты|он|она|мы|вы|они|это|тут|там|да|нет|ок|окей)\b/i.test(t) && t.length < 18) {
+            return false;
+        }
+        return true;
+    }
+
+    async function fetchWithTimeout(url, ms, opts) {
+        const ac = new AbortController();
+        const tid = setTimeout(() => ac.abort(), ms || 4000);
+        try {
+            return await fetch(url, { ...(opts || {}), signal: ac.signal });
+        } finally {
+            clearTimeout(tid);
+        }
+    }
+
+    async function fetchAniListClient(title) {
+        const q = String(title || '').trim().slice(0, 80);
+        if (!looksLikeAnimeTitleQuery(q)) return '';
+        try {
+            const r = await fetchWithTimeout('https://graphql.anilist.co', 5000, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({
+                    query: `query ($search: String) {
+                      Media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+                        id malId title { romaji english native }
+                        format status episodes seasonYear averageScore
+                        description(asHtml: false)
+                      }
+                    }`,
+                    variables: { search: q }
+                })
+            });
+            if (!r.ok) return '';
+            const j = await r.json();
+            const m = j && j.data && j.data.Media;
+            if (!m) return '';
+            const t = m.title || {};
+            const name = t.english || t.romaji || t.native || '?';
+            const desc = stripHtml(m.description || '').slice(0, 600);
+            const eps = m.episodes != null ? m.episodes : '?';
+            const score = m.averageScore != null ? m.averageScore : '?';
+            return [
+                `«${name}»`,
+                `AniList ${m.id}${m.malId ? ' · MAL ' + m.malId : ''} · ${m.format || '?'} · ${m.status || '?'} · eps ${eps}${m.seasonYear ? ' · ' + m.seasonYear : ''} · ★ ${score}`,
+                desc ? `Описание: ${desc}` : ''
+            ]
+                .filter(Boolean)
+                .join('\n');
+        } catch (_) {
+            return '';
+        }
+    }
+
     async function minkoBuildResearchContext(userMessage) {
         const msg = String(userMessage || '').trim();
         if (msg.length < 2) return '';
-        const wantsResearch =
+
+        // Только аниме/манга/каталог — не гоняем API на «уверена?» / оффтоп
+        const isAnimeish =
             ANIME_TOPIC.test(msg) ||
-            msg.length >= 8 ||
-            /новост|что\s+нового|расскаж|объясн|опиш|пересказ|рекоменд|похож|найди|открой|смотр/i.test(msg);
-        if (!wantsResearch) return '';
+            expandAliasQueries(msg).length > 0 ||
+            /re\s*:?\s*zero|naruto|one\s*piece|jujutsu|kimetsu|shingeki/i.test(msg);
+        if (!isAnimeish) {
+            try {
+                global.__minkoLastCatalogAnimeHits = [];
+            } catch (_) {
+                /* ignore */
+            }
+            return '';
+        }
 
         const parts = [];
         const episodeHint = extractEpisodeHint(msg);
-        let titles = extractTitleCandidates(msg);
+        let titles = extractTitleCandidates(msg).filter(looksLikeAnimeTitleQuery);
         if (!titles.length && ANIME_TOPIC.test(msg)) {
-            titles = [msg.replace(/\?.*$/, '').slice(0, 80)];
+            const cleaned = msg.replace(/\?.*$/, '').slice(0, 80);
+            if (looksLikeAnimeTitleQuery(cleaned)) titles = [cleaned];
         }
 
         const jikanMalIds = [];
+        // Сначала AniList (обычно стабильнее Jikan), Jikan — мягкий fallback с коротким таймаутом
         for (const title of titles.slice(0, 2)) {
+            try {
+                const al = await fetchAniListClient(title);
+                if (al) {
+                    parts.push('--- AniList ---\n' + al);
+                    const malM = al.match(/MAL\s+(\d+)/);
+                    if (malM) jikanMalIds.push(parseInt(malM[1], 10));
+                    continue;
+                }
+            } catch (_) {
+                /* ignore */
+            }
             try {
                 let anime = null;
                 if (typeof global.jikanSearchAnime === 'function') {
-                    anime = await global.jikanSearchAnime(title);
+                    anime = await Promise.race([
+                        global.jikanSearchAnime(title),
+                        new Promise((resolve) => setTimeout(() => resolve(null), 4500))
+                    ]);
                 }
                 if (anime && anime.mal_id && typeof global.jikanFetchAnimeFullByMalId === 'function') {
-                    const full = await global.jikanFetchAnimeFullByMalId(anime.mal_id);
+                    const full = await Promise.race([
+                        global.jikanFetchAnimeFullByMalId(anime.mal_id),
+                        new Promise((resolve) => setTimeout(() => resolve(null), 4500))
+                    ]);
                     if (full) anime = full;
                 }
                 if (anime) {
                     if (anime.mal_id) jikanMalIds.push(Number(anime.mal_id));
                     parts.push('--- Jikan / MyAnimeList ---\n' + formatJikanAnime(anime, episodeHint));
-                    if (episodeHint && anime.mal_id) {
-                        const epLine = await fetchEpisodeSynopsis(anime.mal_id, episodeHint);
-                        if (epLine) parts.push(epLine);
-                    }
                 }
             } catch (e) {
-                console.warn('[Minko research] Jikan:', e);
+                console.warn('[Minko research] Jikan skip:', e && e.message ? e.message : e);
             }
         }
 
         if (/новинк|премьер|сезон|онгоинг|что\s+смотрет|анонс|выходит/i.test(msg)) {
             try {
                 const [nowRes, upRes] = await Promise.all([
-                    fetch('https://api.jikan.moe/v4/seasons/now?limit=10'),
-                    fetch('https://api.jikan.moe/v4/seasons/upcoming?limit=8')
+                    fetchWithTimeout('https://api.jikan.moe/v4/seasons/now?limit=10', 4000),
+                    fetchWithTimeout('https://api.jikan.moe/v4/seasons/upcoming?limit=8', 4000)
                 ]);
-                if (nowRes.ok) {
+                if (nowRes && nowRes.ok) {
                     const now = await nowRes.json();
                     const list = (now.data || [])
                         .slice(0, 10)
@@ -444,7 +535,7 @@
                         .join('; ');
                     if (list) parts.push('Сейчас в сезоне (Jikan): ' + list);
                 }
-                if (upRes.ok) {
+                if (upRes && upRes.ok) {
                     const up = await upRes.json();
                     const list = (up.data || [])
                         .slice(0, 8)
@@ -453,7 +544,7 @@
                     if (list) parts.push('Скоро выходит (Jikan): ' + list);
                 }
             } catch (_) {
-                /* ignore */
+                /* ignore — Jikan часто 504 */
             }
         }
 
