@@ -1441,12 +1441,13 @@ body.minko-game-focus-lock #minkoGameOverlay * {
 }
 
 @media (max-width: 768px) {
+    /* height/padding для телефона задаются в блоке ≤900px (shell над таббаром) */
     .minko-ai-page .main-layout {
-        height: calc(100vh - 52px);
+        height: auto;
     }
 
     .minko-ai-main {
-        padding: 0.5rem 0.65rem 0.65rem;
+        padding: 0;
     }
 
     .minko-ai-wrap,
@@ -1854,5 +1855,170 @@ body.theme-dark .minko-watch-chip {
     .minko-watch-chip__title {
         max-width: none;
         white-space: normal;
+    }
+
+    /* ── Minko AI: полноценный mobile shell (поле ввода над нижним таббаром) ── */
+    html:has(body.minko-ai-page) {
+        height: 100%;
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    body.minko-ai-page {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        height: 100dvh;
+        max-height: 100dvh;
+        overflow: hidden !important;
+        padding-bottom: 0 !important;
+        background-attachment: scroll, scroll;
+    }
+
+    body.minko-ai-page .top-navbar {
+        flex: 0 0 auto;
+        position: relative !important;
+        z-index: 1100;
+    }
+
+    body.minko-ai-page .main-layout {
+        flex: 1 1 auto;
+        min-height: 0 !important;
+        height: auto !important;
+        max-height: none !important;
+        margin-bottom: calc(
+            var(--reminko-mobile-nav-h, 72px) + env(safe-area-inset-bottom, 0px) +
+                var(--minko-keyboard-inset, 0px)
+        );
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    body.minko-ai-page .main-content-wrapper.minko-ai-main,
+    body.minko-ai-page .minko-ai-main {
+        flex: 1 1 auto;
+        min-height: 0 !important;
+        height: 100% !important;
+        max-height: none !important;
+        padding: 0 !important;
+        padding-bottom: 0 !important;
+        overflow: hidden;
+        background: #0a0a10;
+    }
+
+    body.minko-ai-page .minko-ai-wrap,
+    body.minko-ai-page .minko-chat-app {
+        width: 100%;
+        max-width: none;
+        height: 100%;
+        min-height: 0;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+        background: #0a0a10;
+    }
+
+    body.minko-ai-page .minko-chat-panel {
+        height: 100%;
+        min-height: 0;
+    }
+
+    body.minko-ai-page .minko-chat-body {
+        background: #0a0a10;
+    }
+
+    body.minko-ai-page .minko-ai-head,
+    body.minko-ai-page .minko-chat-topbar,
+    body.minko-ai-page .minko-ai-foot,
+    body.minko-ai-page .minko-chat-composer {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    /* Меньше анимаций — меньше лагов на слабых телефонах */
+    body.minko-ai-page .minko-msg,
+    body.minko-ai-page .message,
+    body.minko-ai-page .sleepy-mode .minko-msg-bubble,
+    body.minko-ai-page .sleepy-mode .message-bubble {
+        animation: none !important;
+        filter: none !important;
+    }
+
+    body.minko-ai-page .float-zzz,
+    body.minko-ai-page .minko-zzz {
+        display: none !important;
+    }
+
+    body.minko-ai-page .minko-ai-foot,
+    body.minko-ai-page .minko-chat-composer {
+        position: relative;
+        z-index: 20;
+        padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+        background: rgba(10, 10, 16, 0.98);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    body.minko-ai-page .minko-chat-compose-row,
+    body.minko-ai-page .chat-input-area {
+        align-items: center;
+        gap: 8px;
+    }
+
+    body.minko-ai-page .minko-ai-input,
+    body.minko-ai-page .chat-input {
+        font-size: 16px; /* без автозума iOS */
+        min-height: 44px;
+        max-height: 110px;
+        padding: 11px 14px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    body.minko-ai-page .minko-ai-send,
+    body.minko-ai-page .send-button {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    body.minko-ai-page .minko-ai-chat {
+        padding: 10px 10px 14px;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+
+    body.minko-ai-page .message-bubble,
+    body.minko-ai-page .minko-msg-bubble {
+        font-size: 15px;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+
+    /* Видео-аватары на телефоне — только постер (CSS fallback; JS тоже меняет) */
+    body.minko-ai-page video.minko-ai-head-img,
+    body.minko-ai-page video.minko-chat-ava {
+        display: none !important;
+    }
+
+    body.minko-ai-page .minko-ai-head-avatar,
+    body.minko-ai-page .minko-msg-avatar.minko-msg-avatar--video {
+        background: #1a1228 url('../Fons/AI%20ICON.jpg') center / cover no-repeat;
+    }
+
+    body.minko-ai-page .minko-game-overlay {
+        padding: 12px;
+        padding-bottom: calc(12px + var(--reminko-mobile-nav-h, 72px) + env(safe-area-inset-bottom, 0px));
+        align-items: flex-end;
+    }
+
+    body.minko-ai-page .minko-deep-sleep-overlay .minko-deep-sleep-card,
+    body.minko-ai-page .minko-game-overlay .minko-deep-sleep-card {
+        width: 100%;
+        max-width: 100%;
+        max-height: min(78dvh, 640px);
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
     }
 }

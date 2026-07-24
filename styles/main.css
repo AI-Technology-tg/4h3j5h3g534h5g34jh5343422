@@ -2776,7 +2776,12 @@ html {
     }
 
     .main-content-wrapper {
-        padding-bottom: 0.6rem !important;
+        padding-bottom: calc(var(--reminko-mobile-nav-h) + env(safe-area-inset-bottom, 0px) + 0.55rem) !important;
+    }
+
+    /* Чат Minko сам резервирует место под таббар */
+    body.minko-ai-page .main-content-wrapper {
+        padding-bottom: 0 !important;
     }
 
     .content-section,

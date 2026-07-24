@@ -28,7 +28,8 @@ async function _minkoChatRequestHeaders() {
 }
 const GROK_PROXY_ROOT = 'http://localhost:3333';
 
-/** Видео-аватар Minko (без CSS-покачивания — см. minko-ai.css) */
+/** Видео-аватар Minko (на мобилке — статичный JPG, иначе лагает) */
+const MINKO_STATIC_AVATAR_SRC = 'Fons/AI%20ICON.jpg';
 const MINKO_VIDEO_AVATAR_36 =
     '<video class="minko-chat-ava" width="36" height="36" playsinline muted loop autoplay poster="Fons/AI%20ICON.jpg" preload="metadata">' +
     '<source src="Fons/AI%20ICON.mp4" type="video/mp4" /><source src="Fons/AI%20ICON.webm" type="video/webm" /></video>';
@@ -36,6 +37,76 @@ const MINKO_VIDEO_AVATAR_BUBBLE =
     '<video class="minko-chat-ava" playsinline muted loop autoplay poster="Fons/AI%20ICON.jpg" preload="metadata" ' +
     'style="width:100%;height:100%;object-fit:cover;border-radius:50%">' +
     '<source src="Fons/AI%20ICON.mp4" type="video/mp4" /><source src="Fons/AI%20ICON.webm" type="video/webm" /></video>';
+const MINKO_IMG_AVATAR_36 =
+    '<img class="minko-chat-ava" src="' +
+    MINKO_STATIC_AVATAR_SRC +
+    '" alt="" width="36" height="36" decoding="async" loading="lazy">';
+const MINKO_IMG_AVATAR_BUBBLE =
+    '<img class="minko-chat-ava" src="' +
+    MINKO_STATIC_AVATAR_SRC +
+    '" alt="" decoding="async" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+
+function _minkoPreferStaticAvatar() {
+    try {
+        if (typeof reminkoIsMobileLayout === 'function') return reminkoIsMobileLayout();
+        if (window.matchMedia) return window.matchMedia('(max-width: 900px)').matches;
+    } catch (_) {
+        /* ignore */
+    }
+    return false;
+}
+
+function _minkoAvatarHtml(kind) {
+    if (_minkoPreferStaticAvatar()) {
+        return kind === 'bubble' ? MINKO_IMG_AVATAR_BUBBLE : MINKO_IMG_AVATAR_36;
+    }
+    return kind === 'bubble' ? MINKO_VIDEO_AVATAR_BUBBLE : MINKO_VIDEO_AVATAR_36;
+}
+
+function _minkoDowngradeVideosForMobile() {
+    if (!_minkoPreferStaticAvatar()) return;
+    document.querySelectorAll('video.minko-ai-head-img, video.minko-chat-ava').forEach((vid) => {
+        try {
+            vid.pause();
+        } catch (_) {
+            /* ignore */
+        }
+        const img = document.createElement('img');
+        img.className = vid.className;
+        img.src = MINKO_STATIC_AVATAR_SRC;
+        img.alt = '';
+        img.decoding = 'async';
+        if (vid.width) img.width = vid.width;
+        if (vid.height) img.height = vid.height;
+        const st = vid.getAttribute('style');
+        if (st) img.setAttribute('style', st);
+        vid.replaceWith(img);
+    });
+}
+
+function _minkoBindMobileKeyboardInset() {
+    if (!_minkoPreferStaticAvatar()) return;
+    const root = document.documentElement;
+    const apply = () => {
+        try {
+            const vv = window.visualViewport;
+            if (!vv) {
+                root.style.setProperty('--minko-keyboard-inset', '0px');
+                return;
+            }
+            const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+            root.style.setProperty('--minko-keyboard-inset', inset + 'px');
+        } catch (_) {
+            /* ignore */
+        }
+    };
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', apply);
+        window.visualViewport.addEventListener('scroll', apply);
+    }
+    window.addEventListener('resize', apply);
+    apply();
+}
 
 function _minkoAllStatusEls() {
     return document.querySelectorAll('.minko-ai-head-status');
@@ -69,7 +140,7 @@ let _minkoRemoteGateSyncGen = 0;
 // ── Сонные статусы и эффекты ──
 
 const SLEEPY_STATUSES = [
-    '🔍 Minko собирает факты из MAL и каталога...',
+    '🔍 Minko думает...',
     'Minko просыпается... 😴💤',
     'Minko ищет кофе... ☕😪',
     'Minko зевает и думает... 🥱',
@@ -1678,7 +1749,7 @@ function _applyChatServerOfflineUi() {
             row.className = 'minko-msg message message-assistant';
             row.innerHTML =
                 '<div class="minko-msg-avatar message-avatar minko-msg-avatar--video">' +
-                MINKO_VIDEO_AVATAR_36 +
+                _minkoAvatarHtml('36') +
                 '</div>' +
                 '<div class="minko-msg-body message-content">' +
                 '<div class="minko-msg-bubble message-bubble"></div>' +
@@ -2140,7 +2211,7 @@ function _renderSavedMessages() {
         } else {
             messageDiv.innerHTML = `
                 <div class="message-avatar">
-                    ${MINKO_VIDEO_AVATAR_BUBBLE}
+                    ${_minkoAvatarHtml('bubble')}
                 </div>
                 <div class="message-content">
                     <div class="message-bubble">${_formatSavedMessage(msg.content)}</div>
@@ -2408,6 +2479,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let sendButton = document.getElementById('sendButton');
     let chatMessages = document.getElementById('chatMessages');
     let chatStatus = document.getElementById('chatStatus');
+
+    _minkoDowngradeVideosForMobile();
+    _minkoBindMobileKeyboardInset();
 
     // ── При входе на страницу: если Minko спит после «выхода из коридора» — баннер ──
     setTimeout(() => {
@@ -3535,7 +3609,7 @@ document.addEventListener('DOMContentLoaded', () => {
         messageDiv.className = 'message message-assistant';
         messageDiv.innerHTML = `
             <div class="message-avatar">
-                ${MINKO_VIDEO_AVATAR_BUBBLE}
+                ${_minkoAvatarHtml('bubble')}
             </div>
             <div class="message-content">
                 <div class="message-bubble">
@@ -3563,7 +3637,7 @@ document.addEventListener('DOMContentLoaded', () => {
         messageDiv.className = 'message message-assistant';
         messageDiv.innerHTML = `
             <div class="message-avatar">
-                ${MINKO_VIDEO_AVATAR_BUBBLE}
+                ${_minkoAvatarHtml('bubble')}
             </div>
             <div class="message-content">
                 <div class="message-bubble">
@@ -3662,7 +3736,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         messageDiv.innerHTML = `
             <div class="message-avatar">
-                ${MINKO_VIDEO_AVATAR_BUBBLE}
+                ${_minkoAvatarHtml('bubble')}
             </div>
             <div class="message-content">
                 <div class="message-bubble" style="background: rgba(30, 30, 40, 0.95); border: 2px solid rgba(168, 85, 247, 0.4);">
@@ -3813,7 +3887,7 @@ document.addEventListener('DOMContentLoaded', () => {
         messageDiv.className = 'message message-assistant';
         messageDiv.innerHTML = `
             <div class="message-avatar">
-                ${MINKO_VIDEO_AVATAR_BUBBLE}
+                ${_minkoAvatarHtml('bubble')}
             </div>
             <div class="message-content">
                 <div class="message-bubble">
@@ -3853,7 +3927,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             messageDiv.innerHTML = `
                 <div class="minko-msg-avatar message-avatar minko-msg-avatar--video">
-                    ${MINKO_VIDEO_AVATAR_BUBBLE}
+                    ${_minkoAvatarHtml('bubble')}
                 </div>
                 <div class="minko-msg-body message-content">
                     <div class="minko-msg-meta"><span class="minko-msg-name">Minko</span></div>
