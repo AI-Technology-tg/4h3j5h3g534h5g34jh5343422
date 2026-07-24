@@ -438,8 +438,21 @@ const MINKO_CURSE_STRIKES_KEY = 'minko_ai_curse_strikes';
 const MINKO_SLEEP_REASON_KEY = 'minko_ai_sleep_reason';
 /** Серия неудачных «удач»: 1→5м, 2→10м, 3→15м… сброс при успехе */
 const MINKO_LUCK_FAIL_STREAK_KEY = 'minko_luck_fail_streak';
-/** Случайная дрёма (не мини-игра): шанс после ответа */
+/** Случайная дрёма (не мини-игра): шанс вместо ответа */
 const MINKO_RANDOM_NAP_CHANCE = 0.11;
+/** Подписи на экране сна (рандом) */
+const MINKO_NAP_CAPTIONS = [
+    'Боже, она опять уснула…',
+    'А вчера кстати было ..... УСНУЛА',
+    'Нужно заварить кофе ☕',
+    'Тсс… Minko снова в режиме «плед»',
+    '*храп на фоне опенинга* 💤',
+    'Кто-нибудь включи будильник…',
+    'Она обещала «ещё одну минуту» 5 минут назад',
+    'Луна: +1. Minko: −1 сознание.',
+    'Срочно: подушка 1 — пользователь 0',
+    'Не буди резко… или как раз буди удачей~'
+];
 const MINKO_CURSE_SLEEP_MS = 2 * 60 * 60 * 1000;
 const MINKO_CORRIDOR_LEAVE_SLEEP_MS = 12 * 60 * 60 * 1000;
 let _minkoCurseVideoActive = false;
@@ -1003,6 +1016,7 @@ function _updateDeepSleepInputUi(remainMs) {
 }
 
 function _notifyMinkoWakeUp() {
+    _setChatAsleepAtmosphere(false);
     if (typeof _showWakeBanner === 'function') _showWakeBanner();
     if (typeof window.reminkoNotifyMinkoWakeUp === 'function') {
         window.reminkoNotifyMinkoWakeUp();
@@ -1017,6 +1031,10 @@ function _startDeepSleepUiPoll() {
             _minkoWasDeepAsleep = true;
             _syncHeaderSleepPresentation();
             _updateDeepSleepInputUi(remain);
+            const wrap = document.querySelector('.minko-ai-wrap');
+            if (wrap && !wrap.classList.contains('minko-chat-asleep')) {
+                _setChatAsleepAtmosphere(true);
+            }
             return;
         }
         _updateDeepSleepInputUi(0);
@@ -1028,6 +1046,7 @@ function _startDeepSleepUiPoll() {
             }
         } else if (freeOnline) {
             _syncHeaderSleepPresentation();
+            _setChatAsleepAtmosphere(false);
         }
     }, 1000);
 }
@@ -1187,6 +1206,7 @@ function _runMinkoLuckWakeAttempt(overlay, resultEl) {
         }
         _setMinkoGameFocusLock(false);
         _closeGameOverlay(overlay);
+        _setChatAsleepAtmosphere(false);
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
         if (chatInput) chatInput.disabled = false;
@@ -1281,28 +1301,56 @@ function _runMinkoLuckWakeAttempt(overlay, resultEl) {
     });
 }
 
-/** Случайная дрёма (не мини-игра): можно разбудить удачей или подождать 5/10/15… */
-function _triggerRandomNapIfNeeded(replySlotInCycle) {
+function _pickNapCaption() {
+    return MINKO_NAP_CAPTIONS[Math.floor(Math.random() * MINKO_NAP_CAPTIONS.length)];
+}
+
+function _setChatAsleepAtmosphere(on, caption) {
+    const wrap = document.querySelector('.minko-ai-wrap');
+    if (!wrap) return;
+    if (!on) {
+        wrap.classList.remove('minko-chat-asleep');
+        wrap.querySelector('.minko-chat-asleep-veil')?.remove();
+        return;
+    }
+    wrap.classList.add('minko-chat-asleep');
+    let veil = wrap.querySelector('.minko-chat-asleep-veil');
+    if (!veil) {
+        veil = document.createElement('div');
+        veil.className = 'minko-chat-asleep-veil';
+        veil.setAttribute('aria-hidden', 'true');
+        const messages = wrap.querySelector('.minko-ai-messages') || wrap;
+        messages.appendChild(veil);
+    }
+    const line = caption || _pickNapCaption();
+    veil.innerHTML =
+        '<div class="minko-chat-asleep-moon">🌙</div>' +
+        '<p class="minko-chat-asleep-caption">' +
+        String(line).replace(/</g, '&lt;') +
+        '</p>';
+}
+
+/** Случайная дрёма ВМЕСТО ответа: чат темнеет, луна, подпись, таймер/удача — без сообщения Minko в ленте. */
+function _maybeStartRandomNapInsteadOfReply(replySlotInCycle) {
     if (!freeOnline) return false;
     if (_isMinkoDeepAsleep() > 0 || _isMinkoWakeGamePending()) return false;
     if (replySlotInCycle >= MINKO_SLEEP_CYCLE_EVERY - 1) return false;
     if (Math.random() > MINKO_RANDOM_NAP_CHANCE) return false;
     try {
-        // Пока не пробовали удачу — спит «до попытки» (ждём выбора действия)
         localStorage.setItem(MINKO_GAME_SLEEP_KEY, String(Date.now() + 24 * 60 * 60 * 1000));
         _setMinkoSleepReason('nap');
     } catch (_) {
         return false;
     }
-    addMessage(
-        'assistant',
-        '*зевает так, что плед сам себя обнял* …ой… я на секунду… нет… на подольше вырубилась 😴💤\n\nРазбуди меня: выбери действие удачи. Если не повезёт — подожду 5 минут (потом 10, 15…) и сама проснусь. Если повезёт — таймеры сбросятся~'
-    );
-    _showDeepSleepOverlay(_isMinkoDeepAsleep() || 60 * 1000, { reason: 'nap' });
+    const caption = _pickNapCaption();
+    _setChatAsleepAtmosphere(true, caption);
+    _showDeepSleepOverlay(_isMinkoDeepAsleep() || 60 * 1000, { reason: 'nap', caption });
     const chatInput = document.getElementById('chatInput');
     const sendButton = document.getElementById('sendButton');
     if (chatInput) chatInput.disabled = true;
     if (sendButton) sendButton.disabled = true;
+    _syncHeaderSleepPresentation();
+    _updateDeepSleepInputUi(_isMinkoDeepAsleep());
     return true;
 }
 
@@ -1346,6 +1394,7 @@ function _showDeepSleepOverlay(remainMs, opts) {
     const reason = (opts && opts.reason) || _getMinkoSleepReason() || 'corridor';
     const isCurse = reason === 'curse';
     const isNap = reason === 'nap';
+    const caption = (opts && opts.caption) || (isNap ? _pickNapCaption() : '');
     const until = _getMinkoSleepUntilTs() || Date.now() + remainMs;
     const forceNext = (() => {
         try {
@@ -1355,15 +1404,24 @@ function _showDeepSleepOverlay(remainMs, opts) {
         }
     })();
     const awaitingLuck = isNap && forceNext <= Date.now();
+    if (isNap || isCurse) {
+        _setChatAsleepAtmosphere(true, caption || (isCurse ? 'Тёмный дым убаюкал Minko…' : _pickNapCaption()));
+    }
+    const stale = document.getElementById('minkoGameOverlay');
+    if (stale) _closeGameOverlay(stale, true);
     const overlay = document.createElement('div');
     overlay.id = 'minkoGameOverlay';
-    overlay.className = 'minko-game-overlay minko-deep-sleep-overlay' + (isCurse ? ' minko-curse-sleep-overlay' : '');
+    overlay.className =
+        'minko-game-overlay minko-deep-sleep-overlay' +
+        (isCurse ? ' minko-curse-sleep-overlay' : '') +
+        (isNap ? ' minko-nap-sleep-overlay' : '');
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', isCurse ? 'Minko под проклятием' : 'Minko спит');
+    const safeCaption = String(caption || 'Боже, она опять уснула…').replace(/</g, '');
     const napBody = awaitingLuck
-        ? `Minko внезапно уснула прямо в чате 😴<br>Выбери действие и <strong>испытай удачу</strong>. Не повезёт — подождёшь 5 мин (потом 10, 15…). Повезёт — таймеры сбросятся.`
-        : `Minko дремлет после неудачной попытки.<br>До авто-пробуждения: <strong class="minko-deep-countdown" data-minko-sleep-countdown>…</strong>`;
+        ? `<span class="minko-nap-caption-line">${safeCaption}</span><br><br>Ответа не будет, пока она спит.<br>Нажми <strong>Разбудить</strong> и испытай удачу (~32%). Не повезёт — 5→10→15 мин.`
+        : `<span class="minko-nap-caption-line">${safeCaption}</span><br><br>Minko дремлет после неудачной попытки.<br>До авто-пробуждения: <strong class="minko-deep-countdown" data-minko-sleep-countdown>…</strong>`;
     overlay.innerHTML = isCurse
         ? `
         <div class="minko-game-intro minko-deep-sleep-card minko-curse-sleep-card minko-deep-sleep-card--compact">
@@ -1394,9 +1452,9 @@ function _showDeepSleepOverlay(remainMs, opts) {
         </div>`
         : isNap
         ? `
-        <div class="minko-game-intro minko-deep-sleep-card minko-deep-sleep-card--compact">
-            <div class="minko-game-intro-icon minko-deep-sleep-icon">😪</div>
-            <div class="minko-game-intro-title">Minko клюнула носом</div>
+        <div class="minko-game-intro minko-deep-sleep-card minko-nap-sleep-card minko-deep-sleep-card--compact">
+            <div class="minko-game-intro-icon minko-deep-sleep-icon minko-nap-moon">🌙</div>
+            <div class="minko-game-intro-title">Minko уснула</div>
             <div class="minko-game-intro-text minko-deep-sleep-text">
                 ${napBody}
             </div>
@@ -1408,7 +1466,7 @@ function _showDeepSleepOverlay(remainMs, opts) {
                 <div class="minko-deep-force-grid">
                     <button type="button" class="minko-force-card" data-luck-wake>
                         <span class="minko-force-card-title">Испытать удачу</span>
-                        <span class="minko-force-card-sub">Выбери действие · ~32%</span>
+                        <span class="minko-force-card-sub">Кофе · шёпот · ~32%</span>
                     </button>
                 </div>
                 <button type="button" class="minko-deep-back-btn" data-deep-force-back>← Назад</button>
@@ -3123,6 +3181,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 assistantMessage = _pickRandom(MINKO_NINTH_CYCLE_WARNINGS) + '\n\n' + assistantMessage;
             }
 
+            // Дрёма ВМЕСТО ответа: не показываем SMS Minko, сразу атмосфера сна
+            if (_maybeStartRandomNapInsteadOfReply(minkoNextInCycle)) {
+                _setChatStatusVisible(false);
+                return;
+            }
+
             _setMinkoAssistantReplyCount(_getMinkoAssistantReplyCount() + 1);
 
             // Сонные паузы и фазы «думаю…» перед показом ответа
@@ -3164,14 +3228,6 @@ document.addEventListener('DOMContentLoaded', () => {
             void reminkoLogMinkoAiExchange(message, assistantMessage);
 
             _setSleepyIdleStatus();
-
-            // Случайная дрёма в любой момент (не на 9–10 ответе — там коридор)
-            if (_triggerRandomNapIfNeeded(minkoNextInCycle)) {
-                const chatInputNap = document.getElementById('chatInput');
-                const sendButtonNap = document.getElementById('sendButton');
-                if (chatInputNap) chatInputNap.disabled = true;
-                if (sendButtonNap) sendButtonNap.disabled = true;
-            }
 
         } catch (error) {
             console.error('Ошибка Minko AI:', error);

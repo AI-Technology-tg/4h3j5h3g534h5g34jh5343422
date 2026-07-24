@@ -989,6 +989,69 @@ body.minko-game-focus-lock #minkoGameOverlay * {
     user-select: auto;
 }
 
+/* Атмосфера сна в чате: затемнение + луна + подпись */
+.minko-ai-wrap.minko-chat-asleep .minko-ai-messages,
+.minko-ai-wrap.minko-chat-asleep #chatMessages {
+    position: relative;
+}
+
+.minko-ai-wrap.minko-chat-asleep .minko-msg,
+.minko-ai-wrap.minko-chat-asleep .message {
+    filter: brightness(0.42) saturate(0.75);
+    transition: filter 0.45s ease;
+}
+
+.minko-chat-asleep-veil {
+    position: sticky;
+    bottom: 18%;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+    pointer-events: none;
+    padding: 1rem;
+    margin-top: -2rem;
+    text-align: center;
+}
+
+.minko-chat-asleep-moon {
+    font-size: clamp(2.6rem, 10vw, 3.6rem);
+    filter: drop-shadow(0 0 22px rgba(180, 200, 255, 0.55));
+    animation: minkoNapMoon 3.2s ease-in-out infinite;
+}
+
+@keyframes minkoNapMoon {
+    0%, 100% { transform: translateY(0) rotate(-4deg); opacity: 0.92; }
+    50% { transform: translateY(-8px) rotate(4deg); opacity: 1; }
+}
+
+.minko-chat-asleep-caption {
+    margin: 0;
+    max-width: 18rem;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #e8eeff;
+    background: rgba(8, 10, 28, 0.72);
+    border: 1px solid rgba(160, 180, 255, 0.35);
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
+}
+
+.minko-nap-sleep-overlay .minko-nap-moon {
+    filter: drop-shadow(0 0 28px rgba(180, 200, 255, 0.65));
+}
+
+.minko-nap-caption-line {
+    display: inline-block;
+    color: #dce7ff;
+    font-weight: 800;
+    font-size: 1.05em;
+}
+
 /* 12-часовой сон — карточка, таймер, принудительное пробуждение */
 .minko-deep-sleep-overlay .minko-deep-sleep-card {
     max-width: 420px;

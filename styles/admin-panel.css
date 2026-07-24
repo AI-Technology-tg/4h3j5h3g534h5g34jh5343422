@@ -2644,3 +2644,245 @@
     margin: 0.35rem 0 0;
     font-size: 0.8rem;
 }
+
+/* ═══ История чатов Minko AI (панель создателя) ═══ */
+.minko-logs-modal .minko-logs-shell {
+    width: min(1040px, 96vw);
+    max-height: min(90vh, 820px);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    background: #12101a;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    border-radius: 18px;
+}
+
+.minko-logs-header {
+    padding: 1rem 1.15rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.minko-logs-sub {
+    margin: 0.25rem 0 0;
+    font-size: 0.82rem;
+    color: rgba(226, 232, 240, 0.62);
+}
+
+.minko-logs-body {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) 1fr;
+    min-height: 0;
+    flex: 1;
+    gap: 0;
+}
+
+.minko-logs-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 0.85rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.22);
+    min-height: 0;
+}
+
+.minko-logs-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    background: rgba(255, 255, 255, 0.05);
+    color: #f8fafc;
+    font-size: 0.88rem;
+}
+
+.minko-logs-user-list {
+    overflow: auto;
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.minko-logs-user {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.55rem 0.6rem;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    color: #e2e8f0;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.minko-logs-user:hover {
+    background: rgba(168, 85, 247, 0.12);
+}
+
+.minko-logs-user.is-active {
+    background: rgba(168, 85, 247, 0.22);
+    border-color: rgba(168, 85, 247, 0.45);
+}
+
+.minko-logs-user-avatar {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #fff;
+    background: linear-gradient(135deg, #7c3aed, #ec4899);
+}
+
+.minko-logs-user-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.minko-logs-user-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.minko-logs-user-time {
+    font-size: 0.72rem;
+    color: rgba(226, 232, 240, 0.55);
+}
+
+.minko-logs-chat {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    background:
+        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(124, 58, 237, 0.14), transparent 55%),
+        #0d0b14;
+}
+
+.minko-logs-chat-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.minko-logs-chat-title {
+    font-weight: 800;
+    color: #f5f3ff;
+}
+
+.minko-logs-chat-id {
+    font-size: 0.75rem;
+    color: rgba(226, 232, 240, 0.45);
+    font-family: ui-monospace, monospace;
+}
+
+.minko-logs-thread {
+    flex: 1;
+    overflow: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.minko-logs-empty {
+    margin: auto;
+    text-align: center;
+    color: rgba(226, 232, 240, 0.55);
+    padding: 2rem;
+}
+
+.minko-logs-empty-ico {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.minko-logs-msg {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    max-width: min(78%, 560px);
+}
+
+.minko-logs-msg.is-user {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+.minko-logs-msg.is-minko {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+.minko-logs-msg-meta {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+    font-size: 0.72rem;
+    color: rgba(226, 232, 240, 0.5);
+}
+
+.minko-logs-msg-who {
+    font-weight: 700;
+    color: rgba(233, 213, 255, 0.85);
+}
+
+.minko-logs-msg.is-user .minko-logs-msg-who {
+    color: rgba(196, 181, 253, 0.9);
+}
+
+.minko-logs-bubble {
+    padding: 0.7rem 0.9rem;
+    border-radius: 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.45;
+    font-size: 0.92rem;
+    color: #f8fafc;
+}
+
+.minko-logs-msg.is-minko .minko-logs-bubble {
+    background: rgba(88, 28, 135, 0.45);
+    border: 1px solid rgba(192, 132, 252, 0.35);
+    border-bottom-left-radius: 4px;
+}
+
+.minko-logs-msg.is-user .minko-logs-bubble {
+    background: rgba(49, 46, 129, 0.55);
+    border: 1px solid rgba(129, 140, 248, 0.35);
+    border-bottom-right-radius: 4px;
+}
+
+@media (max-width: 900px) {
+    .minko-logs-body {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(160px, 34%) 1fr;
+    }
+
+    .minko-logs-sidebar {
+        border-right: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .minko-logs-msg {
+        max-width: 92%;
+    }
+}

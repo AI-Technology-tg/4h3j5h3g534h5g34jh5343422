@@ -2507,32 +2507,65 @@ async function sendNotificationToUser(userId) {
     }, 80);
 }
 
+function _minkoLogsFormatTime(iso) {
+    if (!iso) return '';
+    try {
+        return new Date(iso).toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (_) {
+        return '';
+    }
+}
+
+function _minkoLogsInitial(name) {
+    const s = String(name || '?').trim();
+    return (s[0] || '?').toUpperCase();
+}
+
 async function openMinkoAiLogsModal() {
+    document.getElementById('minkoAiLogsModal')?.remove();
     const modal = document.createElement('div');
-    modal.className = 'modal active';
+    modal.className = 'modal active minko-logs-modal';
     modal.id = 'minkoAiLogsModal';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width:920px;max-height:90vh;display:flex;flex-direction:column;">
-            <div class="modal-header">
-                <h2 class="modal-title">История Minko AI</h2>
-                <button type="button" class="modal-close" id="minkoAiLogsClose">×</button>
+        <div class="modal-content minko-logs-shell">
+            <div class="modal-header minko-logs-header">
+                <div>
+                    <h2 class="modal-title">Чаты с Minko AI</h2>
+                    <p class="minko-logs-sub">Диалоги пользователей · удобный просмотр</p>
+                </div>
+                <button type="button" class="modal-close" id="minkoAiLogsClose" aria-label="Закрыть">×</button>
             </div>
-            <div class="modal-body" style="display:grid;grid-template-columns:minmax(200px,280px) 1fr;gap:12px;min-height:360px;">
-                <div id="minkoAiLogsUserList" style="overflow:auto;border-right:1px solid rgba(255,255,255,0.08);padding-right:8px;">
-                    <p class="admin-inline-hint">Загрузка…</p>
-                </div>
-                <div id="minkoAiLogsTranscript" style="overflow:auto;font-size:13px;line-height:1.45;">
-                    <p class="admin-inline-hint">Выберите пользователя слева.</p>
-                </div>
+            <div class="modal-body minko-logs-body">
+                <aside class="minko-logs-sidebar">
+                    <input type="search" class="minko-logs-search" id="minkoAiLogsSearch" placeholder="Поиск по нику…" autocomplete="off">
+                    <div id="minkoAiLogsUserList" class="minko-logs-user-list">
+                        <p class="admin-inline-hint">Загрузка…</p>
+                    </div>
+                </aside>
+                <section class="minko-logs-chat" id="minkoAiLogsTranscript">
+                    <div class="minko-logs-empty">
+                        <div class="minko-logs-empty-ico">🌸</div>
+                        <p>Выберите пользователя слева</p>
+                    </div>
+                </section>
             </div>
         </div>`;
     document.body.appendChild(modal);
     const close = () => modal.remove();
     modal.querySelector('#minkoAiLogsClose')?.addEventListener('click', close);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) close();
+    });
 
     const { users, error } = await window.creatorAdminPanel.listMinkoAiChatUsers();
     const listEl = modal.querySelector('#minkoAiLogsUserList');
     const transEl = modal.querySelector('#minkoAiLogsTranscript');
+    const searchEl = modal.querySelector('#minkoAiLogsSearch');
     if (error) {
         listEl.innerHTML = `<p class="admin-inline-hint" style="color:#f87171;">${adminPanelEscapeHtml(error)}</p>`;
         return;
@@ -2542,41 +2575,78 @@ async function openMinkoAiLogsModal() {
         return;
     }
 
-    listEl.innerHTML = users
-        .map(
-            (u) => `<button type="button" class="admin-btn" style="display:block;width:100%;text-align:left;margin-bottom:6px;font-size:12px;"
-                data-minko-log-user="${adminPanelEscapeHtml(u.user_id)}">
-                ${adminPanelEscapeHtml(u.username)}<br><small style="opacity:0.7">${adminPanelEscapeHtml(
-                    u.user_id.slice(0, 8)
-                )}…</small>
-            </button>`
-        )
-        .join('');
+    let activeUserId = '';
+    const renderUserList = (filter = '') => {
+        const q = String(filter || '').trim().toLowerCase();
+        const filtered = !q
+            ? users
+            : users.filter(
+                  (u) =>
+                      String(u.username || '').toLowerCase().includes(q) ||
+                      String(u.user_id || '').toLowerCase().includes(q)
+              );
+        if (!filtered.length) {
+            listEl.innerHTML = '<p class="admin-inline-hint">Никого не найдено</p>';
+            return;
+        }
+        listEl.innerHTML = filtered
+            .map((u) => {
+                const active = u.user_id === activeUserId ? ' is-active' : '';
+                return `<button type="button" class="minko-logs-user${active}" data-minko-log-user="${adminPanelEscapeHtml(
+                    u.user_id
+                )}">
+                    <span class="minko-logs-user-avatar">${adminPanelEscapeHtml(_minkoLogsInitial(u.username))}</span>
+                    <span class="minko-logs-user-meta">
+                        <span class="minko-logs-user-name">${adminPanelEscapeHtml(u.username)}</span>
+                        <span class="minko-logs-user-time">${adminPanelEscapeHtml(_minkoLogsFormatTime(u.last_at))}</span>
+                    </span>
+                </button>`;
+            })
+            .join('');
 
-    listEl.querySelectorAll('[data-minko-log-user]').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            const uid = btn.getAttribute('data-minko-log-user');
-            transEl.innerHTML = '<p class="admin-inline-hint">Загрузка…</p>';
-            const { rows, error: e2 } = await window.creatorAdminPanel.getMinkoAiChatLogsForUser(uid);
-            if (e2) {
-                transEl.innerHTML = `<p style="color:#f87171">${adminPanelEscapeHtml(e2)}</p>`;
-                return;
-            }
-            transEl.innerHTML =
-                rows
+        listEl.querySelectorAll('[data-minko-log-user]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const uid = btn.getAttribute('data-minko-log-user');
+                activeUserId = uid;
+                renderUserList(searchEl?.value || '');
+                const user = users.find((x) => x.user_id === uid);
+                transEl.innerHTML = `
+                    <header class="minko-logs-chat-head">
+                        <span class="minko-logs-chat-title">${adminPanelEscapeHtml(user?.username || 'Пользователь')}</span>
+                        <span class="minko-logs-chat-id">${adminPanelEscapeHtml((uid || '').slice(0, 13))}…</span>
+                    </header>
+                    <div class="minko-logs-thread"><p class="admin-inline-hint">Загрузка…</p></div>`;
+                const thread = transEl.querySelector('.minko-logs-thread');
+                const { rows, error: e2 } = await window.creatorAdminPanel.getMinkoAiChatLogsForUser(uid);
+                if (e2) {
+                    thread.innerHTML = `<p style="color:#f87171">${adminPanelEscapeHtml(e2)}</p>`;
+                    return;
+                }
+                if (!rows.length) {
+                    thread.innerHTML = '<p class="admin-inline-hint">Пусто</p>';
+                    return;
+                }
+                thread.innerHTML = rows
                     .map((row) => {
-                        const role = row.role === 'user' ? '👤 Пользователь' : '🌸 Minko';
-                        const t = row.created_at ? new Date(row.created_at).toLocaleString('ru-RU') : '';
-                        return `<div style="margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">
-                            <div style="opacity:0.75;font-size:11px;">${adminPanelEscapeHtml(t)} · ${role}</div>
-                            <div style="white-space:pre-wrap;word-break:break-word;">${adminPanelEscapeHtml(
-                                row.content
-                            )}</div>
-                        </div>`;
+                        const isUser = row.role === 'user';
+                        const who = isUser ? 'Пользователь' : 'Minko';
+                        const t = _minkoLogsFormatTime(row.created_at);
+                        return `<article class="minko-logs-msg ${isUser ? 'is-user' : 'is-minko'}">
+                            <div class="minko-logs-msg-meta">
+                                <span class="minko-logs-msg-who">${who}</span>
+                                <time>${adminPanelEscapeHtml(t)}</time>
+                            </div>
+                            <div class="minko-logs-bubble">${adminPanelEscapeHtml(row.content || '')}</div>
+                        </article>`;
                     })
-                    .join('') || '<p class="admin-inline-hint">Пусто</p>';
+                    .join('');
+                thread.scrollTop = thread.scrollHeight;
+            });
         });
-    });
+    };
+
+    renderUserList();
+    searchEl?.addEventListener('input', () => renderUserList(searchEl.value));
 }
 
 const TEAM_ROLE_LABELS = {
