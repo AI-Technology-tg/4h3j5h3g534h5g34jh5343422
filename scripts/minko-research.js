@@ -270,6 +270,16 @@
         let m = blob.match(/[\[(]?\s*(?:тв|tv)\s*[-.]?\s*(\d{1,2})\s*[\])]?/i);
         if (!m) m = blob.match(/(\d{1,2})\s*(?:st|nd|rd|th)\s*season/i);
         if (!m) m = blob.match(/\b(?:season|сезон)\s*[-.]?\s*(\d{1,2})\b/i);
+        // «Ты и я полные противоположности 2» / «Title 2»
+        if (!m) {
+            for (const field of itemTitleFields(item)) {
+                const tm = String(field || '').trim().match(/\s(\d{1,2})\s*$/);
+                if (tm) {
+                    const n = parseInt(tm[1], 10);
+                    if (Number.isFinite(n) && n >= 2 && n < 40) return n;
+                }
+            }
+        }
         if (!m) return null;
         const n = parseInt(m[1], 10);
         return Number.isFinite(n) ? n : null;

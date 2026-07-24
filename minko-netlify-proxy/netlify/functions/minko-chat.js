@@ -345,7 +345,7 @@ function isAnimeResearchTopic(msg) {
     const t = String(msg || '');
     if (t.length < 2) return false;
     if (
-        /аниме|манга|манхв|тайтл|сери[яию]|эпизод|сезон|студи|сэйю|сейю|персонаж|сюжет|спойлер|арк|онгоинг|анонс|премьер|озвуч|рекоменд|похож|каталог|шикимори|shiki|mal\b|myanimelist|anilist|kodik|jikan|isekai|сёнэн|сёдзё|сэйнэн|ova\b|ona\b|фильм|смотреть|пересказ|франшиз/i.test(
+        /аниме|манга|манхв|тайтл|сери[яию]|эпизод|сезон|студи|сэйю|сейю|персонаж|сюжет|спойлер|арк|онгоинг|анонс|премьер|озвуч|рекоменд|похож|каталог|шикимори|shiki|mal\b|myanimelist|anilist|kodik|jikan|isekai|сёнэн|сёдзё|сэйнэн|ova\b|ona\b|фильм|смотреть|пересказ|франшиз|продолжен|сиквел|sequel|второй\s+сезон|2[\s-]?й?\s*сезон/i.test(
             t
         )
     ) {
@@ -397,10 +397,42 @@ function isMinkoAllowedTopic(msg) {
     return isAnimeResearchTopic(msg) || isMinkoSiteOrSelfTopic(msg);
 }
 
-/** «проверь», «в инете», «точно?» — follow-up к прошлому аниме-вопросу */
+/** «проверь», «где нет?», «разве?» — follow-up к прошлому аниме-вопросу */
 function isFollowUpProbe(msg) {
     const t = String(msg || '').trim();
-    return /^(проверь|проверь\s+в\s+(инете|интернете)|в\s+(инете|интернете)|посмотри|узнай|точно\??|уверен\w*\??|ну\s+проверь|давай|ну)[\s!.?…]*$/i.test(
+    if (
+        /^(проверь|проверь\s+в\s+(инете|интернете)|в\s+(инете|интернете)|посмотри|узнай|точно\??|уверен\w*\??|ну\s+проверь|давай|ну)[\s!.?…]*$/i.test(
+            t
+        )
+    ) {
+        return true;
+    }
+    // Сомнения / уточнения после ответа про тайтл (иначе уходит в offtopic-шутку)
+    if (
+        t.length <= 80 &&
+        /^(где\s+нет|а\s+где|где\s+же|почему\s+нет|разве|неправда|вр[её]шь|ошибк\w*|в\s+смысле|как\s+так|серь[её]зно|а\s+продолжен\w*|нет\s+продолжен\w*|а\s+второй|а\s+2[\s-]?й?|точно\s+нет|а\s+как\s+же|и\s+что|ну\s+и\??|хм+|эм+)[\s!.?…]*$/i.test(
+            t
+        )
+    ) {
+        return true;
+    }
+    return false;
+}
+
+/** Короткое уточнение в ветке аниме-диалога — не оффтоп */
+function isShortAnimeThreadFollowUp(msg) {
+    const t = String(msg || '').trim();
+    if (t.length < 2 || t.length > 48) return false;
+    if (isMinkoAllowedTopic(t) || isFollowUpProbe(t)) return false;
+    // Явный оффтоп не маскируем
+    if (
+        /футбол|спорт|политик|погод|крипт|биткоин|акци|новост\s+дня|рецепт|готов|учёб|школ|универ|дела\b|настроен/i.test(
+            t
+        )
+    ) {
+        return false;
+    }
+    return /^(а\s+|ну\s+|и\s+|но\s+|так\s+)?(где(\s+нет|\s+же)?|почему(\s+нет)?|разве|нет\??|правда\??|точно(\s+нет)?|серь[её]зн\w*)\b/i.test(
         t
     );
 }
@@ -414,13 +446,27 @@ function recentUserTexts(nonSystem, limit) {
 
 function researchQueryFromHistory(nonSystem, lastUser) {
     const last = String(lastUser || '').trim();
-    if (isAnimeResearchTopic(last)) return last;
     const users = recentUserTexts(nonSystem, 8);
+    let prevAnime = '';
     for (let i = users.length - 2; i >= 0; i--) {
         if (isAnimeResearchTopic(users[i])) {
-            return users[i] + '\n\nУточнение пользователя: ' + last;
+            prevAnime = users[i];
+            break;
         }
     }
+    const shortAnimePush =
+        isAnimeResearchTopic(last) &&
+        prevAnime &&
+        last.length <= 70 &&
+        last.split(/\s+/).length <= 8 &&
+        !/[«"][^»"]{3,}[»"]/.test(last);
+    const needsPrev =
+        !!prevAnime &&
+        (isFollowUpProbe(last) || isShortAnimeThreadFollowUp(last) || shortAnimePush);
+    if (needsPrev) {
+        return prevAnime + '\n\nУточнение пользователя: ' + last;
+    }
+    if (isAnimeResearchTopic(last)) return last;
     return last;
 }
 
@@ -428,9 +474,10 @@ function isOfftopicWithHistory(nonSystem, lastUser) {
     const last = String(lastUser || '').trim();
     if (!last) return false;
     if (isMinkoAllowedTopic(last)) return false;
-    if (isFollowUpProbe(last)) {
-        const users = recentUserTexts(nonSystem, 6);
-        if (users.some((u) => isMinkoAllowedTopic(u))) return false;
+    const users = recentUserTexts(nonSystem, 8);
+    const threadHasAnime = users.some((u) => isAnimeResearchTopic(u) || isMinkoAllowedTopic(u));
+    if (threadHasAnime && (isFollowUpProbe(last) || isShortAnimeThreadFollowUp(last))) {
+        return false;
     }
     return true;
 }
@@ -1153,11 +1200,12 @@ function buildSourcesOnlySystemPrompt(userGender, isVip) {
 Правила:
 1. Отвечай только на вопросы про аниме, мангу, персонажей, студии, даты выхода, эпизоды/сезоны и сайт Re-Minko.
 2. Если вопрос не про аниме — вежливо откажись.
-3. Используй ТОЛЬКО предоставленные источники поиска. Не опирайся на устаревшую «память», если источники есть.
-4. Не выдумывай факты. Если источников недостаточно — честно скажи, что не удалось найти подтверждение.
-5. Если источники противоречивы — скажи об этом.
-6. Для актуальных вопросов (сколько серий, последняя серия, дата выхода) — отвечай цифрами из источников.
-7. Короткий, чёткий, полезный ответ на русском, на «ты». ${sleepy}
+3. Используй ТОЛЬКО блоки «ФАКТЫ КАТАЛОГА» и «ИСТОЧНИКИ ИЗ ИНТЕРНЕТА». Не опирайся на устаревшую «память», если эти блоки есть.
+4. Факты каталога Re-Minko (серии, статус, сезон на сайте) — валидный источник; при споре с вебом скажи об этом и опирайся на каталог для «что есть на сайте».
+5. Не выдумывай факты. Если источников недостаточно — честно скажи, что не удалось найти подтверждение.
+6. Если источники противоречивы — скажи об этом.
+7. Для актуальных вопросов (сколько серий, есть ли 2 сезон, дата выхода) — отвечай цифрами из источников/каталога.
+8. Короткий, чёткий, полезный ответ на русском, на «ты». ${sleepy}
 ${g}
 Не говори «у меня нет браузера». Не называй внешние ИИ-бренды.`;
 }
@@ -1504,20 +1552,32 @@ async function searchAnimeWeb(userText) {
     };
 }
 
-/** OpenAI отвечает только по источникам поиска (не «из головы») */
-async function openaiAnswerWithSources(userGender, isVip, nonSystem, lastUser, sourcesText, watchHint) {
+/** OpenAI отвечает только по каталогу + источникам поиска (не «из головы») */
+async function openaiAnswerWithSources(
+    userGender,
+    isVip,
+    nonSystem,
+    lastUser,
+    sourcesText,
+    catalogFacts,
+    watchHint
+) {
     const system = buildSourcesOnlySystemPrompt(userGender, isVip);
     const recent = (nonSystem || [])
         .filter((m) => m && (m.role === 'user' || m.role === 'assistant'))
         .slice(-8)
         .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
 
+    const catalog = String(catalogFacts || '').trim();
     const userBlock =
         `Вопрос пользователя: ${String(lastUser || '').trim()}\n\n` +
-        `=== ИСТОЧНИКИ ИЗ ИНТЕРНЕТА (единственный источник фактов) ===\n` +
+        (catalog
+            ? `=== ФАКТЫ КАТАЛОГА Re-Minko (серии/статус/сезон на сайте — учитывай) ===\n${catalog.slice(0, 3500)}\n\n`
+            : '') +
+        `=== ИСТОЧНИКИ ИЗ ИНТЕРНЕТА ===\n` +
         (sourcesText || 'Источники пусты.') +
         (watchHint
-            ? `\n\n=== Кнопки Re-Minko (не факты, только ссылки смотреть) ===\n${watchHint.slice(0, 1500)}`
+            ? `\n\n=== Кнопки Re-Minko (только ссылки [[watch:…]], не подменяй ими факты) ===\n${watchHint.slice(0, 1200)}`
             : '');
 
     // Последнее user = вопрос + источники
@@ -1527,6 +1587,18 @@ async function openaiAnswerWithSources(userGender, isVip, nonSystem, lastUser, s
         { role: 'user', content: userBlock.slice(0, 12000) }
     ];
     return callOpenAI(msgs, MODEL_DEFAULT, 2500, 0.4);
+}
+
+/** Каталог-факты vs кнопки из researchContext клиента */
+function splitClientResearch(clientResearch) {
+    const raw = String(clientResearch || '').trim();
+    if (!raw) return { catalogFacts: '', watchButtons: '' };
+    const factMatch = raw.match(
+        /=== ФАКТЫ ИЗ КАТАЛОГА[\s\S]*?(?=\nАниме в каталоге Re-Minko|\n=== |\n\[\[watch:|$)/i
+    );
+    const catalogFacts = factMatch ? factMatch[0].trim() : /ФАКТЫ ИЗ КАТАЛОГА/i.test(raw) ? raw.slice(0, 3500) : '';
+    const watchButtons = raw;
+    return { catalogFacts, watchButtons };
 }
 
 function extractResponsesText(data) {
@@ -1714,28 +1786,42 @@ exports.handler = async (event) => {
 
     const researchQuery = researchQueryFromHistory(nonSystem, lastUser);
     const wantsAnimeWeb =
-        WEB_ON && researchQuery.length > 2 && isAnimeResearchTopic(researchQuery);
+        WEB_ON &&
+        researchQuery.length > 2 &&
+        (isAnimeResearchTopic(researchQuery) ||
+            (isFollowUpProbe(lastUser) &&
+                recentUserTexts(nonSystem, 8).some((u) => isAnimeResearchTopic(u))));
+    const { catalogFacts, watchButtons } = splitClientResearch(clientResearch);
     const watchHint =
-        clientResearch && /\[\[watch:|id=\d+/i.test(clientResearch)
-            ? clientResearch.slice(0, 1800)
+        watchButtons && /\[\[watch:|id=\d+/i.test(watchButtons)
+            ? watchButtons.slice(0, 1800)
             : '';
+    const questionForAnswer =
+        isFollowUpProbe(lastUser) || !isAnimeResearchTopic(lastUser)
+            ? researchQuery
+            : lastUser;
 
     // === Схема OpenAI: anime? → search API → ответ только по источникам ===
     if (wantsAnimeWeb) {
         try {
             const searched = await searchAnimeWeb(researchQuery);
-            if (searched.sourcesText && searched.sourcesText.length > 60) {
+            // Каталог сам по себе достаточен, даже если веб пуст
+            const hasCatalog = catalogFacts.length > 40;
+            const hasWeb = searched.sourcesText && searched.sourcesText.length > 60;
+            if (hasWeb || hasCatalog) {
                 const text = await openaiAnswerWithSources(
                     userGender,
                     isVip,
                     nonSystem,
-                    lastUser,
-                    searched.sourcesText,
+                    questionForAnswer,
+                    hasWeb ? searched.sourcesText : '',
+                    catalogFacts,
                     watchHint
                 );
                 void remoteServerLog('info', 'anime answer from search sources', {
-                    provider: searched.provider,
-                    sources: (searched.results || []).length
+                    provider: searched.provider || (hasCatalog ? 'catalog' : ''),
+                    sources: (searched.results || []).length,
+                    catalog: hasCatalog
                 });
                 return ok({
                     choices: [{ message: { role: 'assistant', content: text || '…' } }]
@@ -1750,9 +1836,13 @@ exports.handler = async (event) => {
         if (OPENAI_WEB_SEARCH) {
             try {
                 let instructions = buildWebSearchSystemPrompt(userGender, isVip);
+                if (catalogFacts) {
+                    instructions +=
+                        '\n\nФАКТЫ КАТАЛОГА Re-Minko (учитывай):\n' + catalogFacts.slice(0, 2500);
+                }
                 if (watchHint) {
                     instructions +=
-                        '\n\nКнопки Re-Minko (не факты):\n' + watchHint;
+                        '\n\nКнопки Re-Minko (только ссылки):\n' + watchHint;
                 }
                 const text = await callOpenAIWithWebSearch(instructions, nonSystem, model);
                 return ok({
