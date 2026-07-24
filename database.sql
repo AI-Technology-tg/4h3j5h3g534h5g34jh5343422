@@ -673,6 +673,8 @@ CREATE POLICY "dm_group_members_delete" ON public.dm_group_members FOR DELETE
 
 DROP POLICY IF EXISTS "dm_group_messages_select" ON public.dm_group_messages;
 DROP POLICY IF EXISTS "dm_group_messages_insert" ON public.dm_group_messages;
+DROP POLICY IF EXISTS "dm_group_messages_update" ON public.dm_group_messages;
+DROP POLICY IF EXISTS "dm_group_messages_delete" ON public.dm_group_messages;
 CREATE POLICY "dm_group_messages_select" ON public.dm_group_messages FOR SELECT
   USING (public.reminko_is_dm_group_member(group_id));
 CREATE POLICY "dm_group_messages_insert" ON public.dm_group_messages FOR INSERT
@@ -680,6 +682,69 @@ CREATE POLICY "dm_group_messages_insert" ON public.dm_group_messages FOR INSERT
     auth.uid() = sender_id
     AND public.reminko_is_dm_group_member(group_id)
   );
+CREATE POLICY "dm_group_messages_update" ON public.dm_group_messages
+  FOR UPDATE USING (auth.uid() = sender_id)
+  WITH CHECK (auth.uid() = sender_id);
+CREATE POLICY "dm_group_messages_delete" ON public.dm_group_messages
+  FOR DELETE USING (auth.uid() = sender_id);
+
+CREATE OR REPLACE FUNCTION public.reminko_edit_dm_group_message(p_message_id uuid, p_text text)
+RETURNS public.dm_group_messages
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  row public.dm_group_messages;
+  t text := left(trim(coalesce(p_text, '')), 120000);
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+  IF t IS NULL OR char_length(t) < 1 THEN
+    RAISE EXCEPTION 'empty_message';
+  END IF;
+
+  UPDATE public.dm_group_messages
+  SET message = t, edited_at = TIMEZONE('utc'::text, NOW())
+  WHERE id = p_message_id AND sender_id = uid
+  RETURNING * INTO row;
+
+  IF row.id IS NULL THEN
+    RAISE EXCEPTION 'not_found_or_forbidden';
+  END IF;
+  RETURN row;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reminko_edit_dm_group_message(uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reminko_edit_dm_group_message(uuid, text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.reminko_unsend_dm_group_message(p_message_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  n integer := 0;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+
+  DELETE FROM public.dm_group_messages
+  WHERE id = p_message_id AND sender_id = uid;
+
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n > 0;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reminko_unsend_dm_group_message(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reminko_unsend_dm_group_message(uuid) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.reminko_create_dm_group(
   p_name text,
@@ -1048,15 +1113,29 @@ CREATE POLICY "profiles_select" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "profiles_update" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "profiles_insert" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
--- favorites_anime
+-- favorites_anime (SELECT публичный — чужие списки видны; менять только свои)
 DROP POLICY IF EXISTS "favorites_anime_all" ON public.favorites_anime;
+DROP POLICY IF EXISTS "favorites_anime_select" ON public.favorites_anime;
+DROP POLICY IF EXISTS "favorites_anime_insert" ON public.favorites_anime;
+DROP POLICY IF EXISTS "favorites_anime_update" ON public.favorites_anime;
+DROP POLICY IF EXISTS "favorites_anime_delete" ON public.favorites_anime;
 DROP POLICY IF EXISTS "Пользователи могут управлять своим избранным аниме" ON public.favorites_anime;
-CREATE POLICY "favorites_anime_all" ON public.favorites_anime FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "favorites_anime_select" ON public.favorites_anime FOR SELECT USING (true);
+CREATE POLICY "favorites_anime_insert" ON public.favorites_anime FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "favorites_anime_update" ON public.favorites_anime FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "favorites_anime_delete" ON public.favorites_anime FOR DELETE USING (auth.uid() = user_id);
 
 -- favorites_manga
 DROP POLICY IF EXISTS "favorites_manga_all" ON public.favorites_manga;
+DROP POLICY IF EXISTS "favorites_manga_select" ON public.favorites_manga;
+DROP POLICY IF EXISTS "favorites_manga_insert" ON public.favorites_manga;
+DROP POLICY IF EXISTS "favorites_manga_update" ON public.favorites_manga;
+DROP POLICY IF EXISTS "favorites_manga_delete" ON public.favorites_manga;
 DROP POLICY IF EXISTS "Пользователи могут управлять своим избранным мангой" ON public.favorites_manga;
-CREATE POLICY "favorites_manga_all" ON public.favorites_manga FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "favorites_manga_select" ON public.favorites_manga FOR SELECT USING (true);
+CREATE POLICY "favorites_manga_insert" ON public.favorites_manga FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "favorites_manga_update" ON public.favorites_manga FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "favorites_manga_delete" ON public.favorites_manga FOR DELETE USING (auth.uid() = user_id);
 
 -- watch_history
 DROP POLICY IF EXISTS "watch_history_all" ON public.watch_history;

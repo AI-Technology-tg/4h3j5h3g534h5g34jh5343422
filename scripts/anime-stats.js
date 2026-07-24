@@ -56,94 +56,26 @@ function addRating(animeId, rating) {
     }
 }
 
-// Добавить в избранное (только для авторизованных)
+// Избранное — каноническая реализация в favorites.js (не перезаписывать window.*)
 function addToFavorites(animeId) {
-    // Проверяем авторизацию (синхронно)
-    const isAuth = typeof isAuthenticatedSync === 'function' ? isAuthenticatedSync() : (localStorage.getItem('isAuth') === 'true');
-    if (!isAuth) {
-        return { success: false, message: 'Необходимо войти в аккаунт' };
+    if (typeof window !== 'undefined' && window.__reminkoFavoritesApi?.addToFavorites) {
+        return window.__reminkoFavoritesApi.addToFavorites(animeId);
     }
-    
-    // Получаем пользователя (синхронно)
-    const user = typeof getCurrentUserSync === 'function' ? getCurrentUserSync() : JSON.parse(sessionStorage.getItem('currentUser') || 'null');
-    if (!user || !user.id) {
-        return { success: false, message: 'Ошибка авторизации' };
-    }
-    
-    let userData = getUserData(user.id);
-    if (!userData) {
-        userData = { favorites: [] };
-    }
-    
-    if (!userData.favorites) {
-        userData.favorites = [];
-    }
-    
-    if (userData.favorites.includes(animeId)) {
-        return { success: false, message: 'Уже в избранном' };
-    }
-    
-    userData.favorites.push(animeId);
-    updateUserData(user.id, { favorites: userData.favorites });
-    
-    // Обновляем счетчик избранного
-    const stats = getAnimeStats(animeId);
-    if (stats) {
-        stats.favoritesCount = (stats.favoritesCount || 0) + 1;
-        updateAnimeStats(animeId, stats);
-    }
-    
-    return { success: true, message: 'Добавлено в избранное' };
+    return { success: false, message: 'Модуль избранного не загружен' };
 }
 
-// Удалить из избранного
 function removeFromFavorites(animeId) {
-    const isAuth = typeof isAuthenticatedSync === 'function' ? isAuthenticatedSync() : (localStorage.getItem('isAuth') === 'true');
-    if (!isAuth) {
-        return { success: false, message: 'Необходимо войти в аккаунт' };
+    if (typeof window !== 'undefined' && window.__reminkoFavoritesApi?.removeFromFavorites) {
+        return window.__reminkoFavoritesApi.removeFromFavorites(animeId);
     }
-    
-    const user = typeof getCurrentUserSync === 'function' ? getCurrentUserSync() : JSON.parse(sessionStorage.getItem('currentUser') || 'null');
-    if (!user || !user.id) {
-        return { success: false, message: 'Ошибка авторизации' };
-    }
-    
-    let userData = getUserData(user.id);
-    if (!userData || !userData.favorites) {
-        return { success: false, message: 'Не в избранном' };
-    }
-    
-    const index = userData.favorites.indexOf(animeId);
-    if (index === -1) {
-        return { success: false, message: 'Не в избранном' };
-    }
-    
-    userData.favorites.splice(index, 1);
-    updateUserData(user.id, { favorites: userData.favorites });
-    
-    // Обновляем счетчик избранного
-    const stats = getAnimeStats(animeId);
-    if (stats && stats.favoritesCount > 0) {
-        stats.favoritesCount = stats.favoritesCount - 1;
-        updateAnimeStats(animeId, stats);
-    }
-    
-    return { success: true, message: 'Удалено из избранного' };
+    return { success: false, message: 'Модуль избранного не загружен' };
 }
 
-// Проверить, в избранном ли аниме
 function isInFavorites(animeId) {
-    const isAuth = typeof isAuthenticatedSync === 'function' ? isAuthenticatedSync() : (localStorage.getItem('isAuth') === 'true');
-    if (!isAuth) {
-        return false;
+    if (typeof window !== 'undefined' && window.__reminkoFavoritesApi?.isInFavorites) {
+        return window.__reminkoFavoritesApi.isInFavorites(animeId);
     }
-    
-    const user = typeof getCurrentUserSync === 'function' ? getCurrentUserSync() : JSON.parse(sessionStorage.getItem('currentUser') || 'null');
-    if (!user || !user.id) return false;
-    
-    const userData = getUserData(user.id);
-    
-    return userData && userData.favorites && userData.favorites.includes(animeId);
+    return false;
 }
 
 // Получить аниме с актуальной статистикой
@@ -159,10 +91,7 @@ function getAllAnimeWithStats() {
     return getAllAnime().map(anime => initAnimeStats(anime));
 }
 
-// Экспорт функций в глобальную область для использования в HTML
-window.addToFavorites = addToFavorites;
-window.removeFromFavorites = removeFromFavorites;
-window.isInFavorites = isInFavorites;
+// Не экспортируем favorites-API здесь — favorites.js задаёт window.* после загрузки
 window.getAnimeStats = getAnimeStats;
 window.initAnimeStats = initAnimeStats;
 window.addView = addView;

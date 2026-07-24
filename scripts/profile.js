@@ -398,14 +398,25 @@ async function renderProfile(userData, isViewMode = false) {
     const profileName = userData.username || 'Пользователь';
 
     function renderFavTiles(items, type) {
-        return items.slice(0, 10).map(item => {
-            const gradient = typeof generateGradient === 'function' ? generateGradient(item.id) : 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
-            const onclick = type === 'anime' ? `openAnimePage(${item.id})` : `openMangaPage(${item.id})`;
+        return (items || []).map((item) => {
+            const gradient =
+                typeof generateGradient === 'function'
+                    ? generateGradient(item.id)
+                    : 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
+            const poster =
+                item.posterUrl ||
+                (item.images && item.images.jpg && item.images.jpg.image_url) ||
+                '';
+            const posterStyle = poster
+                ? `background-image:url('${String(poster).replace(/'/g, "\\'")}');background-size:cover;background-position:center;`
+                : `background: ${gradient};`;
+            const onclick =
+                type === 'anime' ? `openAnimePage(${item.id})` : `openMangaPage(${item.id})`;
             const title = item.title || '';
             const shortTitle = title.length > 15 ? title.substring(0, 15) + '...' : title;
             const searchTitle = item.titleAlt || item.title || '';
-            return `<div class="favorite-mini-card" onclick="${onclick}" title="${title}" data-fav-type="${type}" data-fav-title="${searchTitle.replace(/"/g, '&quot;')}">
-                <div class="favorite-mini-poster" style="background: ${gradient};">
+            return `<div class="favorite-mini-card" onclick="${onclick}" title="${title.replace(/"/g, '&quot;')}" data-fav-type="${type}" data-fav-title="${searchTitle.replace(/"/g, '&quot;')}">
+                <div class="favorite-mini-poster" style="${posterStyle}">
                     <div class="favorite-mini-year">${item.year || ''}</div>
                 </div>
                 <div class="favorite-mini-title">${shortTitle}</div>
@@ -514,19 +525,31 @@ async function renderProfile(userData, isViewMode = false) {
                 <div class="profile-section">
                     <div class="profile-section-header">
                         <h2 class="section-title">${isViewMode ? `Избранное аниме ${profileName}` : 'Избранное аниме'}</h2>
-                        ${!isViewMode ? '<a href="favorites.html" class="btn btn-primary btn-sm">Все избранное</a>' : ''}
+                        ${
+                            favoritesAnime.length > 0
+                                ? `<a href="favorites.html${isViewMode ? '?user=' + encodeURIComponent(profileUserId) : ''}" class="btn btn-primary btn-sm">Все избранное</a>`
+                                : ''
+                        }
                     </div>
                     ${favoritesAnime.length > 0 ? `
-                        <div class="favorites-tiles-row">${renderFavTiles(favoritesAnime, 'anime')}</div>
+                        <div class="favorites-tiles-scroll reminko-mobile-scroll-x" tabindex="0" aria-label="Избранные аниме, листайте вбок">
+                            <div class="favorites-tiles-row">${renderFavTiles(favoritesAnime, 'anime')}</div>
+                        </div>
                     ` : `<div class="empty-favorites"><p>${isViewMode ? 'Нет избранных аниме' : 'У вас пока нет избранных аниме'}</p></div>`}
                 </div>
                 <div class="profile-section">
                     <div class="profile-section-header">
                         <h2 class="section-title">${isViewMode ? `Избранная манга ${profileName}` : 'Избранная манга'}</h2>
-                        ${!isViewMode ? '<a href="favorites-manga.html" class="btn btn-primary btn-sm">Все избранное</a>' : ''}
+                        ${
+                            !isViewMode && favoritesManga.length > 0
+                                ? '<a href="favorites-manga.html" class="btn btn-primary btn-sm">Все избранное</a>'
+                                : ''
+                        }
                     </div>
                     ${favoritesManga.length > 0 ? `
-                        <div class="favorites-tiles-row">${renderFavTiles(favoritesManga, 'manga')}</div>
+                        <div class="favorites-tiles-scroll reminko-mobile-scroll-x" tabindex="0" aria-label="Избранная манга, листайте вбок">
+                            <div class="favorites-tiles-row">${renderFavTiles(favoritesManga, 'manga')}</div>
+                        </div>
                     ` : `<div class="empty-favorites"><p>${isViewMode ? 'Нет избранных манг' : 'У вас пока нет избранных манг'}</p></div>`}
                 </div>
             </div>

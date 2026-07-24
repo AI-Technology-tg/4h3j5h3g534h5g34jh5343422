@@ -2867,9 +2867,23 @@ function closePlayer() {
     }
 }
 
+function setFavoriteButtonState(animeId, inFavorites) {
+    animeId = parseInt(animeId, 10);
+    const favoriteBtn = document.getElementById('favoriteBtn');
+    if (!favoriteBtn || Number.isNaN(animeId)) return;
+    const on = !!inFavorites;
+    favoriteBtn.classList.toggle('is-favorite', on);
+    favoriteBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    favoriteBtn.textContent = on ? '❤️ В избранном' : '🤍 В избранное';
+    favoriteBtn.onclick = (e) => {
+        if (e) e.preventDefault();
+        if (on) handleRemoveFromFavorites(animeId);
+        else handleAddToFavorites(animeId);
+    };
+}
+
 function handleAddToFavorites(animeId) {
-    // Убеждаемся, что animeId - число
-    animeId = parseInt(animeId);
+    animeId = parseInt(animeId, 10);
 
     const favBtn = document.getElementById('favoriteBtn');
     if (favBtn && (favBtn.disabled || favBtn.classList.contains('reminko-maint-locked'))) {
@@ -2877,36 +2891,36 @@ function handleAddToFavorites(animeId) {
         return;
     }
 
-    const isAuth = typeof isAuthenticatedSync === 'function' ? isAuthenticatedSync() : (localStorage.getItem('isAuth') === 'true');
+    const isAuth =
+        typeof isAuthenticatedSync === 'function'
+            ? isAuthenticatedSync()
+            : localStorage.getItem('isAuth') === 'true';
     if (!isAuth) {
         showWarning('Для добавления в избранное необходимо войти в аккаунт');
         const loginModal = document.getElementById('loginModal');
-        if (loginModal) {
-            loginModal.classList.add('active');
-        }
+        if (loginModal) loginModal.classList.add('active');
         return;
     }
-    
-    // Используем функцию из anime-stats.js (глобальная область)
-    if (typeof window.addToFavorites !== 'undefined') {
-        Promise.resolve(window.addToFavorites(animeId)).then((result) => {
-            if (!result) return;
-            if (result.success) {
-                if (result.message && typeof showSuccess === 'function') showSuccess(result.message);
-                updateFavoriteButton(animeId);
-            } else if (result.message && typeof showError === 'function') {
-                showError(result.message);
-            }
-        });
-    } else {
-        console.error('addToFavorites не найдена');
+
+    if (typeof window.addToFavorites === 'undefined') {
         showError('Ошибка: функция добавления в избранное не найдена');
+        return;
     }
+
+    Promise.resolve(window.addToFavorites(animeId)).then((result) => {
+        if (!result) return;
+        if (result.success) {
+            setFavoriteButtonState(animeId, true);
+            if (result.message && typeof showSuccess === 'function') showSuccess(result.message);
+            void updateFavoriteButton(animeId);
+        } else if (result.message && typeof showError === 'function') {
+            showError(result.message);
+        }
+    });
 }
 
 function handleRemoveFromFavorites(animeId) {
-    // Убеждаемся, что animeId - число
-    animeId = parseInt(animeId);
+    animeId = parseInt(animeId, 10);
 
     const favBtn = document.getElementById('favoriteBtn');
     if (favBtn && (favBtn.disabled || favBtn.classList.contains('reminko-maint-locked'))) {
@@ -2914,36 +2928,36 @@ function handleRemoveFromFavorites(animeId) {
         return;
     }
 
-    if (typeof window.removeFromFavorites !== 'undefined') {
-        Promise.resolve(window.removeFromFavorites(animeId)).then((result) => {
-            if (!result) return;
-            if (result.success) {
-                if (result.message && typeof showSuccess === 'function') showSuccess(result.message);
-                updateFavoriteButton(animeId);
-            } else if (result.message && typeof showError === 'function') {
-                showError(result.message);
-            }
-        });
-    } else {
-        console.error('removeFromFavorites не найдена');
+    if (typeof window.removeFromFavorites === 'undefined') {
         showError('Ошибка: функция удаления из избранного не найдена');
+        return;
     }
+
+    Promise.resolve(window.removeFromFavorites(animeId)).then((result) => {
+        if (!result) return;
+        if (result.success) {
+            setFavoriteButtonState(animeId, false);
+            if (result.message && typeof showSuccess === 'function') showSuccess(result.message);
+            void updateFavoriteButton(animeId);
+        } else if (result.message && typeof showError === 'function') {
+            showError(result.message);
+        }
+    });
 }
 
-function updateFavoriteButton(animeId) {
-    // Убеждаемся, что animeId - число
-    animeId = parseInt(animeId);
-    
-    const favoriteBtn = document.getElementById('favoriteBtn');
-    if (favoriteBtn && typeof isInFavorites === 'function') {
-        if (isInFavorites(animeId)) {
-            favoriteBtn.textContent = '❤️ В избранном';
-            favoriteBtn.onclick = () => handleRemoveFromFavorites(animeId);
-        } else {
-            favoriteBtn.textContent = '🤍 В избранное';
-            favoriteBtn.onclick = () => handleAddToFavorites(animeId);
-        }
+async function updateFavoriteButton(animeId) {
+    animeId = parseInt(animeId, 10);
+    if (Number.isNaN(animeId)) return;
+
+    try {
+        if (typeof loadFavorites === 'function') await loadFavorites();
+    } catch (_) {
+        /* ignore */
     }
+
+    const on = typeof isInFavorites === 'function' ? isInFavorites(animeId) : false;
+    setFavoriteButtonState(animeId, on);
+
     queueMicrotask(() => {
         if (typeof window.reminkoApplySidebarMaintenanceLocks === 'function') {
             window.reminkoApplySidebarMaintenanceLocks();
@@ -2952,8 +2966,7 @@ function updateFavoriteButton(animeId) {
 }
 
 function handleFavoriteClick(animeId) {
-    // Убеждаемся, что animeId - число
-    animeId = parseInt(animeId);
+    animeId = parseInt(animeId, 10);
 
     const favBtn = document.getElementById('favoriteBtn');
     if (favBtn && (favBtn.disabled || favBtn.classList.contains('reminko-maint-locked'))) {
@@ -2967,6 +2980,20 @@ function handleFavoriteClick(animeId) {
         handleAddToFavorites(animeId);
     }
 }
+
+function reminkoBindFavoriteButtonAutoRefresh() {
+    if (window.__reminkoFavBtnBound) return;
+    window.__reminkoFavBtnBound = true;
+    window.addEventListener('reminko:favorites-loaded', () => {
+        const btn = document.getElementById('favoriteBtn');
+        if (!btn) return;
+        const id =
+            parseInt(new URLSearchParams(window.location.search).get('id') || '', 10) ||
+            parseInt(sessionStorage.getItem('viewAnimeId') || '', 10);
+        if (!Number.isNaN(id) && id > 0) void updateFavoriteButton(id);
+    });
+}
+reminkoBindFavoriteButtonAutoRefresh();
 
 // Глобальные экспорты для плеера (необходимы для onclick в HTML)
 window.playAnime = playAnime;

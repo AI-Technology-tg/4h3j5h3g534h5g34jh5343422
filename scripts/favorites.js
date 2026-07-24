@@ -1,5 +1,6 @@
 /**
  * Избранное аниме: Supabase favorites_anime + зеркало в localStorage (userData.favorites).
+ * Также рендер страницы favorites.html (свой / чужой список через ?user=).
  */
 (function (global) {
     'use strict';
@@ -36,7 +37,7 @@
         if (_loading && !force) return _loading;
 
         _loading = (async () => {
-            _cache.clear();
+            const next = new Set();
             let user = null;
             const authPending =
                 typeof global.isAuthenticatedSync === 'function' && global.isAuthenticatedSync();
@@ -61,10 +62,13 @@
                         .eq('user_id', user.id);
                     if (!error && Array.isArray(data)) {
                         for (const row of data) {
-                            if (row && row.anime_id != null) _cache.add(String(row.anime_id));
+                            if (row && row.anime_id != null) next.add(String(row.anime_id));
                         }
-                        syncLocalFavorites(user.id, [..._cache]);
+                        syncLocalFavorites(user.id, [...next]);
+                        _cache.clear();
+                        for (const id of next) _cache.add(id);
                         _loaded = true;
+                        dispatchFavoritesLoaded();
                         return _cache;
                     }
                 } catch (e) {
@@ -75,8 +79,11 @@
             if (user && typeof getUserData === 'function') {
                 const ud = getUserData(user.id);
                 const favs = (ud && ud.favorites) || [];
-                for (const id of favs) _cache.add(String(id));
+                for (const id of favs) next.add(String(id));
             }
+
+            _cache.clear();
+            for (const id of next) _cache.add(id);
 
             const deferLoaded = authPending && (!user || user.isAnonymous) && _cache.size === 0;
             if (!deferLoaded) {
@@ -99,6 +106,21 @@
 
     function getFavoriteAnimeIds() {
         return [..._cache];
+    }
+
+    async function fetchFavoriteAnimeIdsForUser(userId) {
+        const uid = String(userId || '').trim();
+        if (!uid || typeof supabaseClient === 'undefined' || !supabaseClient) return [];
+        try {
+            const { data, error } = await supabaseClient
+                .from('favorites_anime')
+                .select('anime_id')
+                .eq('user_id', uid);
+            if (error || !Array.isArray(data)) return [];
+            return data.map((r) => r && r.anime_id).filter((id) => id != null).map(String);
+        } catch (_) {
+            return [];
+        }
     }
 
     async function addToFavorites(animeId) {
@@ -127,6 +149,9 @@
                 console.warn('[favorites] insert:', error);
                 return { success: false, message: error.message };
             }
+            if (error && error.code === '23505') {
+                return { success: true, already: true, message: 'Уже в избранном' };
+            }
         }
 
         syncLocalFavorites(user.id, [..._cache]);
@@ -139,6 +164,7 @@
             }
         }
 
+        dispatchFavoritesLoaded();
         return { success: true, message: 'Добавлено в избранное — сообщим о новых сериях 🎬' };
     }
 
@@ -172,14 +198,145 @@
         }
 
         syncLocalFavorites(user.id, [..._cache]);
+        dispatchFavoritesLoaded();
         return { success: true, message: 'Удалено из избранного' };
     }
 
+    async function resolveFavoriteAnime(rawId) {
+        const id = parseAnimeId(rawId);
+        if (id == null) return null;
+        let anime = typeof getAnimeById === 'function' ? getAnimeById(id) : null;
+        if (!anime && typeof global.KodikCatalogStore?.getById === 'function') {
+            anime =
+                global.KodikCatalogStore.getById(id) ||
+                global.KodikCatalogStore.getById(String(id));
+        }
+        if (!anime) {
+            return {
+                id,
+                title: 'Аниме #' + id,
+                year: '',
+                rating: 0,
+                genres: [],
+                posterUrl: null
+            };
+        }
+        return typeof initAnimeStats === 'function' ? initAnimeStats(anime) : anime;
+    }
+
+    async function renderFavoritesPage() {
+        const grid = document.getElementById('favoritesGrid');
+        const empty = document.getElementById('emptyFavorites');
+        if (!grid) return;
+
+        const params = new URLSearchParams(window.location.search || '');
+        const viewUserId = (params.get('user') || '').trim();
+        let selfId = null;
+        try {
+            if (typeof getCurrentUser === 'function') {
+                const u = await getCurrentUser();
+                selfId = u && !u.isAnonymous ? u.id : null;
+            }
+        } catch (_) {
+            selfId = null;
+        }
+
+        const isOther = !!(viewUserId && (!selfId || String(viewUserId) !== String(selfId)));
+        let ids = [];
+        let ownerName = '';
+
+        if (isOther) {
+            ids = await fetchFavoriteAnimeIdsForUser(viewUserId);
+            try {
+                const { data: p } = await supabaseClient
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', viewUserId)
+                    .maybeSingle();
+                ownerName = (p && p.username) || 'пользователя';
+            } catch (_) {
+                ownerName = 'пользователя';
+            }
+        } else {
+            const isAuth =
+                typeof isAuthenticated === 'function'
+                    ? await isAuthenticated()
+                    : typeof isAuthenticatedSync === 'function' && isAuthenticatedSync();
+            if (!isAuth) {
+                window.location.href = 'index.html';
+                return;
+            }
+            await loadFavorites(true);
+            ids = getFavoriteAnimeIds();
+        }
+
+        const titleEl = document.querySelector('.page-header .section-title');
+        if (titleEl) {
+            titleEl.textContent = isOther
+                ? `Избранное аниме — ${ownerName}`
+                : 'Избранное';
+        }
+        const back = document.querySelector('.page-header a.btn');
+        if (back && isOther) {
+            back.href = 'profile.html?user=' + encodeURIComponent(viewUserId);
+            back.textContent = '← К профилю';
+        }
+
+        try {
+            if (typeof global.KodikCatalogStore?.load === 'function') {
+                await global.KodikCatalogStore.load();
+            }
+        } catch (_) {}
+
+        const items = [];
+        for (const id of ids) {
+            const a = await resolveFavoriteAnime(id);
+            if (a) items.push(a);
+        }
+
+        grid.innerHTML = '';
+        if (!items.length) {
+            if (empty) {
+                empty.style.display = 'block';
+                empty.innerHTML = isOther
+                    ? `<h2>Нет избранных аниме</h2><p>У этого пользователя пока пусто</p><a href="profile.html?user=${encodeURIComponent(viewUserId)}" class="btn btn-primary">К профилю</a>`
+                    : `<h2>У вас пока нет избранных аниме</h2><p>Добавьте аниме в избранное, чтобы они отображались здесь</p><a href="catalog/anime.html" class="btn btn-primary">Перейти в каталог</a>`;
+            }
+            return;
+        }
+        if (empty) empty.style.display = 'none';
+
+        for (const anime of items) {
+            if (typeof createAnimeCard === 'function') {
+                grid.appendChild(createAnimeCard(anime));
+            } else {
+                const card = document.createElement('div');
+                card.className = 'anime-card';
+                card.onclick = () => {
+                    if (typeof openAnimePage === 'function') openAnimePage(anime.id);
+                    else window.location.href = 'anime/view.html?id=' + anime.id;
+                };
+                card.innerHTML = `<div class="anime-info"><h3 class="anime-title">${String(anime.title || '').replace(/</g, '&lt;')}</h3></div>`;
+                grid.appendChild(card);
+            }
+        }
+    }
+
+    const api = {
+        addToFavorites,
+        removeFromFavorites,
+        isInFavorites,
+        loadFavorites,
+        getFavoriteAnimeIds,
+        fetchFavoriteAnimeIdsForUser
+    };
+    global.__reminkoFavoritesApi = api;
     global.addToFavorites = addToFavorites;
     global.removeFromFavorites = removeFromFavorites;
     global.isInFavorites = isInFavorites;
     global.loadFavorites = loadFavorites;
     global.getFavoriteAnimeIds = getFavoriteAnimeIds;
+    global.fetchFavoriteAnimeIdsForUser = fetchFavoriteAnimeIdsForUser;
 
     function bindAuthFavoritesReload() {
         if (typeof supabaseClient === 'undefined' || !supabaseClient?.auth?.onAuthStateChange) return;
@@ -196,13 +353,18 @@
         });
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            loadFavorites();
-            bindAuthFavoritesReload();
-        });
-    } else {
-        loadFavorites();
+    function boot() {
         bindAuthFavoritesReload();
+        if (document.getElementById('favoritesGrid')) {
+            void renderFavoritesPage();
+        } else {
+            void loadFavorites();
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
     }
 })(typeof window !== 'undefined' ? window : globalThis);
