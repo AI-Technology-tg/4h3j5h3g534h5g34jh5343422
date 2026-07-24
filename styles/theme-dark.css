@@ -170,6 +170,33 @@ body.theme-dark .hero-stat-value {
     text-shadow: 0 0 14px rgba(157, 77, 255, 0.45);
 }
 
+body.theme-dark .home-hero-continue-row {
+    border-top-color: rgba(157, 77, 255, 0.28) !important;
+}
+
+body.theme-dark .home-hero-watch-label,
+body.theme-dark .home-hero-favs-label {
+    color: rgba(232, 224, 255, 0.82) !important;
+}
+
+body.theme-dark .home-hero-watch-empty,
+body.theme-dark .home-hero-favs-empty {
+    color: rgba(221, 214, 245, 0.62) !important;
+}
+
+body.theme-dark .home-hero-fav-poster {
+    border-color: rgba(157, 77, 255, 0.4) !important;
+    background: rgba(18, 8, 31, 0.7) !important;
+}
+
+body.theme-dark .home-hero-fav-title {
+    color: rgba(243, 232, 255, 0.92) !important;
+}
+
+body.theme-dark .home-hero-favs-more {
+    color: rgba(196, 181, 253, 0.98) !important;
+}
+
 body.theme-dark .home-section,
 body.theme-dark .home-beta-banner-inner {
     background: rgba(12, 6, 22, 0.82) !important;

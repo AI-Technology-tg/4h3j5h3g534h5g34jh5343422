@@ -263,6 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateHeroStats();
         loadHeroWatchHistory();
+        loadHeroFavorites();
 
         if (typeof window.KodikCatalogStore?.load === 'function') {
             window.KodikCatalogStore.load()
@@ -303,6 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 loadHeroWatchHistory();
+                loadHeroFavorites();
             })();
         }
 
@@ -314,6 +316,14 @@ document.addEventListener('DOMContentLoaded', () => {
             window.__homeRecentAuthHook = true;
             supabaseClient.auth.onAuthStateChange(() => {
                 loadHeroWatchHistory();
+                loadHeroFavorites();
+            });
+        }
+
+        if (!window.__homeFavoritesHook) {
+            window.__homeFavoritesHook = true;
+            window.addEventListener('reminko:favorites-loaded', () => {
+                if (typeof loadHeroFavorites === 'function') loadHeroFavorites();
             });
         }
 
@@ -330,6 +340,10 @@ window.addEventListener('reminko-kodik-catalog-loaded', () => {
 
 window.addEventListener('reminko-watch-history-updated', () => {
     if (typeof loadHeroWatchHistory === 'function') loadHeroWatchHistory();
+});
+
+window.addEventListener('reminko:favorites-loaded', () => {
+    if (typeof loadHeroFavorites === 'function') loadHeroFavorites();
 });
 
 window.addEventListener('reminko-remanga-catalog-loaded', () => {
@@ -1223,8 +1237,22 @@ function getGroupedRecentAnimeHistory(userId, maxTitles) {
         .slice(0, cap);
 }
 
-/** Компактная история (до 5 тайтлов) под счётчиками в hero */
-function loadHeroWatchHistory() {
+async function homeHeroIsLoggedIn() {
+    if (typeof isAuthenticatedSync === 'function' && !isAuthenticatedSync()) return false;
+    if (typeof getCurrentUser === 'function') {
+        try {
+            const user = await getCurrentUser();
+            return !!(user && user.id && !user.isAnonymous);
+        } catch (_) {
+            /* fall through */
+        }
+    }
+    const sync = typeof getCurrentUserSync === 'function' ? getCurrentUserSync() : null;
+    return !!(sync && sync.id && !sync.isAnonymous);
+}
+
+/** Компактная история (до 5 тайтлов) в hero */
+async function loadHeroWatchHistory() {
     const box = document.getElementById('heroWatchHistory');
     const bigSection = document.getElementById('recentlyWatchedSection');
     if (bigSection) bigSection.style.display = 'none';
@@ -1236,19 +1264,17 @@ function loadHeroWatchHistory() {
         box.innerHTML = html;
     };
 
-    if (typeof isAuthenticatedSync !== 'function' || !isAuthenticatedSync()) {
-        showEmpty(
-            '<p class="home-hero-watch-label">Недавно смотрели</p>' +
-                '<p class="home-hero-watch-empty">Войдите в аккаунт — здесь появятся последние тайтлы из каталога.</p>'
-        );
+    const guestEmpty =
+        '<p class="home-hero-watch-label">Недавно смотрели</p>' +
+        '<p class="home-hero-watch-empty">Войдите в аккаунт — тогда история просмотров появится здесь.</p>';
+
+    if (!(await homeHeroIsLoggedIn())) {
+        showEmpty(guestEmpty);
         return;
     }
     const user = typeof getCurrentUserSync === 'function' ? getCurrentUserSync() : null;
     if (!user?.id) {
-        showEmpty(
-            '<p class="home-hero-watch-label">Недавно смотрели</p>' +
-                '<p class="home-hero-watch-empty">Войдите в аккаунт — здесь появятся последние тайтлы.</p>'
-        );
+        showEmpty(guestEmpty);
         return;
     }
 
@@ -1430,6 +1456,120 @@ async function hydrateHeroWatchCountdowns(rows) {
 function loadRecentlyWatched() {
     loadHeroWatchHistory();
 }
+
+/** Избранное справа от истории в hero */
+async function loadHeroFavorites() {
+    const box = document.getElementById('heroFavorites');
+    if (!box) return;
+
+    const showEmpty = (text) => {
+        box.hidden = false;
+        box.innerHTML =
+            '<p class="home-hero-favs-label">Избранное</p>' +
+            `<p class="home-hero-favs-empty">${text}</p>`;
+    };
+
+    if (!(await homeHeroIsLoggedIn())) {
+        showEmpty('Войдите в аккаунт — избранные тайтлы появятся здесь, и можно будет открывать их прямо с главной.');
+        return;
+    }
+
+    try {
+        if (typeof loadFavorites === 'function') {
+            await loadFavorites();
+        }
+    } catch (_) {
+        /* ignore */
+    }
+
+    const ids =
+        typeof getFavoriteAnimeIds === 'function' ? getFavoriteAnimeIds() : [];
+    if (!ids.length) {
+        showEmpty('Добавляйте аниме в избранное — они появятся здесь для быстрого доступа.');
+        return;
+    }
+
+    const rows = [];
+    for (const id of ids) {
+        const anime = typeof getAnimeById === 'function' ? getAnimeById(id) : null;
+        if (!anime) continue;
+        if (typeof filterAdultAnimeList === 'function' && !filterAdultAnimeList([anime]).length) {
+            continue;
+        }
+        rows.push(anime);
+        if (rows.length >= 12) break;
+    }
+
+    if (!rows.length) {
+        showEmpty('В избранном есть записи, но тайтлы не найдены в каталоге.');
+        return;
+    }
+
+    box.hidden = false;
+    box.innerHTML =
+        '<p class="home-hero-favs-label">Избранное</p>' +
+        '<div class="home-hero-favs-row" tabindex="0" role="list" aria-label="Избранные аниме"></div>' +
+        '<a class="home-hero-favs-more" href="favorites.html">Все избранное →</a>';
+    const rowEl = box.querySelector('.home-hero-favs-row');
+
+    for (const a of rows) {
+        const href = `anime/view.html?id=${encodeURIComponent(a.id)}`;
+        const gradient =
+            typeof generateGradient === 'function'
+                ? generateGradient(a.id)
+                : 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
+        const card = document.createElement('a');
+        card.className = 'home-hero-fav-card';
+        card.href = href;
+        card.title = a.title || 'Аниме';
+        card.setAttribute('role', 'listitem');
+
+        const poster = document.createElement('span');
+        poster.className = 'home-hero-fav-poster';
+        poster.style.background = gradient;
+
+        const img = document.createElement('img');
+        img.alt = '';
+        img.decoding = 'async';
+        img.referrerPolicy = 'no-referrer';
+        const knownPoster = a.posterUrl || '';
+        if (knownPoster) img.src = knownPoster;
+        poster.appendChild(img);
+
+        const title = document.createElement('span');
+        title.className = 'home-hero-fav-title';
+        title.textContent = a.title || 'Аниме';
+
+        card.appendChild(poster);
+        card.appendChild(title);
+        rowEl.appendChild(card);
+
+        const malId = a.mal_id != null ? parseInt(a.mal_id, 10) : NaN;
+        if (Number.isFinite(malId) && malId > 0 && typeof attachJikanPosterFallback === 'function') {
+            attachJikanPosterFallback(img, malId, a);
+        } else if (!knownPoster) {
+            void (async () => {
+                const searchTitles =
+                    typeof reminkoCollectPosterSearchTitles === 'function'
+                        ? reminkoCollectPosterSearchTitles(a, malId)
+                        : a.titleAlt
+                          ? [a.titleAlt, a.title]
+                          : [a.title];
+                if (typeof getAnimePosterFast !== 'function') return;
+                const url = await getAnimePosterFast(searchTitles);
+                const ph = typeof POSTER_PLACEHOLDER !== 'undefined' ? POSTER_PLACEHOLDER : '';
+                if (url && url !== ph && img.isConnected) img.src = url;
+            })();
+        }
+    }
+
+    if (typeof reminkoEnhanceHorizontalDragScroll === 'function') {
+        reminkoEnhanceHorizontalDragScroll(rowEl, { linkSelector: 'a.home-hero-fav-card' });
+    }
+    if (typeof initPosterObserver === 'function') initPosterObserver();
+}
+
+window.loadHeroFavorites = loadHeroFavorites;
 
 // ==================== Локальные секции ====================
 

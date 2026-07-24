@@ -654,6 +654,17 @@ async function renderProfile(userData, isViewMode = false) {
     `;
     const tabParam = new URLSearchParams(window.location.search).get('tab');
     initProfileTabs(tabParam);
+    initFavoritesTilesDragScroll();
+}
+
+/** Свайп/drag по постерам в горизонтальном избранном */
+function initFavoritesTilesDragScroll() {
+    if (typeof reminkoEnhanceHorizontalDragScroll !== 'function') return;
+    document.querySelectorAll('.favorites-tiles-scroll').forEach((el) => {
+        if (el.dataset.dragScrollBound === '1') return;
+        el.dataset.dragScrollBound = '1';
+        reminkoEnhanceHorizontalDragScroll(el, { linkSelector: '.favorite-mini-card' });
+    });
 }
 
 function initProfileTabs(defaultTab = null) {

@@ -972,6 +972,18 @@ body.profile-page::before {
     scrollbar-width: thin;
     scrollbar-color: rgba(168, 85, 247, 0.65) rgba(255, 255, 255, 0.06);
     touch-action: pan-x;
+    cursor: grab;
+    user-select: none;
+}
+.favorites-tiles-scroll.is-dragging {
+    cursor: grabbing;
+    scroll-snap-type: none;
+}
+.favorites-tiles-scroll.is-dragging .favorite-mini-card {
+    pointer-events: none;
+}
+.favorites-tiles-scroll .favorite-mini-poster {
+    pointer-events: none;
 }
 .favorites-tiles-scroll::-webkit-scrollbar {
     height: 8px;
