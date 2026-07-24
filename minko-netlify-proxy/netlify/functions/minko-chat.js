@@ -302,13 +302,96 @@ async function fetchJikanResearch(userText) {
     return parts.join('\n\n').slice(0, 5500);
 }
 
+/** Веб-поиск только по аниме/манге — не общий интернет. */
+function isAnimeResearchTopic(msg) {
+    const t = String(msg || '');
+    if (t.length < 2) return false;
+    if (
+        /аниме|манга|манхв|тайтл|сери[яию]|эпизод|сезон|студи|сэйю|сейю|персонаж|сюжет|спойлер|арк|онгоинг|анонс|премьер|озвуч|рекоменд|похож|каталог|шифр|шикимори|shiki|mal\b|myanimelist|anilist|kodik|jikan|isekai|сёнэн|сёдзё|сэйнэн|ova\b|ona\b|фильм/i.test(
+            t
+        )
+    ) {
+        return true;
+    }
+    // Народные названия / латиница тайтлов
+    if (expandAliasQueries(t).length) return true;
+    if (/re\s*:?\s*zero|naruto|one\s*piece|bleach|jujutsu|kimetsu|shingeki|steins|evangelion|spy\s*x\s*family/i.test(t)) {
+        return true;
+    }
+    // «на тему X / про X» при коротком запросе — считаем аниме-контекстом на сайте
+    if (/(?:на\s+тему|про|об)\s+[a-zA-Zа-яА-ЯёЁ0-9]/i.test(t) && t.length <= 120) return true;
+    return false;
+}
+
+function decodeHtmlEntities(s) {
+    return String(s || '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ');
+}
+
+async function fetchDuckDuckGoHtmlAnime(query) {
+    const base = String(query || '').trim().slice(0, 160);
+    if (base.length < 2) return '';
+    // Только аниме-сайты — не общий веб
+    const q =
+        `(${base}) anime OR аниме ` +
+        `(site:myanimelist.net OR site:anilist.co OR site:shikimori.one OR site:animenewsnetwork.com OR site:anime-planet.com OR site:wikipedia.org)`;
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 6500);
+    try {
+        const r = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(q), {
+            signal: ac.signal,
+            headers: {
+                'User-Agent': 'ReMinkoMinkoAI/1.0 (+https://re-minko-anime.com)',
+                Accept: 'text/html'
+            }
+        });
+        if (!r.ok) return '';
+        const html = await r.text();
+        const lines = [];
+        const re =
+            /class="result__a"[^>]*>([\s\S]*?)<\/a>[\s\S]*?class="result__snippet"[^>]*>([\s\S]*?)<\/(?:a|td|div)>/gi;
+        let m;
+        while ((m = re.exec(html)) !== null && lines.length < 6) {
+            const title = decodeHtmlEntities(stripHtml(m[1])).slice(0, 160);
+            const snip = decodeHtmlEntities(stripHtml(m[2])).slice(0, 320);
+            if (title.length < 3) continue;
+            lines.push(`• ${title}${snip ? ' — ' + snip : ''}`);
+        }
+        // запасной разбор
+        if (!lines.length) {
+            const re2 = /class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+            while ((m = re2.exec(html)) !== null && lines.length < 5) {
+                const title = decodeHtmlEntities(stripHtml(m[2])).slice(0, 160);
+                const href = decodeHtmlEntities(m[1]);
+                if (title.length < 3) continue;
+                if (!/myanimelist|anilist|shikimori|animenewsnetwork|anime-planet|wikipedia/i.test(href)) {
+                    continue;
+                }
+                lines.push(`• ${title}`);
+            }
+        }
+        return lines.join('\n').slice(0, 2800);
+    } catch {
+        return '';
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
 async function fetchDuckDuckGoSnippet(query) {
     const base = String(query || '').trim().slice(0, 200);
     if (base.length < 2) return '';
-    const variants = [base];
+    const variants = [];
     if (!/аниме|anime|manga|манга/i.test(base)) {
-        variants.push(base + ' аниме');
         variants.push(base + ' anime');
+        variants.push(base + ' аниме');
+    } else {
+        variants.push(base);
     }
     const chunks = [];
     for (const v of variants.slice(0, 2)) {
@@ -319,12 +402,20 @@ async function fetchDuckDuckGoSnippet(query) {
         try {
             const r = await fetch(url, { signal: ac.signal });
             const j = await r.json();
-            if (j.AbstractText) chunks.push(j.AbstractText);
-            if (j.Heading && j.AbstractURL) chunks.push(`${j.Heading}: ${j.AbstractURL}`);
+            const blob = `${j.Heading || ''} ${j.AbstractText || ''} ${j.AbstractURL || ''}`.toLowerCase();
+            const animeish =
+                /anime|manga|аниме|манга|myanimelist|anilist|studio|эпизод|сезон|ova|ona/.test(blob) ||
+                /anime|manga|аниме|манга/.test(v);
+            if (!animeish && j.AbstractText) {
+                /* пропускаем нерелевантное */
+            } else {
+                if (j.AbstractText) chunks.push(j.AbstractText);
+                if (j.Heading && j.AbstractURL) chunks.push(`${j.Heading}: ${j.AbstractURL}`);
+            }
             const topics = Array.isArray(j.RelatedTopics) ? j.RelatedTopics : [];
             for (const t of topics.slice(0, 5)) {
-                if (typeof t === 'string') chunks.push(t);
-                else if (t && t.Text) chunks.push(t.Text);
+                const text = typeof t === 'string' ? t : t && t.Text ? t.Text : '';
+                if (text && /anime|manga|аниме|манга|myanimelist|studio/i.test(text)) chunks.push(text);
             }
         } catch {
             /* ignore */
@@ -333,16 +424,88 @@ async function fetchDuckDuckGoSnippet(query) {
         }
         if (chunks.join('\n').length > 800) break;
     }
-    return chunks.join('\n').trim().slice(0, 2800);
+    return chunks.join('\n').trim().slice(0, 2200);
+}
+
+async function fetchAniListResearch(userText) {
+    const titles = extractTitleCandidates(userText);
+    const q = (titles[0] || String(userText || '').slice(0, 80)).trim();
+    if (q.length < 2) return '';
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 7000);
+    try {
+        const r = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            signal: ac.signal,
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+                query: `query ($search: String) {
+                  Page(page: 1, perPage: 3) {
+                    media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+                      id malId title { romaji english native }
+                      format status episodes seasonYear averageScore
+                      studios(isMain: true) { nodes { name } }
+                      description(asHtml: false)
+                    }
+                  }
+                }`,
+                variables: { search: q.slice(0, 80) }
+            })
+        });
+        if (!r.ok) return '';
+        const j = await r.json();
+        const list = j?.data?.Page?.media;
+        if (!Array.isArray(list) || !list.length) return '';
+        return list
+            .map((m) => {
+                const name = m.title?.english || m.title?.romaji || m.title?.native || '?';
+                const studios = (m.studios?.nodes || []).map((n) => n.name).join(', ');
+                const desc = stripHtml(m.description || '').slice(0, 700);
+                return [
+                    `«${name}»`,
+                    `AniList ${m.id}${m.malId ? ` · MAL ${m.malId}` : ''} · ${m.format || '?'} · ${m.status || '?'} · eps ${m.episodes ?? '?'} · ★ ${m.averageScore ?? '?'}${m.seasonYear ? ` · ${m.seasonYear}` : ''}`,
+                    studios ? `Студии: ${studios}` : '',
+                    desc ? `Описание: ${desc}` : ''
+                ]
+                    .filter(Boolean)
+                    .join('\n');
+            })
+            .join('\n\n')
+            .slice(0, 3500);
+    } catch {
+        return '';
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+async function fetchJikanRelations(malId) {
+    const mid = Number(malId);
+    if (!Number.isFinite(mid) || mid <= 0) return '';
+    const rel = await jikanGet(`/anime/${mid}/relations`);
+    const rows = rel?.data;
+    if (!Array.isArray(rows) || !rows.length) return '';
+    const lines = [];
+    for (const row of rows) {
+        const relName = row.relation || '?';
+        const entries = Array.isArray(row.entry) ? row.entry : [];
+        for (const e of entries.slice(0, 4)) {
+            if (!e || e.type !== 'anime') continue;
+            lines.push(`${relName}: «${e.name}» (MAL ${e.mal_id})`);
+        }
+        if (lines.length >= 12) break;
+    }
+    return lines.length ? 'Связанные сезоны/тайтлы (Jikan):\n' + lines.join('\n') : '';
 }
 
 async function fetchWikipediaSnippet(query) {
-    const base = String(query || '')
+    const titlesFromMsg = extractTitleCandidates(query);
+    const base = (titlesFromMsg[0] || String(query || ''))
         .trim()
         .replace(/^(расскажи|найди|открой|что|как)\s+/i, '')
         .slice(0, 120);
     if (base.length < 2) return '';
-    const titles = [base, `${base} (аниме)`, `${base} (anime)`];
+    const titles = [base, `${base} (аниме)`, `${base} (anime)`, `${base} (манга)`];
     for (const title of titles) {
         const ac = new AbortController();
         const tid = setTimeout(() => ac.abort(), 4000);
@@ -358,6 +521,10 @@ async function fetchWikipediaSnippet(query) {
             if (j.type === 'disambiguation') continue;
             const extract = String(j.extract || '').trim();
             if (extract.length < 40) continue;
+            // Только аниме/манга-страницы
+            if (!/аниме|манга|anime|manga|OVA|ONA|студи|экранизац/i.test(`${j.title || ''} ${extract}`)) {
+                continue;
+            }
             return `${j.title || title}: ${extract}`.slice(0, 2200);
         } catch {
             /* try next */
@@ -374,26 +541,51 @@ async function fetchResearchBundle(userText, clientResearch) {
     if (client.length > 30) {
         parts.push('=== С сайта (Jikan / каталог) ===\n' + client.slice(0, 6000));
     }
-    if (WEB_ON) {
-        try {
-            const jikan = await fetchJikanResearch(userText);
-            if (jikan) parts.push('=== Сервер: Jikan / MAL ===\n' + jikan);
-        } catch (_) {
-            /* ignore */
+
+    // Интернет только по аниме — иначе модель не кормим общим вебом
+    if (!WEB_ON || !isAnimeResearchTopic(userText)) {
+        if (!isAnimeResearchTopic(userText) && WEB_ON) {
+            parts.push(
+                '=== Веб-поиск ===\nЗапрос не про аниме/мангу — интернет-сводка не запрашивалась. Ответь по характеру Minko без новостей и «фактов из сети».'
+            );
         }
-        try {
-            const wiki = await fetchWikipediaSnippet(userText);
-            if (wiki) parts.push('=== Wikipedia ===\n' + wiki);
-        } catch (_) {
-            /* ignore */
+        return parts.join('\n\n').slice(0, 9500);
+    }
+
+    let jikanMalId = null;
+    let jikan = '';
+    try {
+        jikan = await fetchJikanResearch(userText);
+        if (jikan) {
+            parts.push('=== Сервер: Jikan / MAL ===\n' + jikan);
+            const m = jikan.match(/MAL\s+(\d+)/);
+            if (m) jikanMalId = parseInt(m[1], 10);
         }
+    } catch (_) {
+        /* ignore */
+    }
+
+    // Параллельно: связи франшизы + AniList + wiki + аниме-веб (укладываемся в лимит Netlify)
+    const [rel, al, wiki, html] = await Promise.all([
+        jikanMalId ? fetchJikanRelations(jikanMalId).catch(() => '') : Promise.resolve(''),
+        fetchAniListResearch(userText).catch(() => ''),
+        fetchWikipediaSnippet(userText).catch(() => ''),
+        fetchDuckDuckGoHtmlAnime(userText).catch(() => '')
+    ]);
+    if (rel) parts.push('=== Связи франшизы ===\n' + rel);
+    if (al) parts.push('=== AniList ===\n' + al);
+    if (wiki) parts.push('=== Wikipedia (аниме) ===\n' + wiki);
+    if (html) parts.push('=== Веб (только аниме-сайты) ===\n' + html);
+
+    if (parts.join('\n').length < 1200) {
         try {
             const ddg = await fetchDuckDuckGoSnippet(userText);
-            if (ddg) parts.push('=== DuckDuckGo / web ===\n' + ddg);
+            if (ddg) parts.push('=== DuckDuckGo (аниме) ===\n' + ddg);
         } catch (_) {
             /* ignore */
         }
     }
+
     return parts.join('\n\n').slice(0, 9500);
 }
 
@@ -461,7 +653,8 @@ function buildSystemPrompt(userGender, isVip, researchBlock) {
 - Новости и премьеры — конкретные названия, без воды. Даты/сезоны бери ТОЛЬКО из блока данных; если пусто — скажи «не уверена по году», не выдумывай «вышел в этом году».
 - Запрос «на сайте / в каталоге дай аниме про X» — если в блоке есть каталог с id, дай ИМЕННО эти тайтлы (для франшизы — сам тайтл, не «похожее» из головы). Маркер только [[watch:ЧИСЛО|Название]] из блока. Никаких slug вроде the-rising-of-….
 - Не уходи от темы общими фразами. Не отвечай «на отъебись».
-- Опирайся на блок ПРОВЕРЕННЫЕ ДАННЫЕ (Jikan/MAL, Wikipedia, DuckDuckGo, каталог) в первую очередь — это живой поиск, не выдумывай факты против него.
+- Интернет-сводка подмешивается ТОЛЬКО по аниме/манге (MAL/Jikan, AniList, Wikipedia аниме, аниме-сайты). Не тащи факты «из общего интернета» и не ищи новости не про аниме.
+- Опирайся на блок ПРОВЕРЕННЫЕ ДАННЫЕ в первую очередь — это живой поиск по аниме, не выдумывай факты против него.
 - Если в данных есть факты — отвечай уверенно по ним. Если данных мало — скажи что не нашла в сводке и дай общий контекст без фейковых ссылок.
 - Русский язык, обращение на «ты».
 - Давай только допустимую для обычных пользователей информацию; чужое и служебное не разглашай.
