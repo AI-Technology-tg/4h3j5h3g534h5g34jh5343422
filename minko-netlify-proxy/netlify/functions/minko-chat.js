@@ -359,9 +359,20 @@ function isMinkoAllowedTopic(msg) {
     return isAnimeResearchTopic(msg) || isMinkoSiteOrSelfTopic(msg);
 }
 
-const MINKO_OFFTOPIC_REFUSAL =
-    '*зевает* Я отвечаю только про **аниме**, **мангу** и **сайт Re-Minko** 💤\n\n' +
-    'Футбол, новости, политика и прочие «левые» темы — не моя зона. Спроси про тайтл, серию, рекомендацию или как чем-то пользоваться на сайте~';
+const MINKO_OFFTOPIC_JOKE_SYSTEM = `Ты — Minko, сонная девушка-помощница Re-Minko (образ в духе Рэм из Re:Zero). Создатель — Дубина.
+
+Пользователь ушёл НЕ в тему: не аниме, не манга и не сайт Re-Minko.
+
+ЖЁСТКИЕ ПРАВИЛА:
+1) НЕ отвечай по сути «левого» вопроса. НЕ давай фактов про футбол, спорт, политику, новости, погоду, учёбу и т.п. — даже если «знаешь».
+2) Отшутись остроумно, по-доброму, с характером (можно лёгкий стёб, *ремарки* сна, сравнение с аниме).
+3) Коротко верни к аниме / манге / каталогу Re-Minko или к себе.
+4) 1–4 предложения, на «ты», 1–2 эмодзи. Не читай лекцию и не повторяй канцелярит «я отвечаю только про…».
+5) Если добивают («уверена?», «правда?», «ну скажи») — ещё смешнее упорствуй в отказе, без фактов по теме.
+
+Примеры тона (не копируй дословно):
+- «Футбол? Я в нём как Субару в первом цикле — только и делаю, что ресетюсь к каталогу 💤 Давай лучше про тайтл.»
+- «Уверена на все 100%, что мяч мне не по специальности. А вот про Re:Zero — спрашивай.»`;
 
 function decodeHtmlEntities(s) {
     return String(s || '')
@@ -690,7 +701,7 @@ function buildSystemPrompt(userGender, isVip, researchBlock) {
 
 СТРОГИЙ ФОКУС (важнее всего):
 - Ты отвечаешь ТОЛЬКО на темы: аниме, манга, каталог/сайт Re-Minko, ты сама (Minko), создатель Дубина, короткие приветствия/благодарности/прощения.
-- На футбол, спорт, политику, погоду, общие новости, учёбу, «кто выиграл», цены, рецепты и любые другие неаниме-темы — ОТКАЖИ. Не давай фактов «из головы». Коротко верни к аниме/сайту.
+- На футбол, спорт, политику, погоду, общие новости и прочий оффтоп — не отвечай по сути: остроумно отшутись и верни к аниме/сайту. Без фактов «из головы» и без канцелярита.
 - Не ищи и не придумывай ответы вне аниме/сайта.
 
 ПРАВИЛА ОТВЕТА:
@@ -796,12 +807,36 @@ exports.handler = async (event) => {
     const userGender = /женском роде/i.test(systemMsg) ? 'female' : 'male';
     const lastUser = (nonSystem.filter((m) => m.role === 'user').pop() || {}).content || '';
 
-    // Жёсткий отказ без вызова модели — левые темы (футбол и т.п.)
-    if (lastUser.trim().length >= 2 && !isMinkoAllowedTopic(lastUser)) {
-        return ok(
-            { choices: [{ message: { role: 'assistant', content: MINKO_OFFTOPIC_REFUSAL } }] },
-            headers
-        );
+    const model = MODEL_DEFAULT;
+    const offtopic = lastUser.trim().length >= 2 && !isMinkoAllowedTopic(lastUser);
+
+    // Оффтоп: без веб-поиска, короткая «шутливая отмазка» (факты по теме запрещены промптом)
+    if (offtopic) {
+        const recent = nonSystem.slice(-4).map((m) => ({ role: m.role, content: m.content }));
+        const msgs = [{ role: 'system', content: MINKO_OFFTOPIC_JOKE_SYSTEM }, ...recent];
+        try {
+            const text = await callOpenAI(msgs, model, 420, 0.9);
+            const reply =
+                text ||
+                '*зевает* Не-а~ Я только по аниме и сайту. Давай лучше тайтл какой-нибудь 💤';
+            return ok({ choices: [{ message: { role: 'assistant', content: reply } }] }, headers);
+        } catch (e) {
+            console.error('[minko-chat] offtopic', e);
+            return ok(
+                {
+                    choices: [
+                        {
+                            message: {
+                                role: 'assistant',
+                                content:
+                                    '*клюёт носом* Ой, я почти ответила… и поняла, что это не про аниме 💤 Кинь лучше тайтл из каталога~'
+                            }
+                        }
+                    ]
+                },
+                headers
+            );
+        }
     }
 
     let researchBlock = '';
@@ -817,9 +852,6 @@ exports.handler = async (event) => {
 
     const systemContent = buildSystemPrompt(userGender, isVip, researchBlock);
     const msgs = [{ role: 'system', content: systemContent }, ...nonSystem];
-
-    // Одна модель для всех (VIP не повышает приоритет модели)
-    const model = MODEL_DEFAULT;
     const maxTok = 4096;
     const temp = 0.72;
 
