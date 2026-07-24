@@ -86,9 +86,14 @@
         const mal = parseInt(row.mal_id, 10);
         const meta = Number.isFinite(mal) && mal > 0 ? catalogByMalMap().get(mal) : null;
         if (!filter.isKodikAnnouncedRow(row, meta)) return false;
-        // Уже выходят серии в каталоге — это онгоинг, не анонс
-        if (meta && kodikReleasedEpisodes(meta) >= 1) return false;
-        if (meta && meta.status === 'Онгоинг' && kodikReleasedEpisodes(meta) >= 1) return false;
+        // Уже в каталоге как онгоинг/завершён, есть серии или плеер Kodik — не анонс
+        if (meta) {
+            if (meta.status === 'Онгоинг' || meta.status === 'Завершён' || meta.status === 'Вышел') {
+                return false;
+            }
+            if (meta._kodik && meta._kodik.link) return false;
+            if (kodikReleasedEpisodes(meta) >= 1) return false;
+        }
         return true;
     }
 
@@ -472,17 +477,32 @@
             score: row.score || 0,
         };
         const catalogItem = Number.isFinite(mal) && mal > 0 ? catMap.get(mal) : null;
-        if (catalogItem && kodikReleasedEpisodes(catalogItem) >= 1) {
-            return null;
+        if (catalogItem) {
+            const cst = String(catalogItem.status || '');
+            const hasLink = !!(catalogItem._kodik && catalogItem._kodik.link);
+            if (
+                cst === 'Онгоинг' ||
+                cst === 'Завершён' ||
+                cst === 'Вышел' ||
+                hasLink ||
+                kodikReleasedEpisodes(catalogItem) >= 1
+            ) {
+                return null;
+            }
         }
         if (catalogItem && catalogItem.isKodikCatalog !== false) {
+            // Не подменяем статус каталога принудительно на «Анонс», если уже есть плеер
+            const keepStatus =
+                catalogItem.status === 'Анонс' || !catalogItem.status
+                    ? 'Анонс'
+                    : catalogItem.status;
             return {
                 ...catalogItem,
                 title: row.title_ru || catalogItem.title,
                 titleAlt: row.title_en || catalogItem.titleAlt || catalogItem.title,
                 posterUrl: calRow.posterUrl || catalogItem.posterUrl || '',
-                status: 'Анонс',
-                isKodikCalendarAnnounced: true,
+                status: keepStatus,
+                isKodikCalendarAnnounced: keepStatus === 'Анонс',
                 _calendarRow: calRow,
             };
         }
@@ -846,7 +866,25 @@
     function navigateKodikCard(anime) {
         try {
             global.sessionStorage.setItem('previousUrl', global.location.href);
-            if ((anime.isKodikCalendarAnnounced || anime.isCalendarAnnounced) && anime.mal_id != null) {
+            const idNum = parseInt(anime && anime.id, 10);
+            const isRealCatalogId =
+                Number.isFinite(idNum) && idNum >= 20000000 && idNum < 30000000;
+
+            // Реальный каталог Kodik — ВСЕГДА на id каталога (не virtual 10M+mal).
+            // Иначе session с Not yet aired прячет плеер; в новой вкладке session пуст — «магия».
+            if (isRealCatalogId) {
+                try {
+                    global.sessionStorage.removeItem('jikanAnimeData');
+                } catch (_) {
+                    /* ignore */
+                }
+                global.sessionStorage.setItem('viewAnimeId', String(anime.id));
+                global.location.href = `anime/view.html?id=${encodeURIComponent(String(anime.id))}`;
+                return;
+            }
+
+            // Только тайтлы вне каталога (id вроде kodik-ann-…) — виртуальная карточка
+            if (anime.mal_id != null) {
                 const mal = parseInt(anime.mal_id, 10);
                 if (Number.isFinite(mal) && mal > 0) {
                     const raw = jikanRawFromKodikHomeAnime(anime);

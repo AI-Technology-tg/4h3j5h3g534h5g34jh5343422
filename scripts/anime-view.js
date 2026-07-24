@@ -113,6 +113,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (animeId) {
         const idNum = parseInt(animeId, 10);
         if (!Number.isNaN(idNum) && idNum >= 10000000 && idNum < 20000000) {
+            const malFromVirtual =
+                malId != null && String(malId).trim() !== ''
+                    ? parseInt(malId, 10)
+                    : idNum - 10000000;
+            // Если в каталоге уже есть плеер/серии — уходим с «фейкового анонса» на реальный id
+            if (Number.isFinite(malFromVirtual) && malFromVirtual > 0) {
+                const catalogHit =
+                    typeof getAllAnime === 'function'
+                        ? (getAllAnime() || []).find(
+                              (a) => a && parseInt(a.mal_id, 10) === malFromVirtual
+                          )
+                        : null;
+                if (catalogHit && catalogHit.id != null) {
+                    const last = parseInt(catalogHit._kodik && catalogHit._kodik.lastEpisode, 10);
+                    const hasLink = !!(catalogHit._kodik && catalogHit._kodik.link);
+                    const st = String(catalogHit.status || '');
+                    if (
+                        (Number.isFinite(last) && last >= 1) ||
+                        hasLink ||
+                        st === 'Онгоинг' ||
+                        st === 'Завершён' ||
+                        st === 'Вышел'
+                    ) {
+                        try {
+                            sessionStorage.removeItem('jikanAnimeData');
+                            sessionStorage.setItem('viewAnimeId', String(catalogHit.id));
+                        } catch (_) {
+                            /* ignore */
+                        }
+                        window.location.replace(
+                            `../anime/view.html?id=${encodeURIComponent(String(catalogHit.id))}`
+                        );
+                        return;
+                    }
+                }
+            }
             const resolved = await resolveVirtualJikanView(animeId, malId);
             if (resolved && resolved.jikan) {
                 clearTimeout(loadingTimeout);
@@ -2230,6 +2266,17 @@ function isJikanAnnouncedAnime(anime) {
 
 function isAnnouncedCatalogAnime(anime) {
     if (!anime) return false;
+    // Уже выходит / вышло / есть серии или ссылка Kodik — не режим «только анонс» (без плеера)
+    const st = String(anime.status || '');
+    if (st === 'Онгоинг' || st === 'Завершён' || st === 'Вышел') return false;
+    if (anime._kodik && anime._kodik.link) return false;
+    const last = parseInt(anime._kodik && anime._kodik.lastEpisode, 10);
+    if (Number.isFinite(last) && last >= 1) return false;
+    const epStr = String(anime.episodes != null ? anime.episodes : '').trim();
+    const range = epStr.match(/(\d+)\s*-\s*(\d+)/);
+    const hi = range ? parseInt(range[2], 10) : parseInt(epStr, 10);
+    if (Number.isFinite(hi) && hi >= 1) return false;
+
     if (anime.isCalendarAnnounced) return true;
     if (anime.status === 'Анонс') return true;
     return isJikanAnnouncedAnime(anime);

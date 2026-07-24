@@ -93,8 +93,11 @@
 
         if (isKidsCartoonRow(row, catalogMeta)) return false;
 
-        // В каталоге уже есть вышедшие серии — это онгоинг, не анонс
+        // В каталоге уже идёт / вышло / есть плеер — не анонс (даже если calendar.json ещё «anons»)
         if (catalogMeta) {
+            const cst = String(catalogMeta.status || '');
+            if (cst === 'Онгоинг' || cst === 'Завершён' || cst === 'Вышел') return false;
+            if (catalogMeta._kodik && catalogMeta._kodik.link) return false;
             const last = parseInt(
                 catalogMeta._kodik && catalogMeta._kodik.lastEpisode != null
                     ? catalogMeta._kodik.lastEpisode
@@ -106,7 +109,6 @@
             const range = epStr.match(/(\d+)\s*-\s*(\d+)/);
             const hi = range ? parseInt(range[2], 10) : parseInt(epStr, 10);
             if (Number.isFinite(hi) && hi >= 1) return false;
-            if (catalogMeta.status === 'Онгоинг' && Number.isFinite(hi) && hi >= 1) return false;
         }
         return true;
     }
