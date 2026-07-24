@@ -1025,7 +1025,9 @@ function _isMinkoAngryInputBlocked() {
     const angryState = typeof getMinkoAngryState === 'function' ? getMinkoAngryState() : null;
     if (!angryState) return false;
     const now = Date.now();
-    if (angryState.blockedForever) return true;
+    const authed = typeof isAuthenticatedSync === 'function' && isAuthenticatedSync();
+    // После входа при blockedForever можно писать «прости»
+    if (angryState.blockedForever) return !authed;
     if (angryState.blockedUntil && now < angryState.blockedUntil) return true;
     return false;
 }
@@ -2402,6 +2404,29 @@ function saveMinkoAngryState(blockedUntil, blockedForever = false) {
 // Очистить состояние обиды
 function clearMinkoAngryState() {
     localStorage.removeItem(MINKO_ANGRY_STORAGE_KEY);
+    try {
+        sessionStorage.removeItem('minko_forgive_prompt_v1');
+    } catch (_) {
+        /* ignore */
+    }
+}
+
+/** Разрешить ввод, чтобы авторизованный пользователь мог попросить прощения. */
+function _enableInputForApology() {
+    const chatForm = document.getElementById('chatForm');
+    const blockedPanel = document.getElementById('blockedForeverPanel');
+    const timerBlock = document.getElementById('angryTimerBlock');
+    const chatInputEl = document.getElementById('chatInput');
+    const sendButtonEl = document.getElementById('sendButton');
+    if (blockedPanel) blockedPanel.remove();
+    if (timerBlock) timerBlock.remove();
+    document.getElementById('guestAuthRequiredPanel')?.remove();
+    if (chatForm) chatForm.style.display = '';
+    if (chatInputEl) {
+        chatInputEl.disabled = false;
+        chatInputEl.placeholder = 'Напиши «прости»…';
+    }
+    if (sendButtonEl) sendButtonEl.disabled = false;
 }
 
 // Получить количество попыток без авторизации
@@ -2727,7 +2752,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Проверяем постоянную блокировку
         if (angryState.blockedForever) {
             if (typeof isAuthenticatedSync === 'function' && isAuthenticatedSync()) {
-                // Пользователь авторизован, можно просить прощения
+                // Не перехватываем ввод авто-дозапросом, пока ждём «прости»
+                if (typeof _clearMinkoPendingReply === 'function') _clearMinkoPendingReply();
+                _enableInputForApology();
                 showForgivenessMessage();
             } else {
                 // Пользователь не авторизован - показываем блокировку
@@ -3368,6 +3395,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (_minkoRemoteOffActive) return;
         if (_isMinkoDeepAsleep() > 0) return;
         if (_isMinkoWakeGamePending()) return;
+        // Пока ждём «прости» после входа — не перехватываем ввод авто-дозапросом
+        try {
+            const angry = typeof getMinkoAngryState === 'function' ? getMinkoAngryState() : null;
+            if (angry && angry.blockedForever) {
+                _clearMinkoPendingReply();
+                return;
+            }
+        } catch (_) {
+            /* ignore */
+        }
 
         const unanswered = _getMinkoUnansweredUserMessage();
         if (!unanswered) return;
@@ -3743,8 +3780,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Проверить, просит ли пользователь прощения, и ответить
     async function checkApologyAndRespond(message) {
-        chatInput.disabled = true;
-        sendButton.disabled = true;
+        const chatInputEl = document.getElementById('chatInput') || chatInput;
+        const sendButtonEl = document.getElementById('sendButton') || sendButton;
+        if (chatInputEl) chatInputEl.disabled = true;
+        if (sendButtonEl) sendButtonEl.disabled = true;
         _setChatStatusText('Minko сонно думает… ✨💤');
 
         try {
@@ -3760,13 +3799,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 unblockInput();
             } else {
                 getAIResponseForForgiveness(false);
+                _enableInputForApology();
             }
         } catch (error) {
             console.error('Ошибка проверки прощения:', error);
             getAIResponseForForgiveness(false);
+            _enableInputForApology();
         } finally {
-            chatInput.disabled = false;
-            sendButton.disabled = false;
+            const stillAngry = typeof getMinkoAngryState === 'function' ? getMinkoAngryState() : null;
+            if (stillAngry && stillAngry.blockedForever) {
+                _enableInputForApology();
+            } else {
+                if (chatInputEl) chatInputEl.disabled = false;
+                if (sendButtonEl) sendButtonEl.disabled = false;
+            }
             _setSleepyIdleStatus();
         }
     }
@@ -4096,6 +4142,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Показать сообщение о возможности попросить прощения (заготовленная фраза)
     function showForgivenessMessage() {
+        try {
+            if (sessionStorage.getItem('minko_forgive_prompt_v1') === '1') return;
+        } catch (_) {
+            /* ignore */
+        }
+
+        const alreadyInDom = chatMessages
+            ? Array.from(chatMessages.querySelectorAll('.message-assistant .message-bubble, .message-assistant .minko-msg-bubble')).some(
+                  (el) => /все еще дуюсь на тебя/i.test(el.textContent || '')
+              )
+            : false;
+        if (alreadyInDom) {
+            try {
+                sessionStorage.setItem('minko_forgive_prompt_v1', '1');
+            } catch (_) {
+                /* ignore */
+            }
+            return;
+        }
+
         const currentUser = typeof getCurrentUserSync === 'function' ? getCurrentUserSync() : null;
         let userGender = 'male';
         if (currentUser && currentUser.id && typeof getUserData === 'function') {
@@ -4104,29 +4170,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 userGender = userData.gender;
             }
         }
-        
-        let message = '';
-        if (userGender === 'female') {
-            message = 'Хорошо, ты авторизовалАсь... Но я все еще дуюсь на тебя! 😤 Проси прощение, хи-хи';
-        } else {
-            message = 'Хорошо, ты авторизовался... Но я все еще дуюсь на тебя! 😤 Проси прощение, хи-хи';
+
+        const message =
+            userGender === 'female'
+                ? 'Хорошо, ты авторизовалАсь... Но я все еще дуюсь на тебя! 😤 Проси прощение, хи-хи'
+                : 'Хорошо, ты авторизовался... Но я все еще дуюсь на тебя! 😤 Проси прощение, хи-хи';
+
+        try {
+            sessionStorage.setItem('minko_forgive_prompt_v1', '1');
+        } catch (_) {
+            /* ignore */
         }
 
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message message-assistant';
-        messageDiv.innerHTML = `
-            <div class="message-avatar">
-                ${_minkoAvatarHtml('bubble')}
-            </div>
-            <div class="message-content">
-                <div class="message-bubble">
-                    <p>${message}</p>
-                </div>
-            </div>
-        `;
-        
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        addMessage('assistant', message);
     }
 
     function addMessage(role, content, third) {
