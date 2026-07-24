@@ -592,9 +592,12 @@ function createAnimeCard(anime, clickHandler) {
     }
 
     const malForPoster = anime.mal_id != null ? parseInt(anime.mal_id, 10) : NaN;
+    const posterWeak =
+        typeof isWeakPosterSource === 'function' ? isWeakPosterSource(posterUrl) : !posterUrl;
 
-    // Всегда сверяем постер по MAL (сезон-точно); поиск по названию — только без MAL
+    // Сеть только для пустых/слабых постеров — иначе лавина API и лаги
     if (
+        (!posterUrl || posterWeak) &&
         !anime.isJikanVirtual &&
         Number.isFinite(malForPoster) &&
         malForPoster > 0 &&
@@ -602,7 +605,6 @@ function createAnimeCard(anime, clickHandler) {
     ) {
         card.dataset.posterDisplayTitle = stats.title;
         card.dataset.posterMalId = String(malForPoster);
-        // Слабый / пустой — грузим сразу; «нормальный» каталожный — тоже сверим в фоне
         loadAnimePosterLazy(card, stats.titleAlt ? [stats.titleAlt, stats.title] : stats.title, gradient);
     } else if (!posterUrl && !anime.isJikanVirtual && typeof getAnimePoster === 'function' && stats.title) {
         const searchTitles = stats.titleAlt ? [stats.titleAlt, stats.title] : stats.title;
@@ -741,13 +743,7 @@ async function loadAnimePosterAsync(card, title, fallbackGradient) {
                 id: card.dataset.id,
                 posterUrl: currentUrl || undefined,
             };
-            // Сначала verified API; иначе общий fetch с fallback на каталог
-            if (typeof fetchVerifiedPosterUrlForMal === 'function') {
-                posterUrl = await fetchVerifiedPosterUrlForMal(mal, animeStub);
-            }
-            if (!posterUrl) {
-                posterUrl = await fetchPosterUrlForMal(mal, animeStub);
-            }
+            posterUrl = await fetchPosterUrlForMal(mal, animeStub);
         }
 
         if (!posterUrl && title) {

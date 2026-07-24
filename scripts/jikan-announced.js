@@ -548,6 +548,35 @@
         global.location.href = `${base}?id=${encodeURIComponent(String(virtualId))}&mal_id=${encodeURIComponent(String(mal))}`;
     }
 
+    const _posterResolveInflight = new Map();
+    const _posterResolveQueue = [];
+    let _posterResolveActive = 0;
+    const POSTER_RESOLVE_CONCURRENCY = 2;
+
+    function enqueuePosterResolve(fn) {
+        return new Promise((resolve) => {
+            _posterResolveQueue.push({ fn, resolve });
+            pumpPosterResolveQueue();
+        });
+    }
+
+    function pumpPosterResolveQueue() {
+        while (_posterResolveActive < POSTER_RESOLVE_CONCURRENCY && _posterResolveQueue.length) {
+            const job = _posterResolveQueue.shift();
+            _posterResolveActive += 1;
+            Promise.resolve()
+                .then(() => job.fn())
+                .then(
+                    (v) => job.resolve(v),
+                    () => job.resolve('')
+                )
+                .finally(() => {
+                    _posterResolveActive -= 1;
+                    pumpPosterResolveQueue();
+                });
+        }
+    }
+
     async function fetchVerifiedPosterUrlForMal(malId, anime) {
         const mal = parseInt(malId, 10);
         if (!Number.isFinite(mal) || mal <= 0) return '';
@@ -555,67 +584,58 @@
         const cached = readMalPosterCache(mal);
         if (cached) return cached;
 
-        // Только API по MAL-id (сезон-точно). Каталожный posterUrl сюда не берём —
-        // у разных сезонов часто один и тот же KP/чужой CDN.
-        if (global.shikimoriApi?.readCachedByMalId) {
-            const sh = global.shikimoriApi.readCachedByMalId(mal);
-            const u = shikimoriPosterUrlFromPath(sh?.image?.original);
-            if (u && !isWeakPosterSource(u)) {
-                writeMalPosterCache(mal, u);
-                return u;
-            }
+        // Dedupe параллельных запросов по одному MAL
+        if (_posterResolveInflight.has(mal)) {
+            return _posterResolveInflight.get(mal);
         }
 
-        if (typeof global.fetchAnilistPosterByMalId === 'function') {
-            try {
-                const u = await global.fetchAnilistPosterByMalId(mal);
-                if (u && !isWeakPosterSource(u)) {
-                    writeMalPosterCache(mal, u);
-                    return u;
-                }
-            } catch (_) {
-                /* ignore */
-            }
-        }
-
-        try {
-            if (typeof global.jikanFetchPosterByMalId === 'function') {
-                const u = await global.jikanFetchPosterByMalId(mal);
-                if (u && !isWeakPosterSource(u)) {
-                    writeMalPosterCache(mal, u);
-                    return u;
-                }
-            }
-            if (typeof global.jikanFetchAnimeFullByMalId === 'function') {
-                const full = await global.jikanFetchAnimeFullByMalId(mal);
-                const u = jikanPosterFromAnime(full);
-                if (u && !isWeakPosterSource(u)) {
-                    writeMalPosterCache(mal, u);
-                    return u;
-                }
-            }
-        } catch (_) {
-            /* ignore */
-        }
-
-        const searchTitles = reminkoCollectPosterSearchTitles(anime, mal);
-        if (global.shikimoriApi?.enqueueFetchShikimoriByMalId) {
-            try {
-                const sh = await global.shikimoriApi.enqueueFetchShikimoriByMalId(
-                    mal,
-                    searchTitles[0] || ''
-                );
+        const run = enqueuePosterResolve(async () => {
+            // 1) Shikimori из памяти (без сети)
+            if (global.shikimoriApi?.readCachedByMalId) {
+                const sh = global.shikimoriApi.readCachedByMalId(mal);
                 const u = shikimoriPosterUrlFromPath(sh?.image?.original);
                 if (u && !isWeakPosterSource(u)) {
                     writeMalPosterCache(mal, u);
                     return u;
                 }
+            }
+
+            // 2) Shikimori по MAL — без AniList (в браузере CORS/рейтлимит → лаги)
+            const searchTitles = reminkoCollectPosterSearchTitles(anime, mal);
+            if (global.shikimoriApi?.enqueueFetchShikimoriByMalId) {
+                try {
+                    const sh = await global.shikimoriApi.enqueueFetchShikimoriByMalId(
+                        mal,
+                        searchTitles[0] || ''
+                    );
+                    const u = shikimoriPosterUrlFromPath(sh?.image?.original);
+                    if (u && !isWeakPosterSource(u)) {
+                        writeMalPosterCache(mal, u);
+                        return u;
+                    }
+                } catch (_) {
+                    /* ignore */
+                }
+            }
+
+            // 3) Jikan по MAL (свой rate-limit)
+            try {
+                if (typeof global.jikanFetchPosterByMalId === 'function') {
+                    const u = await global.jikanFetchPosterByMalId(mal);
+                    if (u && !isWeakPosterSource(u)) {
+                        writeMalPosterCache(mal, u);
+                        return u;
+                    }
+                }
             } catch (_) {
                 /* ignore */
             }
-        }
 
-        return '';
+            return '';
+        });
+
+        _posterResolveInflight.set(mal, run);
+        return run;
     }
 
     async function fetchPosterUrlForMal(malId, anime) {
@@ -657,8 +677,19 @@
         const initial = String(img.getAttribute('src') || img.src || '');
         const initialOk = initial && !isWeakPosterSource(initial) && !initial.startsWith('data:');
 
-        // Даже при «нормальном» src из каталога сверяем с MAL — иначе дубли сезонов
+        // Уже нормальный постер: только sync-апгрейд из кэша Shiki/MAL, без сетевого шторма
         if (initialOk) {
+            const cached = readMalPosterCache(mal);
+            if (cached && cached !== initial) {
+                img.src = cached;
+            } else if (global.shikimoriApi?.readCachedByMalId) {
+                const sh = global.shikimoriApi.readCachedByMalId(mal);
+                const u = shikimoriPosterUrlFromPath(sh?.image?.original);
+                if (u && !isWeakPosterSource(u) && u !== initial) {
+                    writeMalPosterCache(mal, u);
+                    img.src = u;
+                }
+            }
             img.onerror = () => {
                 if (!img.isConnected) return;
                 void fetchPosterUrlForMal(mal, anime).then((url) => {
@@ -670,15 +701,6 @@
                     }
                 });
             };
-            void (async () => {
-                const url = await fetchVerifiedPosterUrlForMal(mal, anime);
-                if (!img.isConnected || !url) return;
-                const cur = String(img.getAttribute('src') || img.src || '');
-                if (url !== cur) {
-                    img.classList.remove('is-poster-missing');
-                    img.src = url;
-                }
-            })();
             return;
         }
 
@@ -713,8 +735,8 @@
     }
 
     async function prefetchPosterUrlsForMals(entries, opts) {
-        const concurrency = Math.max(1, Math.min(6, parseInt(opts?.concurrency, 10) || 4));
-        const delayMs = Math.max(0, parseInt(opts?.delayMs, 10) || 320);
+        const concurrency = Math.max(1, Math.min(3, parseInt(opts?.concurrency, 10) || 2));
+        const delayMs = Math.max(0, parseInt(opts?.delayMs, 10) || 450);
         const list = Array.isArray(entries) ? entries : [];
         const queue = [];
         const seen = new Set();

@@ -1319,20 +1319,11 @@ async function loadFavoritePosters() {
                 mal > 0 &&
                 typeof fetchPosterUrlForMal === 'function'
             ) {
-                if (typeof fetchVerifiedPosterUrlForMal === 'function') {
-                    posterUrl = await fetchVerifiedPosterUrlForMal(mal, {
-                        mal_id: mal,
-                        title,
-                        titleAlt: title,
-                    });
-                }
-                if (!posterUrl) {
-                    posterUrl = await fetchPosterUrlForMal(mal, {
-                        mal_id: mal,
-                        title,
-                        titleAlt: title,
-                    });
-                }
+                posterUrl = await fetchPosterUrlForMal(mal, {
+                    mal_id: mal,
+                    title,
+                    titleAlt: title,
+                });
             } else if (type === 'anime' && title && typeof getAnimePosterFast === 'function') {
                 posterUrl = await getAnimePosterFast(title);
             } else if (type === 'manga' && title && typeof getMangaPosterFast === 'function') {
