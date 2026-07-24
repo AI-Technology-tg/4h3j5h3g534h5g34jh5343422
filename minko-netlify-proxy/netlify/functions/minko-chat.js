@@ -16,6 +16,14 @@ const WEB_ON = String(process.env.MINKO_WEB_SEARCH || '1').trim() === '1';
 const OPENAI_WEB_SEARCH = String(process.env.MINKO_OPENAI_WEB_SEARCH || '1').trim() === '1';
 const TAVILY_KEY = (process.env.TAVILY_API_KEY || process.env.MINKO_TAVILY_API_KEY || '').trim();
 const SERPAPI_KEY = (process.env.SERPAPI_API_KEY || process.env.MINKO_SERPAPI_KEY || '').trim();
+/** Бесплатные альтернативы с большим лимитом (опционально) */
+const UNSEARCH_KEY = (process.env.UNSEARCH_API_KEY || process.env.MINKO_UNSEARCH_KEY || '').trim();
+const SEARCHX_KEY = (process.env.SEARCHX_API_KEY || process.env.MINKO_SEARCHX_KEY || '').trim();
+/**
+ * 1 = сначала бесплатный scrape (DDG/Bing/Google HTML), платные API — только если scrape пуст.
+ * Экономит кредиты Tavily. По умолчанию включено.
+ */
+const SEARCH_FREE_FIRST = String(process.env.MINKO_SEARCH_FREE_FIRST || '1').trim() !== '0';
 const JIKAN = 'https://api.jikan.moe/v4';
 
 /** Домены аниме/манги для web_search filters (как «гугл только по теме») */
@@ -1270,7 +1278,7 @@ async function searchTavily(query) {
     }
 }
 
-/** SerpAPI (Google) — альтернатива Tavily */
+/** SerpAPI (Google) — платно, не рекомендуем */
 async function searchSerpApi(query) {
     if (!SERPAPI_KEY) return [];
     const ac = new AbortController();
@@ -1299,41 +1307,145 @@ async function searchSerpApi(query) {
     }
 }
 
+/** UnSearch — бесплатно ~5000/мес, API совместим с Tavily: https://unsearch.dev */
+async function searchUnsearch(query) {
+    if (!UNSEARCH_KEY) return [];
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 9000);
+    try {
+        const r = await fetch('https://api.unsearch.dev/api/v1/search', {
+            method: 'POST',
+            signal: ac.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': UNSEARCH_KEY,
+                Authorization: 'Bearer ' + UNSEARCH_KEY
+            },
+            body: JSON.stringify({
+                api_key: UNSEARCH_KEY,
+                query: String(query || '').slice(0, 400),
+                max_results: 6,
+                search_depth: 'basic',
+                include_answer: false
+            })
+        });
+        if (!r.ok) {
+            console.error('[minko-chat] UnSearch HTTP', r.status);
+            return [];
+        }
+        const j = await r.json();
+        const rows = Array.isArray(j.results) ? j.results : [];
+        return rows
+            .map((x) => ({
+                title: x.title || '',
+                url: x.url || '',
+                content: x.content || x.snippet || ''
+            }))
+            .filter((x) => x.url || x.content);
+    } catch (e) {
+        console.error('[minko-chat] UnSearch error', e && e.message ? e.message : e);
+        return [];
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+/** SearchX — бесплатно до ~3000 запросов/день: https://searchx.dev */
+async function searchSearchX(query) {
+    if (!SEARCHX_KEY) return [];
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 9000);
+    try {
+        const url =
+            'https://searchx.dev/api/v1/search?q=' +
+            encodeURIComponent(String(query || '').slice(0, 400)) +
+            '&mode=hybrid';
+        const r = await fetch(url, {
+            signal: ac.signal,
+            headers: { Authorization: 'Bearer ' + SEARCHX_KEY, Accept: 'application/json' }
+        });
+        if (!r.ok) {
+            console.error('[minko-chat] SearchX HTTP', r.status);
+            return [];
+        }
+        const j = await r.json();
+        const rows = Array.isArray(j.results)
+            ? j.results
+            : Array.isArray(j.data)
+              ? j.data
+              : Array.isArray(j.items)
+                ? j.items
+                : [];
+        return rows
+            .map((x) => ({
+                title: x.title || x.name || '',
+                url: x.url || x.link || x.href || '',
+                content: x.content || x.snippet || x.description || x.text || ''
+            }))
+            .filter((x) => x.url || x.content);
+    } catch (e) {
+        console.error('[minko-chat] SearchX error', e && e.message ? e.message : e);
+        return [];
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+/** Бесплатный scrape без ключей (DDG + Bing + Google HTML + страницы) */
+async function searchFreeScrape(userText) {
+    try {
+        const web = await fetchInternetResearch(userText);
+        if (web && web.length > 80) {
+            return [{ title: 'Веб-сводка (бесплатный поиск)', url: '', content: web.slice(0, 6000) }];
+        }
+    } catch {
+        /* ignore */
+    }
+    return [];
+}
+
 /**
  * Поиск в интернете для аниме-вопроса.
- * Приоритет: Tavily → SerpAPI → наш scrape (Google/Bing/DDG + страницы).
+ * По умолчанию: бесплатный scrape → UnSearch/SearchX → Tavily → SerpAPI
+ * (чтобы не жечь кредиты Tavily зря).
  */
 async function searchAnimeWeb(userText) {
     const q = buildAnimeWebQuery(userText);
     if (!q) return { provider: '', results: [], sourcesText: '' };
+    const qAnime = q + ' anime';
 
     let provider = '';
     let results = [];
 
-    if (TAVILY_KEY) {
-        results = await searchTavily(q + ' anime');
-        if (results.length) provider = 'tavily';
-    }
-    if (!results.length && SERPAPI_KEY) {
-        results = await searchSerpApi(q + ' anime');
-        if (results.length) provider = 'serpapi';
-    }
-    if (!results.length) {
-        // scrape → превратим в «источники»
+    const tryProvider = async (name, fn) => {
+        if (results.length) return;
         try {
-            const web = await fetchInternetResearch(userText);
-            if (web && web.length > 80) {
-                provider = 'scrape';
-                results = [{ title: 'Веб-сводка', url: '', content: web.slice(0, 6000) }];
+            const got = await fn();
+            if (got && got.length) {
+                results = got;
+                provider = name;
             }
-        } catch {
-            /* ignore */
+        } catch (e) {
+            console.warn('[minko-chat] search provider fail', name, e && e.message ? e.message : e);
         }
-    }
+    };
 
-    // Предпочитаем аниме-домены, но не выкидываем всё остальное
+    if (SEARCH_FREE_FIRST) {
+        await tryProvider('free-scrape', () => searchFreeScrape(userText));
+    }
+    await tryProvider('unsearch', () => searchUnsearch(qAnime));
+    await tryProvider('searchx', () => searchSearchX(qAnime));
+    if (!SEARCH_FREE_FIRST) {
+        await tryProvider('free-scrape', () => searchFreeScrape(userText));
+    }
+    // Платные — только если бесплатные пустые
+    await tryProvider('tavily', () => searchTavily(qAnime));
+    await tryProvider('serpapi', () => searchSerpApi(qAnime));
+
     const preferred = results.filter((r) => isAnimePreferredUrl(r.url));
-    const ordered = preferred.length ? [...preferred, ...results.filter((r) => !isAnimePreferredUrl(r.url))] : results;
+    const ordered = preferred.length
+        ? [...preferred, ...results.filter((r) => !isAnimePreferredUrl(r.url))]
+        : results;
     const top = ordered.slice(0, 6);
     return {
         provider,
