@@ -92,6 +92,22 @@
         if (st !== 'anons' && st !== 'announcement') return false;
 
         if (isKidsCartoonRow(row, catalogMeta)) return false;
+
+        // В каталоге уже есть вышедшие серии — это онгоинг, не анонс
+        if (catalogMeta) {
+            const last = parseInt(
+                catalogMeta._kodik && catalogMeta._kodik.lastEpisode != null
+                    ? catalogMeta._kodik.lastEpisode
+                    : NaN,
+                10
+            );
+            if (Number.isFinite(last) && last >= 1) return false;
+            const epStr = String(catalogMeta.episodes || '');
+            const range = epStr.match(/(\d+)\s*-\s*(\d+)/);
+            const hi = range ? parseInt(range[2], 10) : parseInt(epStr, 10);
+            if (Number.isFinite(hi) && hi >= 1) return false;
+            if (catalogMeta.status === 'Онгоинг' && Number.isFinite(hi) && hi >= 1) return false;
+        }
         return true;
     }
 

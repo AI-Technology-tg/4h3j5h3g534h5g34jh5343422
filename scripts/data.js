@@ -1034,8 +1034,23 @@ function filterAnime(filters) {
             typeof window.reminkoEffectiveAnimeStatus === 'function'
                 ? (anime) => window.reminkoEffectiveAnimeStatus(anime)
                 : (anime) => anime.status;
+        const releasedEps = (anime) => {
+            if (!anime) return 0;
+            const last = parseInt(anime._kodik && anime._kodik.lastEpisode, 10);
+            if (Number.isFinite(last) && last >= 0) return last;
+            const epStr = String(anime.episodes != null ? anime.episodes : '').trim();
+            const range = epStr.match(/(\d+)\s*-\s*(\d+)/);
+            if (range) return parseInt(range[2], 10) || 0;
+            const n = parseInt(epStr, 10);
+            return Number.isFinite(n) && n > 0 ? n : 0;
+        };
         results = results.filter((anime) =>
-            filters.status.some((s) => statusAliases(s, effectiveStatus(anime)))
+            filters.status.some((s) => {
+                if (!statusAliases(s, effectiveStatus(anime))) return false;
+                // «Анонс» только без вышедших серий (иначе это онгоинг с кривым статусом)
+                if (s === 'Анонс' && releasedEps(anime) >= 1) return false;
+                return true;
+            })
         );
     }
     

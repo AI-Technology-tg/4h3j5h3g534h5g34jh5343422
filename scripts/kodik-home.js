@@ -85,7 +85,11 @@
         if (!filter || !row) return false;
         const mal = parseInt(row.mal_id, 10);
         const meta = Number.isFinite(mal) && mal > 0 ? catalogByMalMap().get(mal) : null;
-        return filter.isKodikAnnouncedRow(row, meta);
+        if (!filter.isKodikAnnouncedRow(row, meta)) return false;
+        // Уже выходят серии в каталоге — это онгоинг, не анонс
+        if (meta && kodikReleasedEpisodes(meta) >= 1) return false;
+        if (meta && meta.status === 'Онгоинг' && kodikReleasedEpisodes(meta) >= 1) return false;
+        return true;
     }
 
     async function loadCalendarMalIds() {
@@ -183,22 +187,20 @@
         return kodikReleasedEpisodes(anime) >= 1;
     }
 
-    /** Детские / ежедневные мультсериалы — не в ленте «Сейчас выходят». */
+    /**
+     * Детские / ежедневные мультсериалы — не в ленте «Сейчас выходят».
+     * Только явный kids-фильтр (MAL/жанр/название).
+     * НЕ вызывать reminkoIsKidsCartoonCalendarRow: там mislabeled-premiere
+     * помечает любой онгоинг с 2+ сериями как «мульт» → лента пустеет.
+     */
     function isKidsCartoonForHomeAiring(anime) {
         if (!anime) return false;
-        const row = {
-            mal_id: anime.mal_id,
-            title_ru: anime.title,
-            title: anime.title,
-        };
         const filter = kodikAnnouncedFilter();
-        if (filter && typeof filter.isKidsCartoonRow === 'function' && filter.isKidsCartoonRow(row, anime)) {
-            return true;
-        }
-        if (typeof global.reminkoIsKidsCartoonCalendarRow === 'function') {
-            return global.reminkoIsKidsCartoonCalendarRow(row, anime);
-        }
-        return false;
+        if (!filter || typeof filter.isKidsCartoonRow !== 'function') return false;
+        return filter.isKidsCartoonRow(
+            { mal_id: anime.mal_id, title_ru: anime.title, title: anime.title },
+            anime
+        );
     }
 
     function malPosterUrl(malId) {
@@ -470,6 +472,9 @@
             score: row.score || 0,
         };
         const catalogItem = Number.isFinite(mal) && mal > 0 ? catMap.get(mal) : null;
+        if (catalogItem && kodikReleasedEpisodes(catalogItem) >= 1) {
+            return null;
+        }
         if (catalogItem && catalogItem.isKodikCatalog !== false) {
             return {
                 ...catalogItem,
@@ -521,7 +526,8 @@
         for (const row of _kodikAnnouncedItems || []) {
             if (!isKodikAnnouncedRowActive(row)) continue;
             if (!calendarRowMatchesMedia(row, m)) continue;
-            list.push(announcedCardFromKodikRow(row, catMap));
+            const card = announcedCardFromKodikRow(row, catMap);
+            if (card) list.push(card);
         }
 
         const existingMals = new Set(
