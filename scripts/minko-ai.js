@@ -29,12 +29,12 @@ async function _minkoChatRequestHeaders() {
 const GROK_PROXY_ROOT = 'http://localhost:3333';
 
 /** Видео-аватар Minko (на мобилке — статичный JPG, иначе лагает) */
-const MINKO_STATIC_AVATAR_SRC = 'Fons/AI%20ICON.jpg';
+const MINKO_STATIC_AVATAR_SRC = 'Fons/AI-ICON.jpg?v=4';
 const MINKO_VIDEO_AVATAR_36 =
-    '<video class="minko-chat-ava" width="36" height="36" playsinline muted loop autoplay poster="Fons/AI%20ICON.jpg" preload="metadata">' +
+    '<video class="minko-chat-ava" width="36" height="36" playsinline muted loop autoplay poster="Fons/AI-ICON.jpg?v=4" preload="metadata">' +
     '<source src="Fons/AI%20ICON.mp4" type="video/mp4" /><source src="Fons/AI%20ICON.webm" type="video/webm" /></video>';
 const MINKO_VIDEO_AVATAR_BUBBLE =
-    '<video class="minko-chat-ava" playsinline muted loop autoplay poster="Fons/AI%20ICON.jpg" preload="metadata" ' +
+    '<video class="minko-chat-ava" playsinline muted loop autoplay poster="Fons/AI-ICON.jpg?v=4" preload="metadata" ' +
     'style="width:100%;height:100%;object-fit:cover;border-radius:50%">' +
     '<source src="Fons/AI%20ICON.mp4" type="video/mp4" /><source src="Fons/AI%20ICON.webm" type="video/webm" /></video>';
 const MINKO_IMG_AVATAR_36 =

@@ -449,7 +449,7 @@
     function buildOverlay() {
         if (document.getElementById('supportMinkoOverlay')) return;
         const base = assetBase();
-        const avatarSrc = base + 'Fons/AI%20ICON.jpg';
+        const avatarSrc = base + 'Fons/AI-ICON.jpg?v=4';
         const div = document.createElement('div');
         div.id = 'supportMinkoOverlay';
         div.className = 'support-minko-overlay';

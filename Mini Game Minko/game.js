@@ -58,14 +58,14 @@
     function reminkoMinkoAiMediaUrl(filename) {
         const base = new URL('../Fons/', window.location.href);
         const u = new URL(filename, base);
-        u.searchParams.set('v', '3');
+        u.searchParams.set('v', '4');
         return u.href;
     }
 
     function applyMinkoDialogVideoSources() {
         const v = document.getElementById('minkoVideo');
         if (!v) return;
-        v.setAttribute('poster', reminkoMinkoAiMediaUrl('AI%20ICON.jpg'));
+        v.setAttribute('poster', reminkoMinkoAiMediaUrl('AI-ICON.jpg'));
         v.innerHTML = '';
         const sMp4 = document.createElement('source');
         sMp4.src = reminkoMinkoAiMediaUrl('AI%20ICON.mp4');
