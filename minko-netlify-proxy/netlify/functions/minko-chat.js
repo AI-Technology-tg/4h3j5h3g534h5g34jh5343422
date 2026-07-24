@@ -4,10 +4,15 @@
  */
 const GPT_URL = 'https://api.openai.com/v1/chat/completions';
 const GPT_KEY = process.env.OPENAI_API_KEY || process.env.MINKO_GPT_API_KEY || '';
-const MODEL_DEFAULT = (process.env.MINKO_OPENAI_MODEL || 'gpt-4o').trim();
+/** Одна модель на весь чат. Env MINKO_OPENAI_MODEL опционален — по умолчанию gpt-5.6 */
+const MODEL_DEFAULT = (process.env.MINKO_OPENAI_MODEL || 'gpt-5.6').trim();
 const MODEL_VIP = (process.env.MINKO_OPENAI_MODEL_VIP || MODEL_DEFAULT).trim();
 const WEB_ON = String(process.env.MINKO_WEB_SEARCH || '1').trim() === '1';
 const JIKAN = 'https://api.jikan.moe/v4';
+
+function isGpt5Family(model) {
+    return /^gpt-5/i.test(String(model || '')) || /^o[0-9]/i.test(String(model || ''));
+}
 
 const { corsHeaders: buildCorsHeaders, clientIp } = require('./_cors');
 
@@ -475,18 +480,26 @@ ${dataBlock}
 }
 
 async function callOpenAI(messages, model, maxTokens, temperature) {
+    const body = {
+        model,
+        messages
+    };
+    // GPT-5.x: max_completion_tokens + лёгкий reasoning (чат, не олимпиада)
+    if (isGpt5Family(model)) {
+        body.max_completion_tokens = maxTokens;
+        body.reasoning_effort = 'low';
+    } else {
+        body.max_tokens = maxTokens;
+        body.temperature = temperature;
+    }
+
     const r = await fetch(GPT_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             Authorization: 'Bearer ' + GPT_KEY
         },
-        body: JSON.stringify({
-            model,
-            messages,
-            max_tokens: maxTokens,
-            temperature
-        })
+        body: JSON.stringify(body)
     });
     const data = await r.json();
     if (!r.ok || !data.choices || !data.choices[0]) {
@@ -559,9 +572,10 @@ exports.handler = async (event) => {
     const systemContent = buildSystemPrompt(userGender, isVip, researchBlock);
     const msgs = [{ role: 'system', content: systemContent }, ...nonSystem];
 
-    const model = isVip ? MODEL_VIP : MODEL_DEFAULT;
-    const maxTok = isVip ? 4096 : 3200;
-    const temp = isVip ? 0.68 : 0.72;
+    // Одна модель для всех (VIP не повышает приоритет модели)
+    const model = MODEL_DEFAULT;
+    const maxTok = 4096;
+    const temp = 0.72;
 
     try {
         const text = await callOpenAI(msgs, model, maxTok, temp);
