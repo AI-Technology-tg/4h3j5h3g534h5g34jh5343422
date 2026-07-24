@@ -357,6 +357,9 @@ function getAllAnime() {
         }
     }
 
+    const kidsFilter =
+        typeof window !== 'undefined' ? window.ReminkoKodikAnnouncedFilter : null;
+
     const seenIds = new Map();
     const uniqueAnime = [];
 
@@ -368,6 +371,18 @@ function getAllAnime() {
             anime &&
             anime.isJikanVirtual === true &&
             shouldSkipVirtualAnimeAsDuplicate(anime, baseKeysForVirtualDedupe)
+        ) {
+            continue;
+        }
+
+        // Детские мультсериалы / не-аниме вроде ежедневных шоу — вне каталога
+        if (
+            kidsFilter &&
+            typeof kidsFilter.isKidsCartoonRow === 'function' &&
+            kidsFilter.isKidsCartoonRow(
+                { mal_id: anime.mal_id, title_ru: anime.title, title: anime.title },
+                anime
+            )
         ) {
             continue;
         }
@@ -1067,27 +1082,15 @@ function filterAnime(filters) {
             const n = parseInt(epStr, 10);
             return Number.isFinite(n) && n > 0 ? n : 0;
         };
-        const kodikMals = new Set(
-            results
-                .filter((a) => a && a.isKodikCatalog && a.mal_id != null)
-                .map((a) => parseInt(a.mal_id, 10))
-                .filter((n) => Number.isFinite(n) && n > 0)
-        );
         results = results.filter((anime) =>
             filters.status.some((s) => {
                 if (!statusAliases(s, effectiveStatus(anime))) return false;
-                // «Анонс» только реально не вышедшие
+                // «Анонс» в каталоге = только Kodik-премьеры (не сотни Jikan из localStorage).
+                // На главной — отдельная лента из календаря (~10–15 ближайших).
                 if (s === 'Анонс') {
+                    if (anime.isJikanVirtual) return false;
                     if (releasedEps(anime) >= 1) return false;
                     if (anime._kodik && anime._kodik.link) return false;
-                    // Виртуальный Jikan Not yet aired не дублируем, если тайтл уже есть в Kodik
-                    if (anime.isJikanVirtual) {
-                        const mal = parseInt(anime.mal_id, 10);
-                        if (Number.isFinite(mal) && kodikMals.has(mal)) return false;
-                        const js = anime._jikanRaw && anime._jikanRaw.status;
-                        if (js && js !== 'Not yet aired') return false;
-                    }
-                    // Shiki-календарь: ongoing/released — не анонс
                     if (typeof window.reminkoShikimoriCalendarRowForMal === 'function' && anime.mal_id != null) {
                         const row = window.reminkoShikimoriCalendarRowForMal(anime.mal_id);
                         const cst = String((row && row.status) || '').toLowerCase();

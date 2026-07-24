@@ -118,6 +118,7 @@
 }
 
 .home-hero-fav-poster {
+    position: relative;
     display: block;
     width: 72px;
     height: 102px;
@@ -295,6 +296,25 @@
     color: #f8fafc;
     background: rgba(15, 23, 42, 0.82);
     border: 1px solid rgba(168, 85, 247, 0.45);
+    pointer-events: none;
+}
+
+.home-hero-watch-countdown,
+.home-hero-fav-countdown {
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    top: 3px;
+    z-index: 2;
+    padding: 0.12rem 0.2rem;
+    border-radius: 6px;
+    font-size: 0.58rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+    color: #f8fafc;
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(250, 204, 21, 0.45);
     pointer-events: none;
 }
 

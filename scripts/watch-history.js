@@ -102,10 +102,18 @@ function getLastWatchedEpisode(animeId) {
     if (!user) return null;
     
     const history = getWatchHistory(user.id);
-    const animeIdInt = parseInt(animeId);
-    
-    const entry = history.find(entry => entry.animeId === animeIdInt && entry.type === 'anime');
-    return entry ? entry.episodeNumber : null;
+    const animeIdInt = parseInt(animeId, 10);
+    if (!Number.isFinite(animeIdInt)) return null;
+
+    let best = null;
+    for (const entry of history) {
+        if (!entry || entry.type !== 'anime') continue;
+        if (parseInt(entry.animeId, 10) !== animeIdInt) continue;
+        const ep = parseInt(entry.episodeNumber, 10);
+        if (!Number.isFinite(ep) || ep < 1) continue;
+        if (best == null || ep > best) best = ep;
+    }
+    return best;
 }
 
 function getLastReadChapter(mangaId) {

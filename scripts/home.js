@@ -385,8 +385,7 @@ function updateHeroStats() {
         animeCountEl.textContent = formatHeroStatCount(animeCount);
     }
     if (mangaCountEl) {
-        const manga = typeof getAllManga === 'function' ? getAllManga() : [];
-        mangaCountEl.textContent = manga.length || '0';
+        mangaCountEl.textContent = 'В работе';
     }
 
     const seasonBadge = document.querySelector('.badge-season');
@@ -1222,12 +1221,31 @@ function getGroupedRecentAnimeHistory(userId, maxTitles) {
     );
     if (!history.length) return [];
 
+    // По тайтлу: максимальная серия (прогресс) + самое свежее watchedAt (для сортировки ленты)
     const grouped = {};
     for (const entry of history) {
         const id = parseInt(entry.animeId, 10);
+        const ep = parseInt(entry.episodeNumber, 10) || 1;
         const prev = grouped[id];
-        if (!prev || new Date(entry.watchedAt) > new Date(prev.watchedAt)) {
-            grouped[id] = entry;
+        if (!prev) {
+            grouped[id] = { ...entry, episodeNumber: ep };
+            continue;
+        }
+        const prevEp = parseInt(prev.episodeNumber, 10) || 1;
+        if (ep > prevEp) {
+            grouped[id] = {
+                ...entry,
+                episodeNumber: ep,
+                watchedAt:
+                    new Date(entry.watchedAt) > new Date(prev.watchedAt)
+                        ? entry.watchedAt
+                        : prev.watchedAt,
+            };
+        } else if (new Date(entry.watchedAt) > new Date(prev.watchedAt)) {
+            grouped[id] = {
+                ...prev,
+                watchedAt: entry.watchedAt,
+            };
         }
     }
 
@@ -1338,8 +1356,20 @@ async function loadHeroWatchHistory() {
 
         const epBadge = document.createElement('span');
         epBadge.className = 'home-hero-watch-ep-badge';
-        epBadge.textContent = `С${row.episodeNumber}`;
+        const epNum = parseInt(row.episodeNumber, 10) || 1;
+        epBadge.textContent = `${epNum} сер.`;
+        epBadge.title = `Серия ${epNum}`;
         posterWrap.appendChild(epBadge);
+
+        const needsCd =
+            typeof reminkoAnimeNeedsEpisodeCountdown === 'function' &&
+            reminkoAnimeNeedsEpisodeCountdown(a);
+        if (needsCd) {
+            const cd = document.createElement('span');
+            cd.className = 'home-hero-watch-countdown jikan-card-countdown';
+            cd.setAttribute('aria-live', 'polite');
+            posterWrap.appendChild(cd);
+        }
 
         const title = document.createElement('span');
         title.className = 'home-hero-watch-title';
@@ -1389,28 +1419,40 @@ async function loadHeroWatchHistory() {
         reminkoEnhanceHorizontalDragScroll(rowEl, { linkSelector: 'a.home-hero-watch-item' });
     }
     if (typeof initPosterObserver === 'function') initPosterObserver();
+    void hydrateHeroPosterCountdowns(
+        rows.map((r) => r.anime),
+        '.home-hero-watch-card',
+        'data-anime-id'
+    );
 }
 
-async function hydrateHeroWatchCountdowns(rows) {
-    if (!Array.isArray(rows) || !rows.length) return;
+/** Таймер до серии на постерах истории / избранного (онгоинги). */
+async function hydrateHeroPosterCountdowns(animeList, cardSelector, idAttr) {
+    if (!Array.isArray(animeList) || !animeList.length) return;
     if (typeof reminkoResolveAnimeCountdownIso !== 'function') return;
+    if (typeof reminkoAnimeNeedsEpisodeCountdown !== 'function') return;
 
-    const airing = rows.filter(
-        (row) =>
-            row?.anime &&
-            typeof reminkoAnimeNeedsEpisodeCountdown === 'function' &&
-            reminkoAnimeNeedsEpisodeCountdown(row.anime)
-    );
-    if (!airing.length) return;
-
-    for (const row of airing) {
-        const a = row.anime;
+    for (const a of animeList) {
+        if (!a || !reminkoAnimeNeedsEpisodeCountdown(a)) continue;
         const card = document.querySelector(
-            `.home-hero-watch-card[data-anime-id="${CSS.escape(String(a.id))}"]`
+            `${cardSelector}[${idAttr}="${CSS.escape(String(a.id))}"]`
         );
         if (!card) continue;
-        const countdownEl = card.querySelector('.home-hero-watch-countdown');
-        if (!countdownEl || countdownEl.getAttribute('data-countdown-iso')) continue;
+        let countdownEl = card.querySelector('.home-hero-watch-countdown, .home-hero-fav-countdown');
+        if (!countdownEl) {
+            const poster = card.querySelector(
+                '.home-hero-watch-poster, .home-hero-fav-poster'
+            );
+            if (!poster) continue;
+            countdownEl = document.createElement('span');
+            countdownEl.className =
+                cardSelector.includes('fav')
+                    ? 'home-hero-fav-countdown jikan-card-countdown'
+                    : 'home-hero-watch-countdown jikan-card-countdown';
+            countdownEl.setAttribute('aria-live', 'polite');
+            poster.appendChild(countdownEl);
+        }
+        if (countdownEl.getAttribute('data-countdown-iso')) continue;
 
         const mal = a.mal_id != null ? parseInt(a.mal_id, 10) : NaN;
         let shiki = null;
@@ -1506,6 +1548,7 @@ async function loadHeroFavorites() {
         card.className = 'home-hero-fav-card';
         card.href = href;
         card.title = a.title || 'Аниме';
+        card.dataset.animeId = String(a.id);
         card.setAttribute('role', 'listitem');
 
         const poster = document.createElement('span');
@@ -1519,6 +1562,16 @@ async function loadHeroFavorites() {
         const knownPoster = a.posterUrl || '';
         if (knownPoster) img.src = knownPoster;
         poster.appendChild(img);
+
+        if (
+            typeof reminkoAnimeNeedsEpisodeCountdown === 'function' &&
+            reminkoAnimeNeedsEpisodeCountdown(a)
+        ) {
+            const cd = document.createElement('span');
+            cd.className = 'home-hero-fav-countdown jikan-card-countdown';
+            cd.setAttribute('aria-live', 'polite');
+            poster.appendChild(cd);
+        }
 
         const title = document.createElement('span');
         title.className = 'home-hero-fav-title';
@@ -1551,6 +1604,7 @@ async function loadHeroFavorites() {
         reminkoEnhanceHorizontalDragScroll(rowEl, { linkSelector: 'a.home-hero-fav-card' });
     }
     if (typeof initPosterObserver === 'function') initPosterObserver();
+    void hydrateHeroPosterCountdowns(rows, '.home-hero-fav-card', 'data-anime-id');
 }
 
 window.loadHeroFavorites = loadHeroFavorites;

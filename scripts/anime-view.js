@@ -1924,6 +1924,14 @@ function getCatalogEpisodeCursor(anime) {
         /* ignore */
     }
 
+    // Продолжить с последней серии из истории просмотра
+    if (typeof getLastWatchedEpisode === 'function') {
+        const last = parseInt(getLastWatchedEpisode(anime.id), 10);
+        if (Number.isFinite(last) && last >= 1) {
+            return Math.min(last, available);
+        }
+    }
+
     return 1;
 }
 
@@ -2879,19 +2887,15 @@ function playAnime(animeId) {
         hideLoading();
     }
 
-    if (
-        typeof addToWatchHistory === 'function' &&
-        animeEligibleForWatchHistory(anime)
-    ) {
-        addToWatchHistory(animeId, 1);
-    }
-
     currentPlayerAnime = anime;
-    currentEpisode = 1;
+    currentEpisode = getCatalogEpisodeCursor(anime);
     const availableEpisodes = getCatalogAvailableEpisodes(anime);
     if (anime.type === 'Сериал' && availableEpisodes > 1) {
         fillInlineEpisodeSelect(availableEpisodes, currentEpisode);
         updateInlineEpisodeNavButtons();
+    }
+    if (animeEligibleForWatchHistory(anime)) {
+        scheduleWatchHistoryAfterMinute(animeId, currentEpisode);
     }
     void applyActiveWatchProvider(anime, currentEpisode);
     highlightEpisodeCardsInList();

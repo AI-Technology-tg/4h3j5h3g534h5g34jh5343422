@@ -193,6 +193,13 @@ body.theme-dark .home-hero-fav-title {
     color: rgba(243, 232, 255, 0.92) !important;
 }
 
+body.theme-dark .home-hero-watch-countdown,
+body.theme-dark .home-hero-fav-countdown {
+    color: #f8fafc;
+    background: rgba(10, 10, 18, 0.92);
+    border-color: rgba(250, 204, 21, 0.4);
+}
+
 body.theme-dark .home-hero-favs-more,
 body.theme-dark .home-hero-watch-more {
     color: rgba(196, 181, 253, 0.98) !important;

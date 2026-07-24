@@ -320,6 +320,49 @@
                 grid.appendChild(card);
             }
         }
+
+        // Таймеры до следующей серии для онгоингов в избранном
+        void hydrateFavoritesCountdowns(items);
+    }
+
+    async function hydrateFavoritesCountdowns(items) {
+        if (!Array.isArray(items) || !items.length) return;
+        if (typeof reminkoResolveAnimeCountdownIso !== 'function') return;
+        if (typeof reminkoAnimeNeedsEpisodeCountdown !== 'function') return;
+        for (const a of items) {
+            if (!a || !reminkoAnimeNeedsEpisodeCountdown(a)) continue;
+            const card = document.querySelector(
+                `#favoritesGrid .anime-card[data-id="${CSS.escape(String(a.id))}"]`
+            );
+            if (!card) continue;
+            const slot = card.querySelector('[data-countdown-slot]');
+            if (!slot || slot.getAttribute('data-countdown-iso')) continue;
+            const mal = a.mal_id != null ? parseInt(a.mal_id, 10) : NaN;
+            let shiki = null;
+            if (Number.isFinite(mal) && mal > 0 && window.shikimoriApi?.readCachedByMalId) {
+                shiki = window.shikimoriApi.readCachedByMalId(mal);
+            }
+            let iso = reminkoResolveAnimeCountdownIso(a, shiki);
+            if (
+                !iso &&
+                Number.isFinite(mal) &&
+                mal > 0 &&
+                window.shikimoriApi?.enqueueFetchShikimoriByMalId
+            ) {
+                try {
+                    shiki = await window.shikimoriApi.enqueueFetchShikimoriByMalId(
+                        mal,
+                        a.titleAlt || a.title || ''
+                    );
+                    iso = reminkoResolveAnimeCountdownIso(a, shiki);
+                } catch (_) {
+                    /* ignore */
+                }
+            }
+            if (iso && typeof reminkoApplyCompactCountdown === 'function') {
+                reminkoApplyCompactCountdown(slot, iso);
+            }
+        }
     }
 
     const api = {
