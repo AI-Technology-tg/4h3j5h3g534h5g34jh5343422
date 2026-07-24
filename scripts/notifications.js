@@ -1020,6 +1020,7 @@ if (document.readyState === 'loading') {
         const message = (opts && opts.message) || 'Minko проснулась — можно снова писать ✨';
         const link = (opts && opts.link) || minkoWakeLink();
 
+        // Одно уведомление: toast (без дубля в inbox + OS)
         if (window.notificationService && typeof window.notificationService.showNotification === 'function') {
             window.notificationService.showNotification(
                 { title, message, type: 'success', link },
@@ -1028,62 +1029,6 @@ if (document.readyState === 'loading') {
             );
         } else if (typeof showSuccess === 'function') {
             showSuccess(message, { link, withSound: true });
-        }
-
-        if (window.notificationService && (typeof getCurrentUser === 'function' || typeof window.getCurrentUserSync === 'function')) {
-            try {
-                let user = null;
-                if (typeof getCurrentUser === 'function') {
-                    user = await getCurrentUser();
-                }
-                if (!user && typeof window.getCurrentUserSync === 'function') {
-                    user = window.getCurrentUserSync();
-                }
-                if (user && user.id && !user.isAnonymous) {
-                    await window.notificationService.createNotification(
-                        user.id,
-                        'info',
-                        title,
-                        message,
-                        link
-                    );
-                    if (typeof window.notificationService.loadNotifications === 'function') {
-                        await window.notificationService.loadNotifications();
-                    }
-                    if (typeof window.notificationService.updateNotificationBadge === 'function') {
-                        window.notificationService.updateNotificationBadge();
-                    }
-                }
-            } catch (_) {
-                /* ignore */
-            }
-        }
-
-        try {
-            if (typeof Notification !== 'undefined') {
-                if (Notification.permission === 'default') {
-                    try {
-                        await Notification.requestPermission();
-                    } catch (_) {}
-                }
-                if (Notification.permission === 'granted') {
-                    const n = new Notification(title, {
-                        body: message.replace(/\s*✨\s*/g, ' ').trim(),
-                        icon: minkoWakeIconUrl(),
-                        tag: 'minko-ai-wake',
-                        renotify: true,
-                    });
-                    n.onclick = () => {
-                        try {
-                            window.focus();
-                        } catch (_) {}
-                        window.location.href = link;
-                        n.close();
-                    };
-                }
-            }
-        } catch (_) {
-            /* ignore */
         }
     };
 

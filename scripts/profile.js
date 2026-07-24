@@ -249,40 +249,71 @@ async function renderProfile(userData, isViewMode = false) {
 
     const registerDate = userData.registerDate ? new Date(userData.registerDate).toLocaleDateString('ru-RU') : 'Неизвестно';
 
-    // Избранное — для чужого профиля загружаем из Supabase
+    // Избранное — всегда из Supabase (свой и чужой профиль); localStorage только запасной вариант
     let favoritesAnime = [];
     let favoritesManga = [];
-    if (isViewMode && isUUIDFormat && supabaseClient) {
+    try {
+        if (typeof window.KodikCatalogStore?.load === 'function') {
+            await window.KodikCatalogStore.load();
+        }
+    } catch (_) {}
+    try {
+        if (typeof getAllAnimeAsync === 'function') await getAllAnimeAsync();
+    } catch (_) {}
+
+    const resolveFavAnime = (rawId) => {
+        const id = parseInt(rawId, 10);
+        if (Number.isNaN(id)) return null;
+        let anime = typeof getAnimeById === 'function' ? getAnimeById(id) : null;
+        if (!anime && typeof window.KodikCatalogStore?.getById === 'function') {
+            anime = window.KodikCatalogStore.getById(id) || window.KodikCatalogStore.getById(String(id));
+        }
+        if (!anime) {
+            return { id, title: 'Аниме #' + id, year: '' };
+        }
+        return typeof initAnimeStats === 'function' ? initAnimeStats(anime) : anime;
+    };
+
+    let animeIds = [];
+    let mangaIds = [];
+    if (supabaseClient && profileUserId) {
         try {
             const { data: favAnime } = await supabaseClient
-                .from('favorites_anime').select('anime_id')
+                .from('favorites_anime')
+                .select('anime_id')
                 .eq('user_id', profileUserId);
-            if (favAnime) {
-                favoritesAnime = favAnime.map(f => {
-                    const anime = getAnimeById(parseInt(f.anime_id));
-                    return anime ? (typeof initAnimeStats === 'function' ? initAnimeStats(anime) : anime) : null;
-                }).filter(Boolean);
+            if (Array.isArray(favAnime)) {
+                animeIds = favAnime.map((f) => f && f.anime_id).filter((id) => id != null);
             }
             const { data: favManga } = await supabaseClient
-                .from('favorites_manga').select('manga_id')
+                .from('favorites_manga')
+                .select('manga_id')
                 .eq('user_id', profileUserId);
-            if (favManga) {
-                favoritesManga = favManga.map(f => {
-                    return typeof getMangaById === 'function' ? getMangaById(parseInt(f.manga_id)) : null;
-                }).filter(Boolean);
+            if (Array.isArray(favManga)) {
+                mangaIds = favManga.map((f) => f && f.manga_id).filter((id) => id != null);
             }
         } catch (_) {}
-    } else {
-        const favorites = userData.favorites || [];
-        const mangaFavs = userData.mangaFavorites || [];
-        favoritesAnime = favorites.map(id => {
-            const anime = getAnimeById(id);
-            return anime ? (typeof initAnimeStats === 'function' ? initAnimeStats(anime) : anime) : null;
-        }).filter(Boolean);
-        favoritesManga = mangaFavs.map(id => {
-            return typeof getMangaById === 'function' ? getMangaById(id) : null;
-        }).filter(Boolean);
     }
+    if (!animeIds.length && !isViewMode) {
+        if (typeof loadFavorites === 'function') {
+            try {
+                await loadFavorites(true);
+            } catch (_) {}
+        }
+        if (typeof getFavoriteAnimeIds === 'function') {
+            animeIds = getFavoriteAnimeIds();
+        } else {
+            animeIds = userData.favorites || [];
+        }
+    }
+    if (!mangaIds.length && !isViewMode) {
+        mangaIds = userData.mangaFavorites || [];
+    }
+
+    favoritesAnime = animeIds.map(resolveFavAnime).filter(Boolean);
+    favoritesManga = mangaIds
+        .map((id) => (typeof getMangaById === 'function' ? getMangaById(parseInt(id, 10)) : null))
+        .filter(Boolean);
     const totalFavorites = favoritesAnime.length + favoritesManga.length;
 
     // Аватар
@@ -540,21 +571,25 @@ async function renderProfile(userData, isViewMode = false) {
             <div class="profile-tab-content" id="profileTabServices">
                 <div class="profile-section">
                     <h2 class="section-title">Услуги</h2>
+                    <p class="vip-coming-soon-lead">Скоро появятся VIP-подписки. Оплата пока недоступна.</p>
                     <div class="vip-cards-grid">
-                        <div class="vip-card vip-card-watch">
-                            <div class="vip-card-icon">🎬</div>
+                        <div class="vip-card vip-card-watch vip-card-soon">
+                            <div class="vip-card-media">
+                                <img src="Fons/vip Prosmotr vmeste for strite.jpg" alt="VIP Смотреть вместе" loading="lazy" decoding="async">
+                                <span class="vip-soon-badge">Скоро</span>
+                            </div>
                             <h3 class="vip-card-title">VIP Смотреть вместе</h3>
-                            ${isCreatorAccount ? `
-                                <p class="vip-card-desc vip-active-label">Активна навсегда</p>
-                                <p class="vip-card-desc" style="font-size:0.88rem;opacity:0.88;">Полный доступ к совместному просмотру для вашей учётной записи.</p>
-                            ` : (vipSubscription && vipSubscription.is_active) ? `
-                                <p class="vip-card-desc vip-active-label">Подписка активна</p>
-                                <a href="https://billing.stripe.com/p/login/dRm00keVF91mfZz1EmcEw00" class="btn btn-danger vip-card-btn" target="_blank">Управление</a>
-                            ` : `
-                                <p class="vip-card-desc">Доступ к созданию комнат «Смотреть вместе» и расширенным лимитам.</p>
-                                <p class="vip-card-desc" style="font-size:0.85rem;opacity:0.88;margin-top:0.35rem;">Пока бета: возможны сбои. При оплате можно указать промокод <strong>${REMINKO_VIP_BETA_PROMO_CODE}</strong> (−50%; обычно подставляется сам).</p>
-                                <a href="${reminkoBuildVipWatchCheckoutUrl(ownUserId)}" class="btn btn-primary vip-card-btn" target="_blank" rel="noopener noreferrer">Оформить VIP</a>
-                            `}
+                            <p class="vip-card-desc">Создание комнат совместного просмотра и расширенные лимиты — в скором обновлении.</p>
+                            <button type="button" class="btn btn-secondary vip-card-btn" disabled>Скоро</button>
+                        </div>
+                        <div class="vip-card vip-card-ai vip-card-soon">
+                            <div class="vip-card-media">
+                                <img src="Fons/vip Minko Ai for strite.jpg" alt="VIP Minko AI" loading="lazy" decoding="async">
+                                <span class="vip-soon-badge">Скоро</span>
+                            </div>
+                            <h3 class="vip-card-title">VIP Minko AI</h3>
+                            <p class="vip-card-desc">Расширенный доступ к Minko AI — появится вместе с VIP на просмотр.</p>
+                            <button type="button" class="btn btn-secondary vip-card-btn" disabled>Скоро</button>
                         </div>
                     </div>
                 </div>

@@ -467,3 +467,29 @@ body.theme-dark .calendar-item__countdown {
 body.theme-dark .calendar-item__title {
     color: #fff !important;
 }
+
+body.theme-dark .vip-coming-soon-lead {
+    color: #b7afcf;
+}
+
+body.theme-dark .vip-card {
+    background: rgba(18, 8, 31, 0.72);
+    border-color: rgba(157, 77, 255, 0.28);
+}
+
+body.theme-dark .vip-card-title {
+    color: #f3e8ff;
+}
+
+body.theme-dark .vip-card-desc {
+    color: #b7afcf;
+}
+
+body.theme-dark .vip-card-media {
+    background: #0b0614;
+}
+
+body.theme-dark .vip-soon-badge {
+    background: rgba(88, 28, 135, 0.75);
+    border-color: rgba(216, 180, 254, 0.28);
+}

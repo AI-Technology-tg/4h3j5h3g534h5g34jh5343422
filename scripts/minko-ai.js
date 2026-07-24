@@ -1024,10 +1024,18 @@ const MINKO_WAKE_SORRY_LINES = [
 ];
 
 function _notifyMinkoWakeUp() {
+    // reason читаем до reminkoNotify (там чистятся ключи сна)
+    const reason = _getMinkoSleepReason() || 'nap';
     _setChatAsleepAtmosphere(false);
-    if (typeof _showWakeBanner === 'function') _showWakeBanner();
+    if (typeof _showWakeBanner === 'function') _showWakeBanner(reason);
     if (typeof window.reminkoNotifyMinkoWakeUp === 'function') {
-        window.reminkoNotifyMinkoWakeUp();
+        const message =
+            reason === 'corridor'
+                ? 'Minko проснулась — коридор пройден ✨'
+                : reason === 'curse'
+                  ? 'Minko проснулась после проклятия ✨'
+                  : 'Minko проснулась после дрёмы ✨';
+        window.reminkoNotifyMinkoWakeUp({ message, reason });
     }
     // Сонное извинение + просьба повторить вопрос (после удачи или выхода таймера)
     setTimeout(() => {
@@ -1372,14 +1380,28 @@ function _maybeStartRandomNapInsteadOfReply(replySlotInCycle) {
     return true;
 }
 
-function _showWakeBanner() {
+function _showWakeBanner(reason) {
+    const r = reason || _getMinkoSleepReason() || 'nap';
+    let icon = '☕';
+    let title = 'Minko проснулась!';
+    let line = 'Она немного вздремнула. Можно снова писать 💙';
+    if (r === 'corridor') {
+        icon = '🌀';
+        line = 'Ты прошёл коридор Субару. Продолжайте разговор 💙';
+    } else if (r === 'curse') {
+        icon = '🖤';
+        line = 'Проклятие отпустило. Можно снова писать 💙';
+    } else if (r === 'luck') {
+        icon = '✨';
+        line = 'Повезло с пробуждением. Продолжай чат 💙';
+    }
     const banner = document.createElement('div');
     banner.className = 'minko-wake-banner';
     banner.innerHTML = `
-        <div class="minko-wake-banner-icon">☕</div>
+        <div class="minko-wake-banner-icon">${icon}</div>
         <div class="minko-wake-banner-text">
-            <strong>Minko проснулась!</strong><br>
-            <span>Ты прошёл коридор Субару. Продолжайте разговор 💙</span>
+            <strong>${title}</strong><br>
+            <span>${line}</span>
         </div>`;
     document.body.appendChild(banner);
     setTimeout(() => banner.classList.add('shown'), 30);
@@ -3025,7 +3047,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let researchContext = '';
             if (typeof window.minkoBuildResearchContext === 'function') {
                 _setChatStatusHtml(
-                    '<span class="sleepy-typing-status">🔍 Собираю факты из MAL и каталога… ' +
+                    '<span class="sleepy-typing-status">🔍 Думаю… ' +
                         '<span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>'
                 );
                 try {

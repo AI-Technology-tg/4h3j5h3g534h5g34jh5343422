@@ -1197,11 +1197,81 @@
         return playOverlayVideo(pickDeathVideoSrc(), 'trap');
     }
 
-    function playCurseBlackScreen(strike, durationMs) {
+    const AISHITERU_LANGS = [
+        '愛してる',
+        'Aishiteru',
+        'I love you',
+        'Я тебя люблю',
+        'Je t\'aime',
+        'Te quiero',
+        'Ich liebe dich',
+        'Ti amo',
+        '사랑해',
+        '我爱你',
+        'Eu te amo',
+        'Seni seviyorum'
+    ];
+
+    function waitForAudioEnd(audioEl, fallbackMs) {
+        return new Promise((resolve) => {
+            const fallback = fallbackMs || 12000;
+            if (!audioEl) {
+                setTimeout(resolve, fallback);
+                return;
+            }
+            let done = false;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                try {
+                    audioEl.removeEventListener('ended', finish);
+                } catch (_) {}
+                resolve();
+            };
+            audioEl.addEventListener('ended', finish);
+            let ms = fallback;
+            try {
+                if (Number.isFinite(audioEl.duration) && audioEl.duration > 0) {
+                    const remain = (audioEl.duration - (audioEl.currentTime || 0)) * 1000;
+                    ms = Math.max(800, remain + 250);
+                }
+            } catch (_) {}
+            setTimeout(finish, ms);
+        });
+    }
+
+    function hideCurseBlackScreen() {
+        if (!trapDeathOverlay) return;
+        trapDeathOverlay.classList.remove('active', 'black-curse-mode');
+        trapDeathOverlay.classList.add('hidden');
+        trapDeathOverlay.setAttribute('aria-hidden', 'true');
+        if (curseBlackScreen) {
+            curseBlackScreen.classList.add('hidden');
+            curseBlackScreen.setAttribute('aria-hidden', 'true');
+        }
+        if (curseAishiteru) {
+            curseAishiteru.classList.add('hidden');
+            curseAishiteru.setAttribute('aria-hidden', 'true');
+            curseAishiteru.classList.remove('aishiteru-cycle');
+            if (curseAishiteru._cycleTimer) {
+                clearInterval(curseAishiteru._cycleTimer);
+                curseAishiteru._cycleTimer = null;
+            }
+        }
+        if (trapDeathVideo) trapDeathVideo.style.display = '';
+    }
+
+    /**
+     * Чёрный экран проклятия.
+     * strike 1 — статичный «愛してる»;
+     * strike 2 — aishiteru на языках (мигает) до untilPromise / durationMs.
+     */
+    function playCurseBlackScreen(strike, durationMs, untilPromise) {
         return new Promise((resolve) => {
             const ms = durationMs || (strike === 1 ? 3200 : 4500);
             if (!trapDeathOverlay) {
-                setTimeout(() => resolve(true), ms);
+                const p = untilPromise || new Promise((r) => setTimeout(r, ms));
+                Promise.resolve(p).then(() => resolve(true));
                 return;
             }
 
@@ -1215,31 +1285,40 @@
                 curseBlackScreen.setAttribute('aria-hidden', 'false');
             }
             if (curseAishiteru) {
-                if (strike === 1) {
-                    curseAishiteru.classList.remove('hidden');
-                    curseAishiteru.setAttribute('aria-hidden', 'false');
+                if (curseAishiteru._cycleTimer) {
+                    clearInterval(curseAishiteru._cycleTimer);
+                    curseAishiteru._cycleTimer = null;
+                }
+                curseAishiteru.classList.remove('hidden');
+                curseAishiteru.setAttribute('aria-hidden', 'false');
+                if (strike === 2) {
+                    let idx = 0;
+                    curseAishiteru.textContent = AISHITERU_LANGS[0];
+                    curseAishiteru.classList.add('aishiteru-cycle');
+                    curseAishiteru._cycleTimer = setInterval(() => {
+                        idx = (idx + 1) % AISHITERU_LANGS.length;
+                        curseAishiteru.classList.remove('aishiteru-flash');
+                        void curseAishiteru.offsetWidth;
+                        curseAishiteru.textContent = AISHITERU_LANGS[idx];
+                        curseAishiteru.classList.add('aishiteru-flash');
+                    }, 900);
                 } else {
-                    curseAishiteru.classList.add('hidden');
-                    curseAishiteru.setAttribute('aria-hidden', 'true');
+                    curseAishiteru.textContent = '愛してる';
+                    curseAishiteru.classList.remove('aishiteru-cycle');
                 }
             }
             requestAnimationFrame(() => trapDeathOverlay.classList.add('active'));
 
-            setTimeout(() => {
-                trapDeathOverlay.classList.remove('active', 'black-curse-mode');
-                trapDeathOverlay.classList.add('hidden');
-                trapDeathOverlay.setAttribute('aria-hidden', 'true');
-                if (curseBlackScreen) {
-                    curseBlackScreen.classList.add('hidden');
-                    curseBlackScreen.setAttribute('aria-hidden', 'true');
-                }
-                if (curseAishiteru) {
-                    curseAishiteru.classList.add('hidden');
-                    curseAishiteru.setAttribute('aria-hidden', 'true');
-                }
-                if (trapDeathVideo) trapDeathVideo.style.display = '';
+            const finish = () => {
+                hideCurseBlackScreen();
                 resolve(true);
-            }, ms);
+            };
+
+            if (untilPromise && typeof untilPromise.then === 'function') {
+                untilPromise.then(finish).catch(finish);
+            } else {
+                setTimeout(finish, ms);
+            }
         });
     }
 
@@ -3035,19 +3114,33 @@
             return;
         }
 
-        // ── 2-й страйк: «запретное слово 2» → полный сброс коридора ──
-        try {
-            witchSfx.volume = WITCH_VOLUME;
-            witchSfx.currentTime = 0;
-            const p = witchSfx.play();
-            if (p && p.catch) p.catch(() => {});
-        } catch (_) {}
-
-        await playCurseBlackScreen(2, 4800);
+        // ── 2-й страйк: мелодия до конца + aishiteru на языках → новый коридор ──
+        const melodyDone = (async () => {
+            try {
+                if (!iLoveYouSfx) {
+                    await sleep(5000);
+                    return;
+                }
+                iLoveYouSfx.volume = I_LOVE_YOU_VOLUME;
+                iLoveYouSfx.currentTime = 0;
+                const p = iLoveYouSfx.play();
+                if (p && p.catch) await p.catch(() => {});
+                else if (p) await p;
+                await waitForAudioEnd(iLoveYouSfx, 14000);
+            } catch (_) {
+                await sleep(5000);
+            }
+        })();
+        await playCurseBlackScreen(2, 14000, melodyDone);
 
         minkoDialog.classList.add('hidden');
         stopMinkoVideo();
-        fadeAudioOut(witchSfx, 500);
+        if (iLoveYouSfx) {
+            try {
+                iLoveYouSfx.pause();
+                iLoveYouSfx.currentTime = 0;
+            } catch (_) {}
+        }
         playDeathSfx();
 
         await fullResetWithRandomLevel();

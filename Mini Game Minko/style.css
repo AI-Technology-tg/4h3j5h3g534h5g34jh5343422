@@ -3115,11 +3115,13 @@ body {
 
 .curse-aishiteru {
     position: relative;
-    font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'MS Mincho', serif;
-    font-size: clamp(2.4rem, 8vw, 4.5rem);
+    font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'MS Mincho', 'Georgia', serif;
+    font-size: clamp(2.2rem, 7vw, 4.2rem);
     font-weight: 900;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     color: #dc2626;
+    text-align: center;
+    padding: 0 1rem;
     text-shadow:
         0 0 18px rgba(220, 38, 38, 0.65),
         0 0 42px rgba(127, 29, 29, 0.45),
@@ -3131,26 +3133,19 @@ body {
     display: none !important;
 }
 
+/* Без анимации крови — только текст */
 .curse-aishiteru::before,
 .curse-aishiteru::after {
-    content: '';
-    position: absolute;
-    top: 72%;
-    width: 3px;
-    height: 0;
-    background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 55%, transparent 100%);
-    border-radius: 2px;
-    animation: bloodDrip 2.4s ease-in infinite;
+    content: none !important;
+    display: none !important;
 }
 
-.curse-aishiteru::before {
-    left: 18%;
-    animation-delay: 0.2s;
+.curse-aishiteru.aishiteru-cycle {
+    animation: none;
 }
 
-.curse-aishiteru::after {
-    right: 22%;
-    animation-delay: 0.65s;
+.curse-aishiteru.aishiteru-flash {
+    animation: aishiteruLangFlash 0.85s ease-in-out;
 }
 
 @keyframes aishiteruPulse {
@@ -3158,10 +3153,27 @@ body {
     100% {
         transform: scale(1);
         filter: brightness(1);
+        opacity: 1;
     }
     50% {
         transform: scale(1.03);
         filter: brightness(1.15);
+        opacity: 1;
+    }
+}
+
+@keyframes aishiteruLangFlash {
+    0% {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+    35% {
+        opacity: 1;
+        transform: scale(1.04);
+    }
+    100% {
+        opacity: 0.15;
+        transform: scale(1);
     }
 }
 
