@@ -532,7 +532,7 @@ async function renderProfile(userData, isViewMode = false) {
                         }
                     </div>
                     ${favoritesAnime.length > 0 ? `
-                        <div class="favorites-tiles-scroll reminko-mobile-scroll-x" tabindex="0" aria-label="Избранные аниме, листайте вбок">
+                        <div class="favorites-tiles-scroll" tabindex="0" role="region" aria-label="Избранные аниме, листайте вбок">
                             <div class="favorites-tiles-row">${renderFavTiles(favoritesAnime, 'anime')}</div>
                         </div>
                     ` : `<div class="empty-favorites"><p>${isViewMode ? 'Нет избранных аниме' : 'У вас пока нет избранных аниме'}</p></div>`}
@@ -547,7 +547,7 @@ async function renderProfile(userData, isViewMode = false) {
                         }
                     </div>
                     ${favoritesManga.length > 0 ? `
-                        <div class="favorites-tiles-scroll reminko-mobile-scroll-x" tabindex="0" aria-label="Избранная манга, листайте вбок">
+                        <div class="favorites-tiles-scroll" tabindex="0" role="region" aria-label="Избранная манга, листайте вбок">
                             <div class="favorites-tiles-row">${renderFavTiles(favoritesManga, 'manga')}</div>
                         </div>
                     ` : `<div class="empty-favorites"><p>${isViewMode ? 'Нет избранных манг' : 'У вас пока нет избранных манг'}</p></div>`}
