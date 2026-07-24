@@ -2199,22 +2199,27 @@ function _renderSavedMessages() {
 
     for (const msg of saved) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = `message message-${msg.role}`;
+        // Та же разметка, что и у addMessage — иначе ширина пузыря «плывёт»
+        messageDiv.className = `minko-msg message message-${msg.role}`;
 
         if (msg.role === 'user') {
             messageDiv.innerHTML = `
-                <div class="message-content">
-                    <div class="message-bubble"><p>${_escapeHtmlSimple(msg.content)}</p></div>
+                <div class="minko-msg-body message-content">
+                    <div class="minko-msg-meta"><span class="minko-msg-name">Вы</span></div>
+                    <div class="minko-msg-bubble message-bubble">
+                        <p>${_escapeHtmlSimple(msg.content)}</p>
+                    </div>
                 </div>
-                <div class="message-avatar">${_minkoUserAvatarImgHtml()}</div>
+                <div class="minko-msg-avatar message-avatar">${_minkoUserAvatarImgHtml()}</div>
             `;
         } else {
             messageDiv.innerHTML = `
-                <div class="message-avatar">
+                <div class="minko-msg-avatar message-avatar minko-msg-avatar--video">
                     ${_minkoAvatarHtml('bubble')}
                 </div>
-                <div class="message-content">
-                    <div class="message-bubble">${_formatSavedMessage(msg.content)}</div>
+                <div class="minko-msg-body message-content">
+                    <div class="minko-msg-meta"><span class="minko-msg-name">Minko</span></div>
+                    <div class="minko-msg-bubble message-bubble">${_formatSavedMessage(msg.content)}</div>
                 </div>
             `;
         }
@@ -2222,6 +2227,65 @@ function _renderSavedMessages() {
     }
 
     _scrollChatToBottom();
+}
+
+const MINKO_PENDING_REPLY_KEY = 'minko_pending_reply_v1';
+
+function _setMinkoPendingReply(text) {
+    try {
+        const t = String(text || '').trim();
+        if (!t) {
+            localStorage.removeItem(MINKO_PENDING_REPLY_KEY);
+            return;
+        }
+        localStorage.setItem(
+            MINKO_PENDING_REPLY_KEY,
+            JSON.stringify({ text: t, at: Date.now() })
+        );
+    } catch (_) {
+        /* ignore */
+    }
+}
+
+function _clearMinkoPendingReply() {
+    try {
+        localStorage.removeItem(MINKO_PENDING_REPLY_KEY);
+    } catch (_) {
+        /* ignore */
+    }
+}
+
+function _getMinkoPendingReply() {
+    try {
+        const raw = localStorage.getItem(MINKO_PENDING_REPLY_KEY);
+        if (!raw) return null;
+        const o = JSON.parse(raw);
+        if (!o || !o.text) return null;
+        // старше 15 мин — считаем протухшим
+        if (o.at && Date.now() - Number(o.at) > 15 * 60 * 1000) {
+            _clearMinkoPendingReply();
+            return null;
+        }
+        return String(o.text);
+    } catch (_) {
+        return null;
+    }
+}
+
+/** Сообщение для авто-дозапроса после F5 (только если был pending «думает…»). */
+function _getMinkoUnansweredUserMessage() {
+    const pending = _getMinkoPendingReply();
+    if (!pending) return null;
+    const nonSystem = (chatHistory || []).filter((m) => m && m.role !== 'system');
+    if (!nonSystem.length) return pending;
+    const last = nonSystem[nonSystem.length - 1];
+    if (last.role === 'assistant') {
+        // Ответ уже есть — pending устарел
+        _clearMinkoPendingReply();
+        return null;
+    }
+    if (last.role === 'user' && last.content) return String(last.content);
+    return pending;
 }
 
 function _scrollChatToBottom() {
@@ -3167,6 +3231,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             chatHistory.push({ role: 'user', content: userMessage });
             _saveChatToStorage();
+            _setMinkoPendingReply(userMessage);
 
             const maxHistory = GROK_MAX_HISTORY;
             const apiMessages = [
@@ -3254,6 +3319,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 chatHistory = [chatHistory[0], ...chatHistory.slice(-(CHAT_MAX_STORED))];
             }
             _saveChatToStorage();
+            _clearMinkoPendingReply();
 
             if (_sleepyWokeUp) _sleepyWokeUp = false;
             const catalogHits = Array.isArray(window.__minkoLastCatalogAnimeHits)
@@ -3276,6 +3342,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 errorMsg = 'Ой... что-то пошло не так (´;ω;`) Попробуй ещё раз~';
             }
 
+            // Не чистим pending — после обновления страницы попробуем ответить снова
             addMessage('assistant', errorMsg);
             _setSleepyIdleStatus();
         } finally {
@@ -3292,6 +3359,168 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Экспортируем sendMessage в window для доступа из HTML
     window.sendMessage = sendMessage;
+
+    /**
+     * После F5 во время «думает…»: дозапрашиваем ответ на последнее user-сообщение,
+     * если assistant ещё не успел ответить.
+     */
+    async function resumePendingMinkoReply() {
+        if (_minkoRemoteOffActive) return;
+        if (_isMinkoDeepAsleep() > 0) return;
+        if (_isMinkoWakeGamePending()) return;
+
+        const unanswered = _getMinkoUnansweredUserMessage();
+        if (!unanswered) return;
+
+        let isAuth = typeof isAuthenticatedSync === 'function' ? isAuthenticatedSync() : false;
+        if (!isAuth) {
+            try {
+                isAuth = await resolveMinkoIsAuthed();
+            } catch (_) {
+                isAuth = false;
+            }
+        }
+        if (!isAuth) {
+            _clearMinkoPendingReply();
+            return;
+        }
+
+        const chatInputEl = document.getElementById('chatInput');
+        const sendButtonEl = document.getElementById('sendButton');
+        if (chatInputEl) chatInputEl.disabled = true;
+        if (sendButtonEl) sendButtonEl.disabled = true;
+
+        _setMinkoPendingReply(unanswered);
+        _setChatStatusHtml(
+            '<span class="sleepy-typing-status">💭 Вспоминаю, о чём ты писал… ' +
+                '<span class="sleepy-typing-dots"><span></span><span></span><span></span></span></span>'
+        );
+
+        try {
+            const currentUser = typeof getCurrentUser === 'function' ? await getCurrentUser() : null;
+            const userId = currentUser?.id;
+            let userGender = 'male';
+            let userName = null;
+            if (userId && typeof getUserData === 'function') {
+                const userData = getUserData(userId);
+                if (userData) {
+                    if (userData.gender) userGender = userData.gender;
+                    if (userData.username) userName = userData.username;
+                }
+            }
+
+            let researchContext = '';
+            if (typeof window.minkoBuildResearchContext === 'function') {
+                try {
+                    researchContext = await window.minkoBuildResearchContext(unanswered);
+                } catch (_) {
+                    /* ignore */
+                }
+            }
+
+            // Убедимся, что user в истории (на случай рассинхрона)
+            const nonSystem = chatHistory.filter((m) => m && m.role !== 'system');
+            const last = nonSystem[nonSystem.length - 1];
+            if (!last || last.role !== 'user' || String(last.content) !== unanswered) {
+                chatHistory.push({ role: 'user', content: unanswered });
+                _saveChatToStorage();
+            }
+
+            let additionalContext = '';
+            if (userGender === 'female') {
+                additionalContext =
+                    'Обращайся к пользователю в женском роде (проспалА, пришлА, сделалА, думалА и т.д.).';
+            } else {
+                additionalContext =
+                    'Обращайся к пользователю в мужском роде (проспаЛ, пришЁЛ, сделаЛ, думаЛ и т.д.).';
+            }
+            if (userName) {
+                additionalContext += ` Имя пользователя: ${userName}, но не упоминай его в этом ответе - используй редко.`;
+            }
+
+            const maxHistory = GROK_MAX_HISTORY;
+            const apiMessages = [
+                {
+                    role: 'system',
+                    content: GROK_SYSTEM_BASE + (additionalContext ? `\n\n${additionalContext}` : '')
+                },
+                ...chatHistory
+                    .slice(-maxHistory)
+                    .filter((m) => m.role !== 'system')
+                    .map((m) => ({ role: m.role, content: m.content }))
+            ];
+
+            let minkoSessionKey = userId != null ? String(userId) : null;
+            if (!minkoSessionKey) {
+                try {
+                    minkoSessionKey = localStorage.getItem('minko_ai_guest_session') || 'guest-anon';
+                } catch (_) {
+                    minkoSessionKey = 'guest-anon';
+                }
+            }
+
+            const apiRes = await fetch(getMinkoChatProxyUrl(), {
+                method: 'POST',
+                headers: await _minkoChatRequestHeaders(),
+                body: JSON.stringify({
+                    model: 'openai',
+                    messages: apiMessages,
+                    sessionKey: minkoSessionKey,
+                    researchContext: researchContext || '',
+                    max_tokens: 3200,
+                    temperature: 0.72
+                })
+            });
+            const apiData = await apiRes.json();
+            if (!apiRes.ok) {
+                throw new Error(apiData.error?.message || 'Ошибка API');
+            }
+
+            let assistantMessage = apiData.choices?.[0]?.message?.content?.trim() || '…';
+            assistantMessage = _minkoRedactTechBrandsInReply(assistantMessage);
+            assistantMessage = _ensureSleepyFlavorInReply(assistantMessage);
+
+            chatHistory.push({ role: 'assistant', content: assistantMessage });
+            const maxStored = CHAT_MAX_STORED + 1;
+            if (chatHistory.length > maxStored) {
+                chatHistory = [chatHistory[0], ...chatHistory.slice(-(CHAT_MAX_STORED))];
+            }
+            _saveChatToStorage();
+            _clearMinkoPendingReply();
+
+            const catalogHits = Array.isArray(window.__minkoLastCatalogAnimeHits)
+                ? window.__minkoLastCatalogAnimeHits
+                : [];
+            addMessage('assistant', assistantMessage, {
+                catalogHits,
+                userMessage: unanswered
+            });
+            void reminkoLogMinkoAiExchange(unanswered, assistantMessage);
+            _setSleepyIdleStatus();
+        } catch (error) {
+            console.error('[Minko] resumePending:', error);
+            addMessage(
+                'assistant',
+                'Ой... меня прервали, пока я думала (´;ω;`) Спроси ещё раз — я отвечу~'
+            );
+            _clearMinkoPendingReply();
+            _setSleepyIdleStatus();
+        } finally {
+            const asleep = _isMinkoDeepAsleep() > 0;
+            const pendingGame = _isMinkoWakeGamePending();
+            if (!asleep && !pendingGame) {
+                if (chatInputEl) chatInputEl.disabled = false;
+                if (sendButtonEl) sendButtonEl.disabled = false;
+            }
+        }
+    }
+
+    window.resumePendingMinkoReply = resumePendingMinkoReply;
+
+    // После восстановления чата — добить ответ, если F5 случился во время «думает…»
+    setTimeout(() => {
+        void resumePendingMinkoReply();
+    }, 700);
 
     // Получить ответ для неавторизованного пользователя (заготовленные фразы)
     function getAIResponseForUnauth(attempts) {

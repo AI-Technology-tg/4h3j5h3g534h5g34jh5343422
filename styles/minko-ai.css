@@ -302,7 +302,9 @@
     border-radius: 0;
     animation: minkoMsgIn 0.28s ease-out;
     transition: none;
+    width: 100%;
     max-width: 100%;
+    box-sizing: border-box;
 }
 
 .message:hover,
@@ -359,10 +361,11 @@
 
 .message-content,
 .minko-msg-body {
-    flex: 0 1 auto;
-    width: fit-content;
+    flex: 0 0 auto;
+    width: max-content;
     min-width: 0;
     max-width: min(78%, 560px);
+    box-sizing: border-box;
 }
 
 .message-assistant .message-content,
@@ -370,6 +373,8 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    align-self: flex-start;
+    max-width: min(78%, 560px);
 }
 
 .message-user .message-content,
@@ -377,6 +382,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    align-self: flex-end;
     max-width: min(75%, 520px);
 }
 
@@ -407,8 +413,9 @@
 .message-bubble,
 .minko-msg-bubble {
     display: inline-block;
-    width: fit-content;
+    width: max-content;
     max-width: 100%;
+    box-sizing: border-box;
     padding: 10px 14px;
     border-radius: 14px;
     line-height: 1.55;
@@ -437,8 +444,12 @@
     box-shadow: 0 2px 14px rgba(109, 40, 217, 0.2);
 }
 
-.message-bubble p {
+.message-bubble p,
+.minko-msg-bubble p {
     margin: 0.28rem 0;
+    width: max-content;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .message-bubble p:first-child {
@@ -1499,11 +1510,16 @@ body.minko-game-focus-lock #minkoGameOverlay * {
     .message-content,
     .minko-msg-body {
         max-width: min(92%, 100%);
+        width: max-content;
+        flex: 0 0 auto;
     }
 
     .message-user .message-content,
     .message-user .minko-msg-body {
-        max-width: min(90%, 100%);
+        max-width: min(88%, 100%);
+        width: max-content;
+        flex: 0 0 auto;
+        align-self: flex-end;
     }
 
     .message-bubble,
