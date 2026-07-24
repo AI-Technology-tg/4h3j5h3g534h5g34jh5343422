@@ -162,45 +162,9 @@ function fetchFromJikan(title, type = 'anime') {
 }
 
 // ==================== ANILIST BY MAL ID ====================
-// В браузере AniList часто режет/рейтлимитит без CORS-заголовков → лавина ошибок и лаги.
-// По умолчанию выключен; остаётся для опционального ручного включения.
-const _anilistPosterByMalMem = new Map();
-let _anilistPosterDisabled = true;
-let _anilistFailStreak = 0;
-
-async function fetchAnilistPosterByMalId(malId) {
-    if (_anilistPosterDisabled) return '';
-    const mal = parseInt(malId, 10);
-    if (!Number.isFinite(mal) || mal <= 0) return '';
-    if (_anilistPosterByMalMem.has(mal)) return _anilistPosterByMalMem.get(mal) || '';
-
-    const query =
-        'query ($idMal: Int) { Media(idMal: $idMal, type: ANIME) { coverImage { extraLarge large medium } } }';
-    try {
-        const res = await fetch('https://graphql.anilist.co', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            credentials: 'omit',
-            body: JSON.stringify({ query, variables: { idMal: mal } })
-        });
-        if (!res.ok) {
-            _anilistFailStreak += 1;
-            if (_anilistFailStreak >= 2 || res.status === 429) _anilistPosterDisabled = true;
-            _anilistPosterByMalMem.set(mal, '');
-            return '';
-        }
-        _anilistFailStreak = 0;
-        const json = await res.json();
-        const img = json?.data?.Media?.coverImage;
-        const url = img?.extraLarge || img?.large || img?.medium || '';
-        _anilistPosterByMalMem.set(mal, url || '');
-        return url || '';
-    } catch (_) {
-        _anilistFailStreak += 1;
-        _anilistPosterDisabled = true;
-        _anilistPosterByMalMem.set(mal, '');
-        return '';
-    }
+// Клиентский AniList отключён: рейтлимит/WAF отдаёт ответы без CORS → лавина ошибок.
+async function fetchAnilistPosterByMalId(/* malId */) {
+    return '';
 }
 
 // ==================== ГЛАВНАЯ ФУНКЦИЯ ====================

@@ -6,7 +6,7 @@
     if (typeof window === 'undefined' || window.__reminkoAssetVersionGate) return;
     window.__reminkoAssetVersionGate = true;
 
-    var V = '20260724h';
+    var V = '20260724s';
     window.REMINKO_ASSET_VERSION = V;
     var KEY = 'reminko_asset_v';
 
@@ -17,6 +17,7 @@
             try {
                 sessionStorage.removeItem('reminko_online_display_v2');
                 sessionStorage.removeItem('reminko_online_bias_v2');
+                localStorage.removeItem('reminko_poster_mal_v3');
             } catch (_) {
                 /* ignore */
             }
@@ -31,6 +32,36 @@
     } catch (_) {
         /* ignore */
     }
+})();
+
+/** Блокер AniList в браузере (даже из старых закэшированных скриптов). */
+(function reminkoBlockAniListFetch() {
+    if (typeof window === 'undefined' || window.__reminkoAniListFetchBlocked) return;
+    window.__reminkoAniListFetchBlocked = true;
+    var nativeFetch = window.fetch;
+    if (typeof nativeFetch !== 'function') return;
+    window.fetch = function reminkoFetchGuard(input, init) {
+        try {
+            var url =
+                typeof input === 'string'
+                    ? input
+                    : input && typeof input.url === 'string'
+                      ? input.url
+                      : '';
+            if (/graphql\.anilist\.co/i.test(url)) {
+                return Promise.resolve(
+                    new Response('{}', {
+                        status: 204,
+                        statusText: 'No Content',
+                        headers: { 'Content-Type': 'application/json' },
+                    })
+                );
+            }
+        } catch (_) {
+            /* ignore */
+        }
+        return nativeFetch.apply(this, arguments);
+    };
 })();
 (function reminkoGtmBoot(w, d, s, l, i) {
     if (w.__reminkoGtmBoot) return;

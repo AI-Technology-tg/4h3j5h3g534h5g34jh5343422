@@ -1039,7 +1039,7 @@ function renderJikanCards(containerId, animeList) {
     });
 
     if (typeof prefetchPosterUrlsForMals === 'function') {
-        void prefetchPosterUrlsForMals(displayList.slice(0, 24), { concurrency: 3, delayMs: 400 }).then(
+        void prefetchPosterUrlsForMals(displayList.slice(0, 8), { concurrency: 1, delayMs: 600 }).then(
             () => {
                 if (typeof readMalPosterCache !== 'function') return;
                 container.querySelectorAll('img[data-jikan-poster]').forEach((img) => {
