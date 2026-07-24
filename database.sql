@@ -433,8 +433,12 @@ CREATE TABLE IF NOT EXISTS public.direct_messages (
   receiver_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   message TEXT NOT NULL,
   read BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  edited_at TIMESTAMPTZ
 );
+
+ALTER TABLE public.direct_messages
+  ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_dm_sender ON public.direct_messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_dm_receiver ON public.direct_messages(receiver_id);
@@ -449,7 +453,10 @@ CREATE POLICY "dm_select" ON public.direct_messages FOR SELECT USING (
   auth.uid() = sender_id OR auth.uid() = receiver_id
 );
 CREATE POLICY "dm_insert" ON public.direct_messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
-CREATE POLICY "dm_update" ON public.direct_messages FOR UPDATE USING (auth.uid() = receiver_id);
+DROP POLICY IF EXISTS "dm_update" ON public.direct_messages;
+CREATE POLICY "dm_update" ON public.direct_messages
+  FOR UPDATE USING (auth.uid() = receiver_id OR auth.uid() = sender_id)
+  WITH CHECK (auth.uid() = receiver_id OR auth.uid() = sender_id);
 DROP POLICY IF EXISTS "dm_delete" ON public.direct_messages;
 CREATE POLICY "dm_delete" ON public.direct_messages
   FOR DELETE USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
@@ -483,6 +490,64 @@ $$;
 REVOKE ALL ON FUNCTION public.reminko_delete_dm_thread(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.reminko_delete_dm_thread(uuid) TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.reminko_edit_dm_message(p_message_id uuid, p_text text)
+RETURNS public.direct_messages
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  row public.direct_messages;
+  t text := left(trim(coalesce(p_text, '')), 120000);
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+  IF t IS NULL OR char_length(t) < 1 THEN
+    RAISE EXCEPTION 'empty_message';
+  END IF;
+
+  UPDATE public.direct_messages
+  SET message = t, edited_at = TIMEZONE('utc'::text, NOW())
+  WHERE id = p_message_id AND sender_id = uid
+  RETURNING * INTO row;
+
+  IF row.id IS NULL THEN
+    RAISE EXCEPTION 'not_found_or_forbidden';
+  END IF;
+  RETURN row;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reminko_edit_dm_message(uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reminko_edit_dm_message(uuid, text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.reminko_unsend_dm_message(p_message_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  n integer := 0;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+
+  DELETE FROM public.direct_messages
+  WHERE id = p_message_id AND sender_id = uid;
+
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n > 0;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reminko_unsend_dm_message(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reminko_unsend_dm_message(uuid) TO authenticated;
+
 -- Группы ЛС (до 4 участников)
 CREATE TABLE IF NOT EXISTS public.dm_groups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -507,8 +572,12 @@ CREATE TABLE IF NOT EXISTS public.dm_group_messages (
   group_id UUID NOT NULL REFERENCES public.dm_groups(id) ON DELETE CASCADE,
   sender_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   message TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+  created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+  edited_at TIMESTAMPTZ
 );
+
+ALTER TABLE public.dm_group_messages
+  ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_dm_group_messages_group_created
   ON public.dm_group_messages(group_id, created_at DESC);

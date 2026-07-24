@@ -38,32 +38,40 @@
         return !!window.__reminkoAdultEnabled;
     }
 
+    function isRestrictedGenreName(name) {
+        const n = String(name || '')
+            .toLowerCase()
+            .trim();
+        if (!n) return false;
+        return (
+            n === 'hentai' ||
+            n === 'хентай' ||
+            n.includes('hentai') ||
+            n.includes('хентай') ||
+            n === 'erotica' ||
+            n === 'эротика' ||
+            n.includes('erotic') ||
+            n.includes('эротик')
+        );
+    }
+
     function jikanItemHasRestrictedGenre(j) {
         if (!j) return false;
-        const arr = [...(j.genres || []), ...(j.themes || [])];
-        return arr.some((x) => {
-            const n = x && x.name ? String(x.name).toLowerCase().trim() : '';
-            return (
-                n === 'hentai' ||
-                n.includes('хентай') ||
-                n === 'erotica' ||
-                n.includes('эротик')
-            );
-        });
+        const rating = String(j.rating || '').toLowerCase();
+        if (rating.includes('rx') || rating.includes('hentai')) return true;
+        const arr = [...(j.genres || []), ...(j.themes || []), ...(j.explicit_genres || [])];
+        return arr.some((x) => isRestrictedGenreName(x && x.name ? x.name : x));
     }
 
     function animeHasRestrictedGenre(anime) {
-        if (!anime || !anime.genres) return false;
-        return anime.genres.some((g) => {
-            const n = String(g).toLowerCase().trim();
-            return (
-                n === 'хентай' ||
-                n === 'hentai' ||
-                n === 'эротика' ||
-                n === 'erotica' ||
-                n.includes('эротик')
-            );
-        });
+        if (!anime) return false;
+        if (Array.isArray(anime.genres) && anime.genres.some((g) => isRestrictedGenreName(g))) {
+            return true;
+        }
+        if (anime._jikanRaw && jikanItemHasRestrictedGenre(anime._jikanRaw)) return true;
+        const rating = String(anime.contentRating || anime.jikanRating || '').toLowerCase();
+        if (rating.includes('rx') || rating.includes('hentai')) return true;
+        return false;
     }
 
     function filterJikanItemsRestricted(list) {

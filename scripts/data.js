@@ -310,8 +310,28 @@ function getAllAnime() {
         typeof window.isAdultContentEnabled === 'function' &&
         window.isAdultContentEnabled();
     let merged = dedupedMal;
-    if (!adultOk && typeof window !== 'undefined' && typeof window.animeHasRestrictedGenre === 'function') {
-        merged = dedupedMal.filter((a) => !window.animeHasRestrictedGenre(a));
+    if (!adultOk) {
+        if (typeof window !== 'undefined' && typeof window.filterAdultAnimeList === 'function') {
+            merged = window.filterAdultAnimeList(dedupedMal);
+        } else if (
+            typeof window !== 'undefined' &&
+            typeof window.animeHasRestrictedGenre === 'function'
+        ) {
+            merged = dedupedMal.filter((a) => !window.animeHasRestrictedGenre(a));
+        } else {
+            merged = dedupedMal.filter((a) => {
+                const genres = Array.isArray(a && a.genres) ? a.genres : [];
+                return !genres.some((g) => {
+                    const n = String(g || '').toLowerCase();
+                    return (
+                        n.includes('хентай') ||
+                        n.includes('hentai') ||
+                        n.includes('эротик') ||
+                        n.includes('erotic')
+                    );
+                });
+            });
+        }
     }
 
     const seenIds = new Map();

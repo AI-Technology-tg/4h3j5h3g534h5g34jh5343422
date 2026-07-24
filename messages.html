@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="styles/sidebar-layout.css?v=20260724a">
     <link rel="stylesheet" href="styles/loading.css">
     <link rel="stylesheet" href="styles/notifications.css">
-    <link rel="stylesheet" href="styles/messages.css?v=20260724g">
+    <link rel="stylesheet" href="styles/messages.css?v=20260724h">
 </head>
 <body>
     <div class="loading-screen" id="loadingScreen">
@@ -204,9 +204,24 @@
         </div>
     </div>
 
+    <div class="msg-v2-modal" id="msgV2EditModal" hidden>
+        <div class="msg-v2-modal-card" role="dialog" aria-modal="true" aria-labelledby="msgV2EditTitle">
+            <div class="msg-v2-modal-head">
+                <h2 id="msgV2EditTitle">Изменить сообщение</h2>
+                <button type="button" class="msg-v2-modal-close" id="msgV2EditModalClose" aria-label="Закрыть">&times;</button>
+            </div>
+            <textarea id="msgV2EditTextarea" class="msg-v2-modal-input msg-v2-edit-textarea" rows="4" maxlength="1000" placeholder="Текст сообщения"></textarea>
+            <p class="msg-v2-modal-err" id="msgV2EditErr" hidden></p>
+            <div class="msg-v2-modal-actions">
+                <button type="button" class="msg-v2-modal-btn ghost" id="msgV2EditCancel">Отмена</button>
+                <button type="button" class="msg-v2-modal-btn primary" id="msgV2EditSave">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase-config.js"></script>
-    <script src="scripts/direct-messages.js?v=20260724g"></script>
+    <script src="scripts/direct-messages.js?v=20260724h"></script>
     <script src="scripts/friends.js"></script>
     <script src="scripts/oauth-auth.js"></script>
     <script src="scripts/config.js?v=20260718b"></script>
@@ -240,6 +255,8 @@
         let groupPickSelected = new Set();
         let groupModalMode = 'create'; // create | add
         let __msgConfirmResolve = null;
+        let editingMessageId = null;
+        let editingMessageRaw = null;
         let __reminkoMsgGuestBusy = false;
         let guestSelectedAvatar = 'Fons/1 b.jpg';
         let unreadOnlyMode = false;
@@ -946,6 +963,31 @@
                         closeMsgConfirm(true);
                         return;
                     }
+                    if (t.closest('#msgV2EditModalClose') || t.closest('#msgV2EditCancel')) {
+                        e.preventDefault();
+                        closeEditMessageModal();
+                        return;
+                    }
+                    if (t.closest('#msgV2EditSave')) {
+                        e.preventDefault();
+                        void saveEditedMessage();
+                        return;
+                    }
+                    const msgActionBtn = t.closest('[data-msg-action]');
+                    if (msgActionBtn) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const row = msgActionBtn.closest('.msg-v2-row');
+                        const msgId = row && row.dataset.msgId;
+                        if (!msgId) return;
+                        const action = msgActionBtn.getAttribute('data-msg-action');
+                        if (action === 'edit') {
+                            openEditMessageModal(msgId, row.dataset.rawMessage || '');
+                        } else if (action === 'unsend') {
+                            void unsendMessageById(msgId);
+                        }
+                        return;
+                    }
                     if (t.closest('#msgV2AttachBtn')) {
                         if (!e.isTrusted) return;
                         e.preventDefault();
@@ -1511,12 +1553,16 @@
             if (typeof reminkoUpdateDmBadge === 'function') reminkoUpdateDmBadge();
             startChatPolling(userId);
 
-            DirectMessagesService.subscribeToChat(userId, (msg) => {
-                if (msg.sender_id === userId || msg.sender_id === currentUserId) {
-                    appendMessage(msg);
-                    if (msg.sender_id === userId) DirectMessagesService.markAsRead(userId);
-                }
-            });
+            DirectMessagesService.subscribeToChat(
+                userId,
+                (msg) => {
+                    if (msg.sender_id === userId || msg.sender_id === currentUserId) {
+                        appendMessage(msg);
+                        if (msg.sender_id === userId) DirectMessagesService.markAsRead(userId);
+                    }
+                },
+                handleRealtimeMessageChange
+            );
 
             loadConversations(lastConvFilter, { forceRefresh: true });
         }
@@ -1566,9 +1612,13 @@
 
             await loadGroupChatMessages(groupId);
             startGroupChatPolling(groupId);
-            DirectMessagesService.subscribeToGroupChat(groupId, (msg) => {
-                if (msg && msg.group_id === groupId) appendMessage(msg);
-            });
+            DirectMessagesService.subscribeToGroupChat(
+                groupId,
+                (msg) => {
+                    if (msg && msg.group_id === groupId) appendMessage(msg);
+                },
+                handleRealtimeMessageChange
+            );
             loadConversations(lastConvFilter, { forceRefresh: true });
         }
 
@@ -1644,6 +1694,34 @@
             scrollToBottom();
         }
 
+        function handleRealtimeMessageChange(ev) {
+            if (!ev || !ev.msg) return;
+            if (ev.type === 'delete') {
+                removeMessageFromUi(ev.msg.id);
+                return;
+            }
+            if (ev.type === 'update') {
+                replaceMessageInUi(ev.msg);
+            }
+        }
+
+        function removeMessageFromUi(messageId) {
+            const el = document.querySelector(
+                `#msgV2Messages .msg-v2-row[data-msg-id="${CSS.escape(String(messageId))}"]`
+            );
+            if (el) el.remove();
+            void loadConversations(lastConvFilter, { forceRefresh: true });
+        }
+
+        function replaceMessageInUi(msg) {
+            const el = document.querySelector(
+                `#msgV2Messages .msg-v2-row[data-msg-id="${CSS.escape(String(msg.id))}"]`
+            );
+            if (!el) return;
+            const next = createMsgElement(msg);
+            el.replaceWith(next);
+        }
+
         function syncMessageDeliveryStates(messages) {
             const rows = document.querySelectorAll('#msgV2Messages .msg-v2-row.out[data-msg-id]');
             if (!rows.length) return;
@@ -1672,11 +1750,13 @@
             const row = document.createElement('div');
             row.className = 'msg-v2-row ' + (isMine ? 'out' : 'in');
             row.dataset.msgId = msg.id;
+            row.dataset.rawMessage = String(msg.message || '');
+            if (msg.edited_at) row.dataset.editedAt = msg.edited_at;
             const bubble = document.createElement('div');
             bubble.className = isMine ? 'msg-v2-bubble-out' : 'msg-v2-bubble-in';
             const payload = parseDmMessagePayload(msg.message);
             const media = payload.media;
-            const textPart = payload.text ? `<p style="margin:0;">${escapeHtml(payload.text)}</p>` : '';
+            const textPart = payload.text ? `<p class="msg-v2-bubble-text" style="margin:0;">${escapeHtml(payload.text)}</p>` : '';
             let mediaPart = '';
             if (media && media.dataUrl) {
                 const mime = String(media.mime || '');
@@ -1692,15 +1772,25 @@
                 isGroup && !isMine
                     ? `<div class="msg-v2-bubble-sender">${escapeHtml(groupSenderName(msg.sender_id))}</div>`
                     : '';
+            const editedMark = msg.edited_at
+                ? '<span class="msg-v2-edited-mark" title="Изменено">изм.</span>'
+                : '';
             let meta;
             if (isMine) {
                 meta = isGroup
-                    ? `<div class="msg-v2-bubble-meta"><span class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}</span></div>`
-                    : `<div class="msg-v2-bubble-meta"><span class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}</span><span class="msg-v2-delivery-status ${msg.read ? 'is-read' : ''}">${msg.read ? 'прочитано' : 'доставлено'}</span></div>`;
+                    ? `<div class="msg-v2-bubble-meta"><span class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}</span>${editedMark}</div>`
+                    : `<div class="msg-v2-bubble-meta"><span class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}</span>${editedMark}<span class="msg-v2-delivery-status ${msg.read ? 'is-read' : ''}">${msg.read ? 'прочитано' : 'доставлено'}</span></div>`;
             } else {
-                meta = `<div class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}</div>`;
+                meta = `<div class="msg-v2-bubble-time">${formatMsgTime(msg.created_at)}${editedMark ? ' · ' : ''}${editedMark}</div>`;
             }
-            bubble.innerHTML = `${senderLabel}${mediaPart}${textPart}${meta}`;
+            const actions =
+                isMine && !guestCreatorMode
+                    ? `<div class="msg-v2-msg-actions">
+                        <button type="button" class="msg-v2-msg-action" data-msg-action="edit" title="Изменить">✎</button>
+                        <button type="button" class="msg-v2-msg-action danger" data-msg-action="unsend" title="Отменить">✕</button>
+                       </div>`
+                    : '';
+            bubble.innerHTML = `${senderLabel}${mediaPart}${textPart}${meta}${actions}`;
             row.appendChild(bubble);
             return row;
         }
@@ -1795,24 +1885,97 @@
             }
 
             const ok = await askMsgConfirm(
-                'Удалить чат?',
-                'Переписка будет удалена полностью у обоих участников.',
+                'Удалить чат у себя?',
+                'Чат исчезнет только из вашего списка. У собеседника переписка останется. Новые сообщения снова покажут диалог.',
                 'Удалить'
             );
             if (!ok) return;
             const peerId = String(activeChatUserId);
-            const res = await DirectMessagesService.deleteThread(peerId);
-            if (!res.ok) {
-                showMsgToast(res.error || 'Не удалось удалить чат');
-                return;
-            }
-            const map = getHiddenTsMap();
-            delete map[peerId];
-            setHiddenTsMap(map);
+            hideConversation(peerId);
             let pinned = getPinnedOrder().filter((id) => id !== peerId);
             setPinnedOrder(pinned);
-            showMsgToast('Чат удалён');
+            showMsgToast('Чат удалён у вас');
             closeChat();
+        }
+
+        function openEditMessageModal(messageId, rawMessage) {
+            editingMessageId = messageId;
+            editingMessageRaw = rawMessage;
+            const payload = parseDmMessagePayload(rawMessage || '');
+            const ta = document.getElementById('msgV2EditTextarea');
+            const err = document.getElementById('msgV2EditErr');
+            if (err) {
+                err.hidden = true;
+                err.textContent = '';
+            }
+            if (ta) ta.value = payload.text || '';
+            const modal = document.getElementById('msgV2EditModal');
+            if (modal) modal.hidden = false;
+            if (ta) {
+                ta.focus();
+                ta.setSelectionRange(ta.value.length, ta.value.length);
+            }
+        }
+
+        function closeEditMessageModal() {
+            const modal = document.getElementById('msgV2EditModal');
+            if (modal) modal.hidden = true;
+            editingMessageId = null;
+            editingMessageRaw = null;
+        }
+
+        async function saveEditedMessage() {
+            if (!editingMessageId) return;
+            const ta = document.getElementById('msgV2EditTextarea');
+            const err = document.getElementById('msgV2EditErr');
+            const text = (ta && ta.value ? ta.value : '').trim();
+            if (!text) {
+                if (err) {
+                    err.textContent = 'Введите текст сообщения.';
+                    err.hidden = false;
+                }
+                return;
+            }
+            const oldPayload = parseDmMessagePayload(editingMessageRaw || '');
+            const nextPayload = buildDmMessagePayload(text, oldPayload.media || null);
+            const btn = document.getElementById('msgV2EditSave');
+            if (btn) btn.disabled = true;
+            const res =
+                activeChatKind === 'group'
+                    ? await DirectMessagesService.editGroupMessage(editingMessageId, nextPayload)
+                    : await DirectMessagesService.editMessage(editingMessageId, nextPayload);
+            if (btn) btn.disabled = false;
+            if (!res.ok) {
+                if (err) {
+                    err.textContent = res.error || 'Не удалось сохранить.';
+                    err.hidden = false;
+                }
+                return;
+            }
+            if (res.data) replaceMessageInUi(res.data);
+            closeEditMessageModal();
+            showMsgToast('Сообщение изменено');
+            void loadConversations(lastConvFilter, { forceRefresh: true });
+        }
+
+        async function unsendMessageById(messageId) {
+            if (!messageId) return;
+            const ok = await askMsgConfirm(
+                'Отменить сообщение?',
+                'Сообщение будет удалено у всех участников чата.',
+                'Отменить'
+            );
+            if (!ok) return;
+            const res =
+                activeChatKind === 'group'
+                    ? await DirectMessagesService.unsendGroupMessage(messageId)
+                    : await DirectMessagesService.unsendMessage(messageId);
+            if (!res.ok) {
+                showMsgToast(res.error || 'Не удалось отменить');
+                return;
+            }
+            removeMessageFromUi(messageId);
+            showMsgToast('Сообщение отменено');
         }
 
         async function leaveActiveGroup() {

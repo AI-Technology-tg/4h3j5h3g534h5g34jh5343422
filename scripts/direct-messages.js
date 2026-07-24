@@ -328,9 +328,11 @@ const DirectMessagesService = {
         } catch (e) { return 0; }
     },
 
-    subscribeToChat(otherUserId, onNewMessage) {
+    subscribeToChat(otherUserId, onNewMessage, onMessageChange) {
         this.unsubscribeFromChat();
         this._currentChatUserId = otherUserId;
+        const relevant = (msg) =>
+            msg && (msg.sender_id === otherUserId || msg.receiver_id === otherUserId);
 
         this._realtimeChannel = supabaseClient
             .channel(`dm-${Date.now()}-${otherUserId}`)
@@ -340,11 +342,23 @@ const DirectMessagesService = {
                 table: 'direct_messages'
             }, (payload) => {
                 const msg = payload.new;
-                const isRelevant =
-                    (msg.sender_id === otherUserId || msg.receiver_id === otherUserId);
-                if (isRelevant && onNewMessage) {
-                    onNewMessage(msg);
-                }
+                if (relevant(msg) && onNewMessage) onNewMessage(msg);
+            })
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'direct_messages'
+            }, (payload) => {
+                const msg = payload.new;
+                if (relevant(msg) && onMessageChange) onMessageChange({ type: 'update', msg });
+            })
+            .on('postgres_changes', {
+                event: 'DELETE',
+                schema: 'public',
+                table: 'direct_messages'
+            }, (payload) => {
+                const msg = payload.old;
+                if (relevant(msg) && onMessageChange) onMessageChange({ type: 'delete', msg });
             })
             .subscribe();
     },
@@ -379,22 +393,71 @@ const DirectMessagesService = {
         this._cachedAccessToken = null;
     },
 
-    /** Полностью удалить переписку 1:1 (все сообщения с обеих сторон). */
+    /**
+     * Удаление чата только у себя (локальное скрытие списка).
+     * Сообщения у собеседника не трогаем.
+     */
     async deleteThread(otherUserId) {
-        const userId = await this.getCurrentUserId(true);
         const rid = String(otherUserId || '').trim();
-        if (!userId || !rid) return { ok: false, error: 'Нет сессии или собеседника.' };
+        if (!rid) return { ok: false, error: 'Собеседник не указан.' };
+        return { ok: true, mode: 'hide-self', peerId: rid };
+    },
+
+    async editMessage(messageId, newText) {
+        const text = String(newText || '').trim();
+        if (!messageId) return { ok: false, error: 'Сообщение не указано.' };
+        if (!text) return { ok: false, error: 'Пустой текст.' };
         try {
-            const { data, error } = await supabaseClient.rpc('reminko_delete_dm_thread', {
-                p_other_user_id: rid
+            const { data, error } = await supabaseClient.rpc('reminko_edit_dm_message', {
+                p_message_id: messageId,
+                p_text: text
             });
-            if (error) {
-                console.error('DM deleteThread:', error);
-                return { ok: false, error: error.message || 'Не удалось удалить чат.' };
-            }
-            return { ok: true, deleted: typeof data === 'number' ? data : 0 };
+            if (error) return { ok: false, error: error.message || 'Не удалось изменить.' };
+            return { ok: true, data };
         } catch (e) {
-            return { ok: false, error: e.message || 'Ошибка удаления.' };
+            return { ok: false, error: e.message || 'Ошибка правки.' };
+        }
+    },
+
+    async unsendMessage(messageId) {
+        if (!messageId) return { ok: false, error: 'Сообщение не указано.' };
+        try {
+            const { data, error } = await supabaseClient.rpc('reminko_unsend_dm_message', {
+                p_message_id: messageId
+            });
+            if (error) return { ok: false, error: error.message || 'Не удалось отменить.' };
+            return { ok: true, removed: !!data };
+        } catch (e) {
+            return { ok: false, error: e.message || 'Ошибка отмены.' };
+        }
+    },
+
+    async editGroupMessage(messageId, newText) {
+        const text = String(newText || '').trim();
+        if (!messageId) return { ok: false, error: 'Сообщение не указано.' };
+        if (!text) return { ok: false, error: 'Пустой текст.' };
+        try {
+            const { data, error } = await supabaseClient.rpc('reminko_edit_dm_group_message', {
+                p_message_id: messageId,
+                p_text: text
+            });
+            if (error) return { ok: false, error: error.message || 'Не удалось изменить.' };
+            return { ok: true, data };
+        } catch (e) {
+            return { ok: false, error: e.message || 'Ошибка правки.' };
+        }
+    },
+
+    async unsendGroupMessage(messageId) {
+        if (!messageId) return { ok: false, error: 'Сообщение не указано.' };
+        try {
+            const { data, error } = await supabaseClient.rpc('reminko_unsend_dm_group_message', {
+                p_message_id: messageId
+            });
+            if (error) return { ok: false, error: error.message || 'Не удалось отменить.' };
+            return { ok: true, removed: !!data };
+        } catch (e) {
+            return { ok: false, error: e.message || 'Ошибка отмены.' };
         }
     },
 
@@ -602,7 +665,7 @@ const DirectMessagesService = {
         }
     },
 
-    subscribeToGroupChat(groupId, onNewMessage) {
+    subscribeToGroupChat(groupId, onNewMessage, onMessageChange) {
         this.unsubscribeFromChat();
         this._currentChatUserId = 'g:' + groupId;
         this._realtimeChannel = supabaseClient
@@ -617,6 +680,34 @@ const DirectMessagesService = {
                 },
                 (payload) => {
                     if (payload.new && onNewMessage) onNewMessage(payload.new);
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'dm_group_messages',
+                    filter: `group_id=eq.${groupId}`
+                },
+                (payload) => {
+                    if (payload.new && onMessageChange) {
+                        onMessageChange({ type: 'update', msg: payload.new });
+                    }
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'DELETE',
+                    schema: 'public',
+                    table: 'dm_group_messages',
+                    filter: `group_id=eq.${groupId}`
+                },
+                (payload) => {
+                    if (payload.old && onMessageChange) {
+                        onMessageChange({ type: 'delete', msg: payload.old });
+                    }
                 }
             )
             .subscribe();

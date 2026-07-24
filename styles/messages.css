@@ -990,6 +990,57 @@ body.msg-v2-creator-guest .msg-v2-list-empty .msg-v2-empty-hint {
     color: #c084fc;
     margin-bottom: 0.2rem;
 }
+.msg-v2-edited-mark {
+    font-size: 0.65rem;
+    opacity: 0.65;
+    font-weight: 600;
+}
+.msg-v2-msg-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.35rem;
+    opacity: 0.55;
+    transition: opacity 0.15s ease;
+}
+.msg-v2-row.out:hover .msg-v2-msg-actions,
+.msg-v2-row.out:focus-within .msg-v2-msg-actions {
+    opacity: 1;
+}
+.msg-v2-msg-action {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.25);
+    color: #e2e8f0;
+    border-radius: 0.4rem;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+.msg-v2-msg-action:hover {
+    border-color: rgba(227, 0, 255, 0.45);
+    color: #fff;
+}
+.msg-v2-msg-action.danger:hover {
+    border-color: rgba(251, 113, 133, 0.55);
+    color: #fb7185;
+}
+.msg-v2-edit-textarea {
+    min-height: 110px;
+    resize: vertical;
+    line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+    .msg-v2-msg-actions {
+        opacity: 1;
+    }
+    .msg-v2-msg-action {
+        min-width: 36px;
+        min-height: 36px;
+    }
+}
 .msg-v2-item.is-group .msg-v2-item-initial {
     font-size: 1.05rem;
 }

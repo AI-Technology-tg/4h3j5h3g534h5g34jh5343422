@@ -539,10 +539,34 @@ class NavigationManager {
     initTopRandomAnime() {
         const btn = document.getElementById('topRandomAnimeBtn');
         if (!btn) return;
+        const filterRandomPool = (list) => {
+            if (!Array.isArray(list) || !list.length) return [];
+            const adultOk =
+                typeof isAdultContentEnabled === 'function' && isAdultContentEnabled();
+            if (adultOk) return list;
+            if (typeof filterAdultAnimeList === 'function') {
+                return filterAdultAnimeList(list);
+            }
+            return list.filter((a) => {
+                if (typeof animeHasRestrictedGenre === 'function') {
+                    return !animeHasRestrictedGenre(a);
+                }
+                const genres = Array.isArray(a && a.genres) ? a.genres : [];
+                return !genres.some((g) => {
+                    const n = String(g || '').toLowerCase();
+                    return (
+                        n.includes('хентай') ||
+                        n.includes('hentai') ||
+                        n.includes('эротик') ||
+                        n.includes('erotic')
+                    );
+                });
+            });
+        };
         const goRandom = (e) => {
             if (e) e.preventDefault();
             if (typeof getAllAnime !== 'function') return;
-            const allAnime = getAllAnime();
+            const allAnime = filterRandomPool(getAllAnime());
             if (allAnime.length === 0) {
                 if (typeof showWarning === 'function') showWarning('Аниме не найдено');
                 return;
