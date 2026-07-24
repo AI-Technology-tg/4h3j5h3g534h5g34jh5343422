@@ -1406,8 +1406,7 @@ async function searchFreeScrape(userText) {
 
 /**
  * Поиск в интернете для аниме-вопроса.
- * По умолчанию: бесплатный scrape → UnSearch/SearchX → Tavily → SerpAPI
- * (чтобы не жечь кредиты Tavily зря).
+ * Приоритет: SearchX (если ключ) → бесплатный scrape → UnSearch → Tavily → SerpAPI.
  */
 async function searchAnimeWeb(userText) {
     const q = buildAnimeWebQuery(userText);
@@ -1430,15 +1429,16 @@ async function searchAnimeWeb(userText) {
         }
     };
 
+    // SearchX первым, если ключ есть (~3000/день бесплатно)
+    await tryProvider('searchx', () => searchSearchX(qAnime));
     if (SEARCH_FREE_FIRST) {
         await tryProvider('free-scrape', () => searchFreeScrape(userText));
     }
     await tryProvider('unsearch', () => searchUnsearch(qAnime));
-    await tryProvider('searchx', () => searchSearchX(qAnime));
     if (!SEARCH_FREE_FIRST) {
         await tryProvider('free-scrape', () => searchFreeScrape(userText));
     }
-    // Платные — только если бесплатные пустые
+    // Tavily/SerpAPI — запас, чтобы не жечь кредиты зря
     await tryProvider('tavily', () => searchTavily(qAnime));
     await tryProvider('serpapi', () => searchSerpApi(qAnime));
 
