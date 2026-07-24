@@ -826,41 +826,118 @@ function formatHitsBlock(hits) {
         .join('\n');
 }
 
+/** Прямые страницы для частых франшиз — если SERP с Netlify пустой. */
+function knownFactPages(userText) {
+    const t = String(userText || '');
+    const urls = [];
+    if (/ре\s*[-:]?\s*зеро|резеро|re\s*[-:]?\s*zero|rezero/i.test(t)) {
+        if (/\b4\b|четвёрт|четверт|4th|тв-?4|tv-?4/i.test(t)) {
+            urls.push(
+                'https://en.wikipedia.org/wiki/Re:Zero_season_4',
+                'https://en.wikipedia.org/wiki/List_of_Re:Zero_episodes'
+            );
+        } else {
+            urls.push('https://en.wikipedia.org/wiki/List_of_Re:Zero_episodes');
+        }
+    }
+    return urls.slice(0, 2);
+}
+
+async function fetchSiteCalendarResearch(userText) {
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 4000);
+    try {
+        const r = await fetch('https://re-minko-anime.com/data/kodik-calendar.json', {
+            signal: ac.signal,
+            headers: { Accept: 'application/json', 'User-Agent': BROWSER_UA }
+        });
+        if (!r.ok) return '';
+        const j = await r.json();
+        const items = Array.isArray(j.items) ? j.items : [];
+        const t = String(userText || '');
+        const wantRezero = /ре\s*[-:]?\s*зеро|резеро|re\s*[-:]?\s*zero|rezero/i.test(t);
+        const season4 = /\b4\b|4th|тв-?4|tv-?4|четвёрт|четверт/i.test(t);
+        const hits = items.filter((it) => {
+            const blob = `${it.title_ru || ''} ${it.title_en || ''}`;
+            if (wantRezero && /re:?\s*zero|hajimeru isekai|жизнь с нуля/i.test(blob)) {
+                if (season4) return /4|4th/i.test(blob);
+                return true;
+            }
+            return false;
+        });
+        if (!hits.length && wantRezero) {
+            const soft = items.filter((it) =>
+                /re:?\s*zero|hajimeru isekai|жизнь с нуля/i.test(
+                    `${it.title_ru || ''} ${it.title_en || ''}`
+                )
+            );
+            hits.push(...soft.slice(0, 1));
+        }
+        if (!hits.length) return '';
+        return (
+            'Календарь сайта (цифры выхода):\n' +
+            hits
+                .slice(0, 2)
+                .map((it) => {
+                    const name = it.title_ru || it.title_en || '?';
+                    return `«${name}»: вышло ${it.episodes_aired ?? '?'}, следующая серия ${it.next_episode ?? '?'} (${it.next_at || '?'}), статус ${it.status || '?'}`;
+                })
+                .join('\n')
+        );
+    } catch {
+        return '';
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
 async function fetchInternetResearch(userText) {
     const q = buildAnimeWebQuery(userText);
     if (!q) return '';
 
-    const [cse, google, bing, ddg] = await Promise.all([
+    const knownUrls = knownFactPages(userText);
+    const [cse, google, bing, ddg, ...knownPages] = await Promise.all([
         fetchGoogleCseHits(q).catch(() => []),
         fetchGoogleHtmlHits(q).catch(() => []),
         fetchBingHtmlHits(q).catch(() => []),
-        fetchDuckDuckGoHtmlHits(q).catch(() => [])
+        fetchDuckDuckGoHtmlHits(q).catch(() => []),
+        ...knownUrls.map((u) => fetchPageTextViaJina(u).catch(() => ''))
     ]);
 
     // Приоритет: Google CSE → Google HTML → Bing → DDG
     const hits = uniqSearchHits([...(cse || []), ...(google || []), ...(bing || []), ...(ddg || [])], 8);
-    if (!hits.length) {
+    const parts = [];
+    if (hits.length) {
+        parts.push('Результаты поиска по запросу: «' + q + '»', formatHitsBlock(hits));
+    } else {
         try {
             const snip = await fetchDuckDuckGoSnippet(userText);
-            return snip ? 'Краткая сводка:\n' + snip : '';
+            if (snip) parts.push('Краткая сводка:\n' + snip);
         } catch {
-            return '';
+            /* ignore */
         }
     }
 
-    const parts = ['Результаты поиска по запросу: «' + q + '»', formatHitsBlock(hits)];
+    knownUrls.forEach((u, i) => {
+        const txt = knownPages[i];
+        if (txt && String(txt).length >= 80) {
+            parts.push('--- Страница: ' + u + ' ---\n' + String(txt).slice(0, 3200));
+        }
+    });
 
-    // Одна страница целиком (лимит Netlify ~10с: поиск уже параллельный)
-    const prefer =
-        /myanimelist|anilist|shikimori|animenewsnetwork|anime-planet|wikipedia|crunchyroll/i;
-    const toRead =
-        hits.find((h) => h.url && prefer.test(h.url)) || hits.find((h) => h.url) || null;
-    if (toRead) {
-        const txt = await fetchPageTextViaJina(toRead.url).catch(() => '');
-        if (txt && txt.length >= 80) {
-            parts.push(
-                '--- Страница: ' + (toRead.title || toRead.url) + ' ---\n' + txt.slice(0, 2800)
-            );
+    // Если известных страниц нет — одна из выдачи
+    if (!knownUrls.length || !knownPages.some((p) => p && String(p).length >= 80)) {
+        const prefer =
+            /myanimelist|anilist|shikimori|animenewsnetwork|anime-planet|wikipedia|crunchyroll/i;
+        const toRead =
+            hits.find((h) => h.url && prefer.test(h.url)) || hits.find((h) => h.url) || null;
+        if (toRead) {
+            const txt = await fetchPageTextViaJina(toRead.url).catch(() => '');
+            if (txt && txt.length >= 80) {
+                parts.push(
+                    '--- Страница: ' + (toRead.title || toRead.url) + ' ---\n' + txt.slice(0, 2800)
+                );
+            }
         }
     }
 
@@ -870,8 +947,9 @@ async function fetchInternetResearch(userText) {
 async function fetchResearchBundle(userText, clientResearch) {
     const parts = [];
     const client = String(clientResearch || '').trim();
+    const hasCatalogFacts = /ФАКТЫ ИЗ КАТАЛОГА|КАЛЕНДАРЬ Re-Minko|серии \d/i.test(client);
     if (client.length > 30) {
-        parts.push('=== Каталог Re-Minko (локально) ===\n' + client.slice(0, 4500));
+        parts.push('=== Каталог / календарь Re-Minko ===\n' + client.slice(0, 5000));
     }
 
     // Интернет только по аниме — иначе модель не кормим общим вебом
@@ -885,20 +963,26 @@ async function fetchResearchBundle(userText, clientResearch) {
     }
 
     try {
-        const web = await fetchInternetResearch(userText);
+        const [web, siteCal] = await Promise.all([
+            fetchInternetResearch(userText).catch(() => ''),
+            fetchSiteCalendarResearch(userText).catch(() => '')
+        ]);
+        if (siteCal) {
+            parts.push('=== КАЛЕНДАРЬ САЙТА (сервер) ===\n' + siteCal);
+        }
         if (web) {
             parts.push(
-                '=== ПОИСК В ИНТЕРНЕТЕ (главный источник, актуальнее знаний модели) ===\n' + web
+                '=== ПОИСК В ИНТЕРНЕТЕ (дополнение к каталогу/календарю) ===\n' + web
             );
-        } else {
+        } else if (!hasCatalogFacts && !siteCal) {
             parts.push(
-                '=== ПОИСК В ИНТЕРНЕТЕ ===\nСводка пуста (поисковики не ответили). Не выдумывай свежие даты/сезоны — скажи, что не нашла в сети.'
+                '=== ПОИСК В ИНТЕРНЕТЕ ===\nСводка пуста. Не выдумывай свежие даты/сезоны.'
             );
         }
     } catch (_) {
-        parts.push(
-            '=== ПОИСК В ИНТЕРНЕТЕ ===\nОшибка поиска. Не выдумывай свежие даты/сезоны.'
-        );
+        if (!hasCatalogFacts) {
+            parts.push('=== ПОИСК В ИНТЕРНЕТЕ ===\nОшибка поиска. Не выдумывай свежие даты/сезоны.');
+        }
     }
 
     return parts.join('\n\n').slice(0, 9500);
@@ -954,8 +1038,8 @@ function buildSystemPrompt(userGender, isVip, researchBlock) {
 
     const dataBlock =
         researchBlock && researchBlock.trim().length > 40
-            ? `\n\n=== ДАННЫЕ ИЗ ИНТЕРНЕТА + КАТАЛОГ ===\nГлавный источник — блок «ПОИСК В ИНТЕРНЕТЕ». Если интернет и твои знания расходятся (даты, сезоны, число серий, статус) — ВЕРЬ ИНТЕРНЕТУ, а не памяти. Отвечай уверенно по этим данным с первого ответа, без «переспроси меня». Каталог Re-Minko — для ссылок [[watch:ID|…]] на сайте. Если в поиске пусто — не выдумывай свежие факты.\n${researchBlock.trim().slice(0, 8500)}`
-            : `\n\n=== ДАННЫЕ ===\nИнтернет-сводка не пришла — не выдумывай точные даты/номера серий/статус онгоинга; скажи, что не нашла в сети, и предложи уточнить название.`;
+            ? `\n\n=== ДАННЫЕ (каталог + календарь + интернет) ===\nПорядок доверия: 1) КАЛЕНДАРЬ / ФАКТЫ ИЗ КАТАЛОГА  2) страницы из интернета  3) память модели (только если сверху пусто).\nЕсли в блоке есть «вышло серий / серии 1-N / следующая» — СРАЗУ назови цифры. Запрещено отвечать «в сводке нет данных», когда цифры есть в блоке. Не подсовывай другие аниме (KonoSuba, Slime и т.п.), если вопрос про конкретный тайтл.\n${researchBlock.trim().slice(0, 8500)}`
+            : `\n\n=== ДАННЫЕ ===\nСводка не пришла — не выдумывай точные даты/номера серий; скажи, что не нашла, и предложи уточнить название.`;
 
     return `Ты — Minko, лучший AI-ассистент сайта Re-Minko (каталог аниме и манги). Образ и характер — в духе Рэм из Re:Zero. Создатель — Дубина (он сделал сайт и тебя, фанат Re:Zero).
 

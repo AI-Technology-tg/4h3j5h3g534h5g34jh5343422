@@ -4272,12 +4272,18 @@ document.addEventListener('DOMContentLoaded', () => {
             options.catalogHits.length
         ) {
             const alreadyLinked = /\[\[watch:/i.test(String(content || ''));
-            const wantsWatch =
-                /смотр|открой|найди|дай\s*ссыл|перейд|где\s*смотр|watch|каталог|посмотр|сезон|тайтл|аниме|рекоменд|похож/i.test(
-                    String(options.userMessage || '')
+            const um = String(options.userMessage || '');
+            // «сколько серий / какая последняя» — не вешаем чужие «Смотреть»
+            const factOnly =
+                /скольк|какая\s+последн|какая\s+сери|последн\w*\s+сери|сколько\s+сери|эпизод\w*\s+вышл/i.test(
+                    um
                 );
-            // Всегда доклеиваем кнопки, если модель забыла маркеры, а каталог нашёл тайтл
-            if (!alreadyLinked && (wantsWatch || options.catalogHits.length === 1)) {
+            const wantsWatch =
+                !factOnly &&
+                /смотр|открой|найди|дай\s*ссыл|перейд|где\s*смотр|watch|каталог|посмотр|тайтл|рекоменд|похож/i.test(
+                    um
+                );
+            if (!alreadyLinked && (wantsWatch || (!factOnly && options.catalogHits.length === 1))) {
                 const bubble = messageDiv.querySelector('.message-bubble');
                 const cards = _buildCatalogWatchCardsHtml(options.catalogHits);
                 if (bubble && cards) bubble.insertAdjacentHTML('beforeend', cards);
