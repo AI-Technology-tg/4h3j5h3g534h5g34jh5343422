@@ -147,7 +147,17 @@ function normalizeStatuses(items, calendarMap) {
             !!(anime._calendar && anime._calendar.active) ||
             (nextEp > 0 && nextEp > released);
 
-        if (isSerial) {
+        if (!isSerial) {
+            // Фильмы: плеер Kodik = уже вышло; Shiki anons без плеера = анонс
+            const calSt = cal ? String(cal.status || '').toLowerCase() : '';
+            if (released > 0 || (anime._kodik && anime._kodik.link)) {
+                if (anime.status === 'Анонс') stats.movedFromAnnounced += 1;
+                anime.status = 'Завершён';
+            } else if (calSt === 'anons' || calSt === 'announcement' || before === 'Анонс') {
+                anime.status = 'Анонс';
+            }
+        } else if (isSerial) {
+            const calSt = cal ? String(cal.status || '').toLowerCase() : '';
             if (released > 0) {
                 if (anime.status === 'Анонс') stats.movedFromAnnounced += 1;
                 // Активный календарь / next > released важнее ложного «Завершён» от Kodik
@@ -155,13 +165,25 @@ function normalizeStatuses(items, calendarMap) {
                     anime.status = 'Онгоинг';
                 }
                 anime.episodes = `1-${released}`;
-            } else if (cal || before === 'Анонс') {
+            } else if (calSt === 'ongoing' || calSt === 'currently airing') {
+                // Shiki already ongoing, even if Kodik lastEpisode=0
+                if (anime.status === 'Анонс') stats.movedFromAnnounced += 1;
+                anime.status = 'Онгоинг';
+                anime.episodes = '0';
+            } else if (calSt === 'released' || calSt === 'finished') {
+                if (anime.status === 'Анонс') stats.movedFromAnnounced += 1;
+                anime.status = 'Завершён';
+                anime.episodes = '0';
+            } else if (calSt === 'anons' || calSt === 'announcement') {
+                anime.status = 'Анонс';
+                anime.episodes = '0';
+            } else if (before === 'Анонс') {
                 anime.status = 'Анонс';
                 anime.episodes = '0';
             }
 
-            // Kodik часто ставит episodes_total = числу уже вышедших серий → ложный финал
-            if (calendarSaysMore) {
+            // Не повышаем премьеру (released=0, next=1) до онгоинга только из‑за даты в календаре
+            if (calendarSaysMore && released > 0) {
                 anime.status = 'Онгоинг';
             } else if (
                 anime.status !== 'Анонс' &&

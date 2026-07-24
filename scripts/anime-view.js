@@ -250,9 +250,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                   : parseInt(animeId, 10) >= 10000000
                     ? parseInt(animeId, 10) - 10000000
                     : NaN;
-        if (Number.isFinite(mal) && mal > 0) {
-            const jikanData = await fetchJikanAnimeByMalId(mal);
-            if (jikanData) {
+        // Есть плеер Kodik — сразу обычная страница, не режим «только анонс»
+        if (anime._kodik && anime._kodik.link) {
+            try {
+                sessionStorage.removeItem('jikanAnimeData');
+            } catch (_) {
+                /* ignore */
+            }
+        } else if (Number.isFinite(mal) && mal > 0) {
+            const jikanData = await fetchJikanAnimeByMalId(mal, { ignoreStaleAnnounced: true });
+            const jStatus = jikanData && String(jikanData.status || '');
+            // Jikan/Shiki говорят, что уже выходит или вышло — показываем каталог + плеер
+            if (jikanData && jStatus && jStatus !== 'Not yet aired') {
+                try {
+                    sessionStorage.removeItem('jikanAnimeData');
+                } catch (_) {
+                    /* ignore */
+                }
+                anime.status =
+                    jStatus === 'Currently Airing'
+                        ? 'Онгоинг'
+                        : jStatus === 'Finished Airing'
+                          ? 'Завершён'
+                          : anime.status;
+            } else if (jikanData && jStatus === 'Not yet aired') {
                 clearTimeout(loadingTimeout);
                 await renderJikanAnimeDetail(jikanData);
                 if (typeof hideLoading === 'function') hideLoading();
@@ -301,12 +322,18 @@ function escapeHtmlText(s) {
         .replace(/"/g, '&quot;');
 }
 
-function reminkoReadSessionJikanData(mal) {
+function reminkoReadSessionJikanData(mal, opts) {
     try {
         const stored = sessionStorage.getItem('jikanAnimeData');
         if (!stored) return null;
         const parsed = JSON.parse(stored);
-        if (parsed && String(parsed.mal_id) === String(mal)) return parsed;
+        if (!parsed || String(parsed.mal_id) !== String(mal)) return null;
+        // F5 НЕ чистит sessionStorage: заглушка Not yet aired с главной/анонса
+        // переживает обновление и прячет плеер, пока не зайдёшь в другой сезон.
+        if (opts && opts.ignoreStaleAnnounced && parsed.status === 'Not yet aired') {
+            return null;
+        }
+        return parsed;
     } catch (_) {
         /* ignore */
     }
@@ -329,7 +356,7 @@ async function resolveVirtualJikanView(animeId, malIdParam) {
         return { jikan: virtualAnime._jikanRaw, mergedCard: virtualAnime };
     }
 
-    const sessionJikan = reminkoReadSessionJikanData(mal);
+    const sessionJikan = reminkoReadSessionJikanData(mal, { ignoreStaleAnnounced: true });
     if (sessionJikan) {
         if (typeof registerJikanHomeList === 'function') registerJikanHomeList([sessionJikan]);
         virtualAnime = getAnimeById(animeId);
@@ -339,7 +366,7 @@ async function resolveVirtualJikanView(animeId, malIdParam) {
         };
     }
 
-    const jikanData = await fetchJikanAnimeByMalId(mal);
+    const jikanData = await fetchJikanAnimeByMalId(mal, { ignoreStaleAnnounced: true });
     if (jikanData) {
         if (typeof registerJikanHomeList === 'function') registerJikanHomeList([jikanData]);
         virtualAnime = getAnimeById(animeId);
@@ -2267,6 +2294,10 @@ function isJikanAnnouncedAnime(anime) {
 function isAnnouncedCatalogAnime(anime) {
     if (!anime) return false;
     // Уже выходит / вышло / есть серии или ссылка Kodik — не режим «только анонс» (без плеера)
+    if (typeof reminkoEffectiveAnimeStatus === 'function') {
+        const eff = reminkoEffectiveAnimeStatus(anime);
+        if (eff === 'Онгоинг' || eff === 'Завершён' || eff === 'Вышел') return false;
+    }
     const st = String(anime.status || '');
     if (st === 'Онгоинг' || st === 'Завершён' || st === 'Вышел') return false;
     if (anime._kodik && anime._kodik.link) return false;
@@ -2277,18 +2308,25 @@ function isAnnouncedCatalogAnime(anime) {
     const hi = range ? parseInt(range[2], 10) : parseInt(epStr, 10);
     if (Number.isFinite(hi) && hi >= 1) return false;
 
+    const mal = parseInt(anime.mal_id, 10);
+    if (Number.isFinite(mal) && mal > 0 && typeof reminkoShikimoriCalendarRowForMal === 'function') {
+        const row = reminkoShikimoriCalendarRowForMal(mal);
+        const cst = String((row && row.status) || '').toLowerCase();
+        if (cst === 'ongoing' || cst === 'released' || cst === 'finished') return false;
+    }
+
     if (anime.isCalendarAnnounced) return true;
     if (anime.status === 'Анонс') return true;
     return isJikanAnnouncedAnime(anime);
 }
 
-async function fetchJikanAnimeByMalId(malId) {
+async function fetchJikanAnimeByMalId(malId, opts) {
     const mal =
         typeof reminkoNormalizeMalId === 'function'
             ? reminkoNormalizeMalId(malId)
             : parseInt(malId, 10);
     if (!Number.isFinite(mal) || mal <= 0) return null;
-    const cached = reminkoReadSessionJikanData(mal);
+    const cached = reminkoReadSessionJikanData(mal, opts);
     if (cached) return cached;
 
     const withTimeout = (p, ms) =>

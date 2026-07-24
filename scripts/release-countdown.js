@@ -606,7 +606,22 @@
         const last = parseInt(anime._kodik && anime._kodik.lastEpisode, 10);
         const released = Number.isFinite(last) ? Math.max(0, last) : 0;
         const hasLink = !!(anime._kodik && anime._kodik.link);
-        // Кривой «Анонс» у уже доступных фильмов / сериалов с сериями
+
+        // Shiki-календарь — приоритетнее ярлыка Kodik «Анонс»
+        const mal = parseInt(anime.mal_id, 10);
+        if (Number.isFinite(mal) && mal > 0 && typeof reminkoShikimoriCalendarRowForMal === 'function') {
+            const row = reminkoShikimoriCalendarRowForMal(mal);
+            const cst = String((row && row.status) || '').toLowerCase();
+            if (cst === 'ongoing' || cst === 'currently airing') return 'Онгоинг';
+            if (cst === 'released' || cst === 'finished') return 'Завершён';
+        }
+
+        // Jikan raw на виртуальной карточке
+        const js = anime._jikanRaw && String(anime._jikanRaw.status || '');
+        if (js === 'Currently Airing') return 'Онгоинг';
+        if (js === 'Finished Airing') return 'Завершён';
+
+        // Кривой «Анонс» у уже доступных фильмов / сериалов с сериями/плеером
         if (st === 'Анонс') {
             if (anime.type === 'Фильм' && (hasLink || released >= 1)) return 'Завершён';
             if (released >= 1) {
@@ -614,6 +629,8 @@
                 if (total > 0 && released >= total) return 'Завершён';
                 return 'Онгоинг';
             }
+            // Есть плеер Kodik у «анонса» без серий — не прячем как чистый анонс в фильтре
+            if (hasLink && anime.type === 'Сериал') return 'Онгоинг';
         }
         return st;
     }

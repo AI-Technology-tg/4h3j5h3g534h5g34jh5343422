@@ -274,10 +274,12 @@ function mergeAnimeListsUniqueById(lists) {
 function dedupeAnimeByMalId(animeList) {
     const byMal = new Map();
     const noMal = [];
+    // Kodik важнее виртуального Jikan: иначе в фильтре «Анонс» всплывают сотни
+    // stale Not yet aired из localStorage рядом с реальными карточками каталога.
     const priority = (a) => {
         if (a && a.isSiteCatalog) return 5;
-        if (a && a.isJikanVirtual) return 4;
-        if (a && a.isKodikCatalog) return 3;
+        if (a && a.isKodikCatalog) return 4;
+        if (a && a.isJikanVirtual) return 3;
         if (a && a.isCustom) return 2;
         return 1;
     };
@@ -287,10 +289,7 @@ function dedupeAnimeByMalId(animeList) {
             noMal.push(a);
             continue;
         }
-        const key =
-            a && a.isKodikCatalog
-                ? `k:${mal}:${a.type || ''}`
-                : `m:${mal}`;
+        const key = `${mal}:${a.type || ''}`;
         const prev = byMal.get(key);
         if (!prev || priority(a) > priority(prev)) byMal.set(key, a);
     }
@@ -1068,13 +1067,32 @@ function filterAnime(filters) {
             const n = parseInt(epStr, 10);
             return Number.isFinite(n) && n > 0 ? n : 0;
         };
+        const kodikMals = new Set(
+            results
+                .filter((a) => a && a.isKodikCatalog && a.mal_id != null)
+                .map((a) => parseInt(a.mal_id, 10))
+                .filter((n) => Number.isFinite(n) && n > 0)
+        );
         results = results.filter((anime) =>
             filters.status.some((s) => {
                 if (!statusAliases(s, effectiveStatus(anime))) return false;
-                // «Анонс» только реально не вышедшие (фильмы с плеером / серии — отсекаем)
+                // «Анонс» только реально не вышедшие
                 if (s === 'Анонс') {
                     if (releasedEps(anime) >= 1) return false;
-                    if (anime.type === 'Фильм' && anime._kodik && anime._kodik.link) return false;
+                    if (anime._kodik && anime._kodik.link) return false;
+                    // Виртуальный Jikan Not yet aired не дублируем, если тайтл уже есть в Kodik
+                    if (anime.isJikanVirtual) {
+                        const mal = parseInt(anime.mal_id, 10);
+                        if (Number.isFinite(mal) && kodikMals.has(mal)) return false;
+                        const js = anime._jikanRaw && anime._jikanRaw.status;
+                        if (js && js !== 'Not yet aired') return false;
+                    }
+                    // Shiki-календарь: ongoing/released — не анонс
+                    if (typeof window.reminkoShikimoriCalendarRowForMal === 'function' && anime.mal_id != null) {
+                        const row = window.reminkoShikimoriCalendarRowForMal(anime.mal_id);
+                        const cst = String((row && row.status) || '').toLowerCase();
+                        if (cst === 'ongoing' || cst === 'released' || cst === 'finished') return false;
+                    }
                 }
                 return true;
             })
