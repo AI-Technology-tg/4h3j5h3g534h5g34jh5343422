@@ -115,10 +115,11 @@ function mapStatus(row) {
         parseInt(row.episodes_count, 10) ||
         0;
 
-    if (st === 'released' || st === 'finished') return 'Завершён';
     if (st === 'anons' || st === 'announcement') return 'Анонс';
-    if (total > 0 && released >= total) return 'Завершён';
+    // ongoing раньше, чем released>=total: у Kodik episodes_total часто = уже вышедшим сериям
     if (st === 'ongoing' || st === 'currently airing') return 'Онгоинг';
+    if (st === 'released' || st === 'finished') return 'Завершён';
+    if (total > 0 && released >= total) return 'Завершён';
     if (released > 0) return 'Онгоинг';
     if (row.last_episode != null && parseInt(row.last_episode, 10) === 0) return 'Анонс';
     return 'Анонс';

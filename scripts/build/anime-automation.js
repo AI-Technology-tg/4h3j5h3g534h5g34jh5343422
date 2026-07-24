@@ -142,16 +142,33 @@ function normalizeStatuses(items, calendarMap) {
             delete anime._calendar;
         }
 
+        const nextEp = anime._calendar ? toInt(anime._calendar.nextEpisode, 0) : 0;
+        const calendarSaysMore =
+            !!(anime._calendar && anime._calendar.active) ||
+            (nextEp > 0 && nextEp > released);
+
         if (isSerial) {
             if (released > 0) {
                 if (anime.status === 'Анонс') stats.movedFromAnnounced += 1;
-                if (anime.status !== 'Завершён') anime.status = 'Онгоинг';
+                // Активный календарь / next > released важнее ложного «Завершён» от Kodik
+                if (calendarSaysMore || anime.status !== 'Завершён') {
+                    anime.status = 'Онгоинг';
+                }
                 anime.episodes = `1-${released}`;
             } else if (cal || before === 'Анонс') {
                 anime.status = 'Анонс';
                 anime.episodes = '0';
             }
-            if (anime.status !== 'Анонс' && total > 0 && released >= total && before === 'Завершён') {
+
+            // Kodik часто ставит episodes_total = числу уже вышедших серий → ложный финал
+            if (calendarSaysMore) {
+                anime.status = 'Онгоинг';
+            } else if (
+                anime.status !== 'Анонс' &&
+                total > 0 &&
+                released >= total &&
+                !calendarSaysMore
+            ) {
                 anime.status = 'Завершён';
             }
         }
@@ -159,7 +176,7 @@ function normalizeStatuses(items, calendarMap) {
         anime._automation = {
             bucket: statusBucket(anime.status),
             releasedEpisodes: released,
-            totalEpisodes: total || null,
+            totalEpisodes: toInt(anime.totalEpisodes, total) || null,
             nextEpisode: anime._calendar && anime._calendar.active ? anime._calendar.nextEpisode : null,
             nextAt: anime._calendar && anime._calendar.active ? anime._calendar.nextAt : null,
             scheduleState: anime._calendar ? anime._calendar.state : 'none',

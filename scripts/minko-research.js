@@ -401,7 +401,11 @@
                           : '?';
                 const st = h.status || '?';
                 const sn = h.season != null ? ` · сезон/ТВ-${h.season}` : '';
-                return `• «${h.title}»${sn}: в каталоге серии ${eps}, статус «${st}»${
+                const ongoingHint =
+                    st === 'Онгоинг'
+                        ? ' (тайтл ещё выходит — не говори «завершён»; цифры серий = уже вышедшие на сайте, не финал сезона)'
+                        : '';
+                return `• «${h.title}»${sn}: в каталоге серии ${eps}, статус «${st}»${ongoingHint}${
                     h.totalEpisodes != null ? `, totalEpisodes=${h.totalEpisodes}` : ''
                 } (id=${h.id}${h.mal_id ? `, mal=${h.mal_id}` : ''})`;
             });
