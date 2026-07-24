@@ -1611,7 +1611,7 @@ class CreatorAdminPanel {
         try {
             const pub = await supabaseClient
                 .from('minko_ai_public_state')
-                .select('chat_enabled, maintenance_message, offline_except_creator, updated_at')
+                .select('chat_enabled, maintenance_message, offline_except_creator, search_provider, updated_at')
                 .eq('id', 1)
                 .maybeSingle();
             const sec = await supabaseClient
@@ -1639,6 +1639,7 @@ class CreatorAdminPanel {
                     chat_enabled: true,
                     maintenance_message: '',
                     offline_except_creator: false,
+                    search_provider: 'auto',
                     updated_at: null,
                 },
                 secrets: sec.data || { netlify_build_hook_url: null },
@@ -1650,15 +1651,23 @@ class CreatorAdminPanel {
         }
     }
 
-    async saveMinkoAiServerSettings(chatEnabled, maintenanceMessage, offlineExceptCreator = false) {
+    async saveMinkoAiServerSettings(
+        chatEnabled,
+        maintenanceMessage,
+        offlineExceptCreator = false,
+        searchProvider = 'auto'
+    ) {
         if (!supabaseClient) return { success: false, message: 'Нет Supabase' };
         const a = await this._assertCallerIsSiteCreator();
         if (!a.ok) return { success: false, message: a.message };
+        const sp = String(searchProvider || 'auto').trim().toLowerCase();
+        const search_provider = sp === 'free' || sp === 'tavily' ? sp : 'auto';
         const row = {
             id: 1,
             chat_enabled: !!chatEnabled,
             maintenance_message: String(maintenanceMessage || '').slice(0, 2000),
             offline_except_creator: !!offlineExceptCreator,
+            search_provider,
             updated_at: new Date().toISOString()
         };
         const { error } = await supabaseClient.from('minko_ai_public_state').upsert(row, { onConflict: 'id' });
@@ -1668,6 +1677,7 @@ class CreatorAdminPanel {
             details: {
                 chat_enabled: !!chatEnabled,
                 offline_except_creator: !!offlineExceptCreator,
+                search_provider,
                 message_len: String(maintenanceMessage || '').length,
             },
         });

@@ -262,6 +262,9 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE public.minko_ai_public_state
 ADD COLUMN IF NOT EXISTS offline_except_creator BOOLEAN NOT NULL DEFAULT false;
 
+ALTER TABLE public.minko_ai_public_state
+ADD COLUMN IF NOT EXISTS search_provider TEXT NOT NULL DEFAULT 'auto';
+
 -- Логи серверной функции чата (Netlify + SUPABASE_SERVICE_ROLE_KEY — INSERT обходит RLS)
 CREATE TABLE IF NOT EXISTS public.minko_ai_server_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

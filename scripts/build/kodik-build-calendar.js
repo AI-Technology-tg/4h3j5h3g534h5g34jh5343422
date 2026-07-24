@@ -18,11 +18,16 @@ for (const row of arr) {
     if (!Number.isFinite(mal) || mal <= 0) continue;
     const next_at = row.next_episode_at || row.next_at || null;
     if (!next_at) continue;
+    const episodesTotal = parseInt(row.episodes ?? row.anime?.episodes, 10);
+    const episodesAired = parseInt(row.episodes_aired ?? row.anime?.episodes_aired, 10);
     items.push({
         mal_id: mal,
         title_ru: (row.anime?.russian || row.anime?.name || row.title_ru || '').trim(),
         next_at: String(next_at),
-        next_episode: parseInt(row.next_episode, 10) || 1
+        next_episode: parseInt(row.next_episode, 10) || 1,
+        status: row.status || row.anime?.status || '',
+        episodes: Number.isFinite(episodesTotal) && episodesTotal > 0 ? episodesTotal : null,
+        episodes_aired: Number.isFinite(episodesAired) ? episodesAired : null
     });
 }
 

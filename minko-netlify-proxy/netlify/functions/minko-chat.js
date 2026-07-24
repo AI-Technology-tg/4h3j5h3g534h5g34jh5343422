@@ -64,11 +64,11 @@ const RATE_LIMIT_USER = 18;
 const RATE_LIMIT_VIP = 30;
 const rateBuckets = new Map();
 
-async function checkChatEnabledFromSupabase() {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return { ok: true };
+async function fetchMinkoPublicState() {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
     try {
         const r = await fetch(
-            `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/minko_ai_public_state?id=eq.1&select=chat_enabled,maintenance_message`,
+            `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/minko_ai_public_state?id=eq.1&select=chat_enabled,maintenance_message,search_provider`,
             {
                 headers: {
                     apikey: SUPABASE_ANON_KEY,
@@ -77,17 +77,32 @@ async function checkChatEnabledFromSupabase() {
             }
         );
         const rows = await r.json();
-        const row = Array.isArray(rows) ? rows[0] : null;
-        if (row && row.chat_enabled === false) {
-            return {
-                ok: false,
-                message: (row.maintenance_message || '').trim() || 'Minko AI временно отключена.'
-            };
-        }
+        return Array.isArray(rows) ? rows[0] : null;
     } catch (e) {
-        console.warn('[minko-chat] supabase gate', e.message);
+        console.warn('[minko-chat] supabase state', e.message);
+        return null;
+    }
+}
+
+async function checkChatEnabledFromSupabase() {
+    const row = await fetchMinkoPublicState();
+    if (row && row.chat_enabled === false) {
+        return {
+            ok: false,
+            message: (row.maintenance_message || '').trim() || 'Minko AI временно отключена.'
+        };
     }
     return { ok: true };
+}
+
+/** auto | free | tavily — из панели создателя */
+async function resolveSearchProviderMode() {
+    const row = await fetchMinkoPublicState();
+    const mode = String((row && row.search_provider) || process.env.MINKO_SEARCH_PROVIDER || 'auto')
+        .trim()
+        .toLowerCase();
+    if (mode === 'free' || mode === 'tavily' || mode === 'auto') return mode;
+    return 'auto';
 }
 
 async function remoteServerLog(level, message, details) {
@@ -1466,76 +1481,99 @@ async function searchFreeScrape(userText) {
 }
 
 /**
- * Поиск: 1) SearchX (бесплатно) → 2) бесплатный scrape → 3) UnSearch
- * Tavily — ТОЛЬКО когда у SearchX кончился дневной лимит (429/402/403).
+ * Поиск:
+ *  mode=auto  — SearchX → free scrape → Tavily только после лимита SearchX
+ *  mode=free  — только бесплатные (без Tavily)
+ *  mode=tavily — сразу Tavily (для сравнения в панели создателя)
  */
 async function searchAnimeWeb(userText) {
     const q = buildAnimeWebQuery(userText);
     if (!q) return { provider: '', results: [], sourcesText: '' };
     const qAnime = q + ' anime';
+    const mode = await resolveSearchProviderMode();
 
     let provider = '';
     let results = [];
     let searchxQuotaExceeded = false;
 
-    // 1) SearchX — основной бесплатный
-    if (SEARCHX_KEY) {
-        const sx = await searchSearchXDetailed(qAnime);
-        searchxQuotaExceeded = !!sx.quotaExceeded;
-        if (sx.results && sx.results.length) {
-            results = sx.results;
-            provider = 'searchx';
-        }
-    }
-
-    // 2) Другие бесплатные (пока лимит SearchX не исчерпан или ключа нет)
-    if (!results.length && !searchxQuotaExceeded) {
-        if (SEARCH_FREE_FIRST) {
-            const free = await searchFreeScrape(userText);
-            if (free.length) {
-                results = free;
-                provider = 'free-scrape';
+    if (mode === 'tavily') {
+        if (TAVILY_KEY) {
+            const t = await searchTavily(qAnime);
+            if (t.length) {
+                results = t;
+                provider = 'tavily';
             }
         }
-        if (!results.length && UNSEARCH_KEY) {
-            const u = await searchUnsearch(qAnime);
-            if (u.length) {
-                results = u;
-                provider = 'unsearch';
+        if (!results.length && SERPAPI_KEY) {
+            const s = await searchSerpApi(qAnime);
+            if (s.length) {
+                results = s;
+                provider = 'serpapi';
             }
         }
-        if (!results.length && !SEARCH_FREE_FIRST) {
-            const free = await searchFreeScrape(userText);
-            if (free.length) {
-                results = free;
-                provider = 'free-scrape';
+    } else {
+        // free | auto
+        if (SEARCHX_KEY) {
+            const sx = await searchSearchXDetailed(qAnime);
+            searchxQuotaExceeded = !!sx.quotaExceeded;
+            if (sx.results && sx.results.length) {
+                results = sx.results;
+                provider = 'searchx';
             }
         }
-    }
 
-    // 3) Tavily — только после исчерпания лимита SearchX (или если SearchX нет и всё пусто)
-    const allowTavily =
-        TAVILY_KEY &&
-        !results.length &&
-        (searchxQuotaExceeded || !SEARCHX_KEY);
-    if (allowTavily) {
-        const t = await searchTavily(qAnime);
-        if (t.length) {
-            results = t;
-            provider = 'tavily';
-            console.warn(
-                '[minko-chat] fallback → Tavily',
-                searchxQuotaExceeded ? '(SearchX лимит)' : '(нет SearchX)'
-            );
+        if (!results.length && !searchxQuotaExceeded) {
+            if (SEARCH_FREE_FIRST) {
+                const free = await searchFreeScrape(userText);
+                if (free.length) {
+                    results = free;
+                    provider = 'free-scrape';
+                }
+            }
+            if (!results.length && UNSEARCH_KEY) {
+                const u = await searchUnsearch(qAnime);
+                if (u.length) {
+                    results = u;
+                    provider = 'unsearch';
+                }
+            }
+            if (!results.length && !SEARCH_FREE_FIRST) {
+                const free = await searchFreeScrape(userText);
+                if (free.length) {
+                    results = free;
+                    provider = 'free-scrape';
+                }
+            }
         }
-    }
 
-    // 4) SerpAPI — самый крайний случай (платно)
-    if (!results.length && SERPAPI_KEY && (searchxQuotaExceeded || !SEARCHX_KEY)) {
-        const s = await searchSerpApi(qAnime);
-        if (s.length) {
-            results = s;
-            provider = 'serpapi';
+        const allowTavily =
+            mode === 'auto' &&
+            TAVILY_KEY &&
+            !results.length &&
+            (searchxQuotaExceeded || !SEARCHX_KEY);
+        if (allowTavily) {
+            const t = await searchTavily(qAnime);
+            if (t.length) {
+                results = t;
+                provider = 'tavily';
+                console.warn(
+                    '[minko-chat] fallback → Tavily',
+                    searchxQuotaExceeded ? '(SearchX лимит)' : '(нет SearchX)'
+                );
+            }
+        }
+
+        if (
+            mode === 'auto' &&
+            !results.length &&
+            SERPAPI_KEY &&
+            (searchxQuotaExceeded || !SEARCHX_KEY)
+        ) {
+            const s = await searchSerpApi(qAnime);
+            if (s.length) {
+                results = s;
+                provider = 'serpapi';
+            }
         }
     }
 
@@ -1548,7 +1586,8 @@ async function searchAnimeWeb(userText) {
         provider,
         results: top,
         sourcesText: formatSearchSources(top),
-        searchxQuotaExceeded
+        searchxQuotaExceeded,
+        searchMode: mode
     };
 }
 

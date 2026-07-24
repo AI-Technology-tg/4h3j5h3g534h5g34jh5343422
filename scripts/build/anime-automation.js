@@ -171,6 +171,20 @@ function normalizeStatuses(items, calendarMap) {
             ) {
                 anime.status = 'Завершён';
             }
+
+            // Итог серий из Shiki/календаря (как у Re:Zero = 19), если Kodik врёт «всего = вышедшим»
+            const calTotal = cal ? toInt(cal.episodes, 0) : 0;
+            if (calTotal > 0) {
+                anime.totalEpisodes = Math.max(calTotal, released || 0);
+            } else if (
+                calendarSaysMore &&
+                total > 0 &&
+                released > 0 &&
+                total <= released
+            ) {
+                // финал неизвестен (Shiki episodes=0) — не утверждаем «всего N»
+                anime.episodesTotalUnknown = true;
+            }
         }
 
         anime._automation = {

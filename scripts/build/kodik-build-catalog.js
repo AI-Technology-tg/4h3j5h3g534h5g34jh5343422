@@ -306,6 +306,7 @@ function normalizeCalendarRow(row) {
     }
 
     const episodesAired = parseInt(row.episodes_aired ?? anime.episodes_aired, 10);
+    const episodesTotal = parseInt(row.episodes ?? anime.episodes, 10);
 
     return {
         mal_id: mal,
@@ -316,6 +317,8 @@ function normalizeCalendarRow(row) {
         kind: row.kind || anime.kind || '',
         status: row.status || anime.status || '',
         episodes_aired: Number.isFinite(episodesAired) ? episodesAired : null,
+        // 0 у Shiki = неизвестно; не путаем с «всего 0»
+        episodes: Number.isFinite(episodesTotal) && episodesTotal > 0 ? episodesTotal : null,
         score: parseFloat(row.score ?? anime.score) || 0,
         posterUrl: posterUrl || '',
     };

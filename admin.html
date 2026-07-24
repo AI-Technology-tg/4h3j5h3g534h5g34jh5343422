@@ -336,6 +336,18 @@
                             <label for="minkoSrvMessage" style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Сообщение при отключении</label>
                             <textarea id="minkoSrvMessage" class="filter-input" rows="3" style="width: 100%; max-width: 40rem; resize: vertical;" placeholder="Например: Технические работы, вернёмся через час 💤"></textarea>
                         </div>
+                        <div class="setting-card" style="margin-top: 1rem;">
+                            <label for="minkoSrvSearchProvider" style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Поисковик для фактов Minko</label>
+                            <p class="admin-inline-hint" style="margin: 0 0 0.5rem; max-width: 40rem;">
+                                Чтобы сверить качество: <strong>Авто</strong> (SearchX → бесплатный scrape → Tavily только после лимита),
+                                <strong>Только бесплатный</strong> (без Tavily), <strong>Только Tavily</strong>.
+                            </p>
+                            <select id="minkoSrvSearchProvider" class="filter-input" style="max-width: 22rem;">
+                                <option value="auto">Авто (экономно)</option>
+                                <option value="free">Только бесплатный (SearchX / scrape)</option>
+                                <option value="tavily">Только Tavily</option>
+                            </select>
+                        </div>
                         <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
                             <button type="button" class="admin-btn" id="minkoSrvSaveBtn">💾 Сохранить состояние</button>
                         </div>
@@ -924,10 +936,10 @@
     <script src="scripts/shikimori-api.js"></script>
     <script src="scripts/manga-data.js"></script>
     <script src="scripts/admin-panel.js"></script>
-    <script src="scripts/admin-panel-creator.js?v=4k-jikan-fallback"></script>
+    <script src="scripts/admin-panel-creator.js?v=20260724e"></script>
     <script src="scripts/ai-subscription.js"></script>
     <script src="scripts/loading.js"></script>
-    <script src="scripts/admin-panel-creator-ui.js?v=20260724d"></script>
+    <script src="scripts/admin-panel-creator-ui.js?v=20260724e"></script>
     <script src="scripts/apply-navigation.js?v=20260723a"></script>
 </body>
 </html>

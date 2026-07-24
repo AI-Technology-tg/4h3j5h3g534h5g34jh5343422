@@ -54,11 +54,14 @@
         );
     }
 
-    /** Если ISO в прошлом — сдвинуть на следующий эфир (расписание Jikan или +7 дн.). */
+    /**
+     * Если ISO в прошлом — только честный сдвиг по broadcast Jikan.
+     * Без +7 дней «из головы»: при паузе/хиатусе это врало таймером.
+     */
     function reminkoRollForwardCountdownIso(iso, data) {
         const raw = iso ? String(iso) : '';
         const now = Date.now();
-        let t = Date.parse(raw);
+        const t = Date.parse(raw);
         if (!raw || Number.isNaN(t)) return '';
 
         if (t > now) return raw;
@@ -68,17 +71,6 @@
         if (data?.broadcast?.day && data?.broadcast?.time) {
             const b = reminkoBroadcastToNextIso(data.broadcast);
             if (b && Date.parse(b) > now) return b;
-        }
-
-        for (let i = 0; i < 52; i++) {
-            t += 7 * 86400000;
-            if (t > now) return new Date(t).toISOString();
-        }
-
-        t = Date.parse(raw);
-        for (let i = 0; i < 14; i++) {
-            t += 86400000;
-            if (t > now) return new Date(t).toISOString();
         }
         return '';
     }
@@ -794,7 +786,7 @@
         reminkoStartLiveCountdown(el, iso, {
             compact: true,
             unknownText: '',
-            expiredText: 'скоро'
+            expiredText: 'ждём расписание'
         });
     }
 

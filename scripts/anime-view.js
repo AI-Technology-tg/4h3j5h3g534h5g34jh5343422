@@ -1,5 +1,44 @@
 // Страница просмотра аниме
 
+/** Куда вести «Назад»: история браузера → previousUrl → каталог (не профиль по умолчанию). */
+function resolveAnimeBackHref() {
+    try {
+        const stored = sessionStorage.getItem('previousUrl');
+        if (stored && String(stored).trim()) {
+            const s = String(stored).trim();
+            // Не уводим «назад» на саму страницу аниме
+            if (!/anime\/view(?:-4k)?\.html/i.test(s)) return s;
+        }
+    } catch (_) {
+        /* ignore */
+    }
+    return '../catalog/anime.html';
+}
+
+function bindAnimeBackButtons(root) {
+    const scope = root || document;
+    scope.querySelectorAll('a.back-button').forEach((btn) => {
+        if (btn.dataset.backBound === '1') return;
+        btn.dataset.backBound = '1';
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            try {
+                const ref = document.referrer ? new URL(document.referrer) : null;
+                if (ref && ref.origin === location.origin && window.history.length > 1) {
+                    // Не прыгаем «назад» на ту же anime/view
+                    if (!/anime\/view(?:-4k)?\.html/i.test(ref.pathname)) {
+                        history.back();
+                        return;
+                    }
+                }
+            } catch (_) {
+                /* ignore */
+            }
+            location.href = resolveAnimeBackHref();
+        });
+    });
+}
+
 function applyAnimeViewSeo(anime, extra) {
     if (typeof reminkoUpdatePageSeo !== 'function' || !anime) return;
     const title = extra?.title || anime.title || 'Аниме';
@@ -1395,7 +1434,7 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
         window.__animeTrailerEmbedSrc = trEmb || '';
     }
     const isAnnounced = data.status === 'Not yet aired';
-    const previousUrl = sessionStorage.getItem('previousUrl') || '../index.html';
+    const previousUrl = resolveAnimeBackHref();
     const jikanScore =
         data.score != null && !Number.isNaN(Number(data.score))
             ? Number(data.score).toFixed(1)
@@ -1479,6 +1518,7 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
     `;
 
     window.__jikanVirtualPlayerAnime = virtualAnime;
+    bindAnimeBackButtons(container);
     wireAnimePlayerTabs();
     refreshAnimeViewCountdown(virtualAnime, data, shiki);
     void hydrateAnimeViewCountdownSchedule(virtualAnime);
@@ -1566,8 +1606,7 @@ async function renderAnimeDetail(anime) {
     const container = document.getElementById('animeContent');
     if (!container) return;
     
-    // Получаем предыдущий URL или используем главную страницу
-    const previousUrl = sessionStorage.getItem('previousUrl') || '../index.html';
+    const previousUrl = resolveAnimeBackHref();
     
     const animeIdInt = parseInt(anime.id);
     
@@ -1718,7 +1757,11 @@ async function renderAnimeDetail(anime) {
                     </div>
                     <div class="anime-detail-statrow" role="list" aria-label="Кратко о тайтле">
                         <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Оценка</span><span class="anime-stat-pill__v">★ ${ratingVal}</span></div>
-                        <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Серий</span><span class="anime-stat-pill__v">${jikanEpisodes || anime.totalEpisodes || '—'}</span></div>
+                        <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Серий</span><span class="anime-stat-pill__v">${
+                            anime.episodesTotalUnknown
+                                ? `${String(anime.episodes || jikanEpisodes || '—').replace(/^1-/, '')} / ?`
+                                : jikanEpisodes || anime.totalEpisodes || '—'
+                        }</span></div>
                         <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Год</span><span class="anime-stat-pill__v">${jikanYear || anime.year || '—'}</span></div>
                     </div>
                     ${jikanStudios.length > 0 ? `<div class="anime-detail-studio">Студия: ${jikanStudios.join(', ')}</div>` : (anime.studio ? `<div class="anime-detail-studio">Студия: ${anime.studio}</div>` : '')}
@@ -1753,6 +1796,7 @@ async function renderAnimeDetail(anime) {
             <div class="anime-similar-scroll" id="animeSimilarGrid"></div>
         </div>
     `;
+    bindAnimeBackButtons(container);
     wireAnimePlayerTabs();
     refreshAnimeViewCountdown(anime, anime._jikanRaw || null, null);
     void hydrateAnimeViewCountdownSchedule(anime);

@@ -405,8 +405,14 @@
                     st === 'Онгоинг'
                         ? ' (тайтл ещё выходит — не говори «завершён»; цифры серий = уже вышедшие на сайте, не финал сезона)'
                         : '';
-                return `• «${h.title}»${sn}: в каталоге серии ${eps}, статус «${st}»${ongoingHint}${
-                    h.totalEpisodes != null ? `, totalEpisodes=${h.totalEpisodes}` : ''
+                const unknownTotal =
+                    h.episodesTotalUnknown || (st === 'Онгоинг' && !h.totalEpisodes)
+                        ? '; итого серий в сезоне пока неизвестно (не выдумывай финал)'
+                        : '';
+                return `• «${h.title}»${sn}: в каталоге серии ${eps}, статус «${st}»${ongoingHint}${unknownTotal}${
+                    h.totalEpisodes != null && !h.episodesTotalUnknown
+                        ? `, totalEpisodes=${h.totalEpisodes}`
+                        : ''
                 } (id=${h.id}${h.mal_id ? `, mal=${h.mal_id}` : ''})`;
             });
             parts.push(

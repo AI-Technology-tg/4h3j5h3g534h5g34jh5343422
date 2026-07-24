@@ -627,26 +627,9 @@ async function renderProfile(userData, isViewMode = false) {
             <div class="modal-content avatar-modal-content">
                 <span class="close" id="closeAvatarModal" role="button" tabindex="0" aria-label="Закрыть">&times;</span>
                 <h3 class="avatar-modal-title">Аватар</h3>
-                <p class="avatar-modal-lead">Выберите пресет, загрузите своё фото или опишите образ для ИИ. Генерация — в аниме-стиле, только безопасный контент.</p>
-                <div class="avatar-modal-toolbar-reminko">
-                    <button type="button" class="avatar-tool-btn avatar-tool-btn--upload" id="avatarUploadBtn">
-                        <span class="avatar-tool-btn__ic" aria-hidden="true">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                        </span>
-                        <span class="avatar-tool-btn__txt">Загрузить с устройства</span>
-                    </button>
-                    <input type="file" id="avatarFileInput" accept="image/*" hidden tabindex="-1" aria-hidden="true" style="pointer-events:none;position:absolute;width:1px;height:1px;opacity:0;" />
-                    <div class="avatar-gen-stack">
-                        <label class="avatar-gen-label" for="avatarGenPrompt">Описание для ИИ (аниме-стиль)</label>
-                        <textarea id="avatarGenPrompt" class="avatar-gen-textarea" maxlength="400" rows="3" placeholder="Например: парень в худи, бирюзовые волосы, наушники, нейтральный фон…"></textarea>
-                        <button type="button" class="avatar-tool-btn avatar-tool-btn--ai" id="avatarGenerateBtn">
-                            <span class="avatar-tool-btn__ic" aria-hidden="true">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M19 14l-.8 2.4-2.4.8 2.4.8.8 2.4.8-2.4 2.4-.8-2.4-.8-.8-2.4z"/></svg>
-                            </span>
-                            <span class="avatar-tool-btn__txt">Сгенерировать ИИ</span>
-                        </button>
-                        <p id="avatarGenQuota" class="avatar-gen-quota" aria-live="polite"></p>
-                    </div>
+                <p class="avatar-modal-lead">Выберите пресет из списка.</p>
+                <div class="avatar-modal-toolbar-reminko avatar-modal-toolbar-reminko--dev">
+                    <p class="avatar-gen-quota" style="margin:0;">Загрузка фото и генерация ИИ — в разработке.</p>
                 </div>
                 <div id="avatarGrid" class="avatar-grid"></div>
             </div>
@@ -952,7 +935,6 @@ async function openAvatarPicker() {
     }).join('');
     
     modal.classList.add('active');
-    void refreshAvatarGenQuota();
 }
 
 /** Сжатие загруженного изображения в JPEG data URL (для сохранения в профиле). */

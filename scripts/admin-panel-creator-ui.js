@@ -2068,6 +2068,11 @@ async function loadMinkoAiServerPanel() {
     if (en) en.checked = !!bundle.public.chat_enabled;
     if (offExceptCreator) offExceptCreator.checked = !!bundle.public.offline_except_creator;
     if (msg) msg.value = bundle.public.maintenance_message || '';
+    const searchEl = document.getElementById('minkoSrvSearchProvider');
+    if (searchEl) {
+        const sp = String(bundle.public.search_provider || 'auto').toLowerCase();
+        searchEl.value = sp === 'free' || sp === 'tavily' ? sp : 'auto';
+    }
     if (statusEl) statusEl.textContent = '';
 }
 
@@ -2076,11 +2081,13 @@ async function saveMinkoAiServerPanel() {
     const en = document.getElementById('minkoSrvEnabled');
     const offExceptCreator = document.getElementById('minkoSrvOfflineExceptCreator');
     const msg = document.getElementById('minkoSrvMessage');
+    const searchEl = document.getElementById('minkoSrvSearchProvider');
     if (!window.creatorAdminPanel) return;
     const r = await window.creatorAdminPanel.saveMinkoAiServerSettings(
         !!en?.checked,
         msg?.value || '',
-        !!offExceptCreator?.checked
+        !!offExceptCreator?.checked,
+        searchEl?.value || 'auto'
     );
     if (statusEl) statusEl.textContent = r.success ? '✓ ' + r.message : '✗ ' + (r.message || 'Ошибка');
     if (r.success && typeof showSuccess === 'function') showSuccess(r.message);

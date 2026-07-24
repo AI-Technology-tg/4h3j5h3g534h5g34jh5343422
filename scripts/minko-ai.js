@@ -2732,14 +2732,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, true);
     
-    // Принудительно скрываем экран загрузки
-    setTimeout(() => {
+    function hideMinkoLoadingScreen() {
         const loadingScreen = document.getElementById('loadingScreen');
         if (loadingScreen) {
             loadingScreen.classList.add('hidden');
             loadingScreen.style.display = 'none';
         }
-    }, 100);
+        document.body.classList.add('reminko-content-revealed', 'reminko-loading-dismissed');
+    }
+    // Принудительно скрываем экран загрузки
+    setTimeout(hideMinkoLoadingScreen, 100);
+    // Возврат по «Назад» / bfcache — иначе вечный loading
+    window.addEventListener('pageshow', (ev) => {
+        if (ev.persisted) hideMinkoLoadingScreen();
+        else setTimeout(hideMinkoLoadingScreen, 50);
+    });
+    document.addEventListener(
+        'click',
+        (e) => {
+            const chip = e.target && e.target.closest ? e.target.closest('a.minko-watch-chip[data-minko-watch]') : null;
+            if (!chip) return;
+            try {
+                // со страницы anime/view.html нужен путь ../minko-ai.html
+                sessionStorage.setItem('previousUrl', '../minko-ai.html');
+            } catch (_) {
+                /* ignore */
+            }
+        },
+        true
+    );
 
     // Обновление таймера каждую секунду
     setInterval(updateMinkoTimer, 1000);
@@ -4338,7 +4359,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const href = h.href || `anime/view.html?id=${encodeURIComponent(id)}`;
             const title = escapeHtml(String(h.title || 'Смотреть'));
             cards.push(
-                `<a class="minko-watch-chip" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">` +
+                `<a class="minko-watch-chip" href="${escapeHtml(href)}" data-minko-watch="1">` +
                     `<span class="minko-watch-chip__label">Смотреть</span>` +
                     `<span class="minko-watch-chip__title">${title}</span>` +
                     `</a>`
@@ -4368,7 +4389,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!valid) return '';
             const href = `anime/view.html?id=${encodeURIComponent(String(id))}`;
             watchChips.push(
-                `<a class="minko-watch-chip" href="${href}" target="_blank" rel="noopener noreferrer">` +
+                `<a class="minko-watch-chip" href="${href}" data-minko-watch="1">` +
                     `<span class="minko-watch-chip__label">Смотреть</span>` +
                     `<span class="minko-watch-chip__title">${escapeHtml(String(title).trim())}</span>` +
                     `</a>`

@@ -295,6 +295,18 @@ function reminkoBootLoadingScreen() {
 
 reminkoBootLoadingScreen();
 
+// bfcache / «Назад» в вкладку: иначе loadingScreen остаётся поверх
+window.addEventListener('pageshow', (ev) => {
+    if (!ev.persisted) return;
+    reminkoHideLoadingOnce();
+    document.body.classList.add('reminko-content-revealed', 'reminko-loading-dismissed');
+    const ls = document.getElementById('loadingScreen');
+    if (ls) {
+        ls.classList.add('hidden');
+        ls.style.display = 'none';
+    }
+});
+
 // Перехватываем клики по ссылкам для показа загрузки
 // Используем capture phase с высоким приоритетом, но проверяем кнопки входа/регистрации первыми
 document.addEventListener('click', (e) => {
