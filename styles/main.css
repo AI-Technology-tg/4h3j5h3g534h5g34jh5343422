@@ -497,7 +497,11 @@ html {
 .jikan-card-countdown {
     position: absolute;
     left: 0.45rem;
+    right: auto;
+    top: auto;
     bottom: 0.45rem;
+    width: max-content;
+    max-width: calc(100% - 0.9rem);
     z-index: 4;
     padding: 0.18rem 0.45rem;
     border-radius: 8px;
@@ -509,6 +513,21 @@ html {
     font-variant-numeric: tabular-nums;
     line-height: 1.2;
     pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+}
+
+/* Hero history/favorites: compact badge, never stretch over the poster */
+.home-hero-watch-countdown.jikan-card-countdown,
+.home-hero-fav-countdown.jikan-card-countdown {
+    left: 3px;
+    right: auto;
+    top: 3px;
+    bottom: auto;
+    width: max-content;
+    max-width: calc(100% - 6px);
 }
 
 .anime-year {

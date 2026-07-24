@@ -570,10 +570,16 @@
         if (syncUrl && isValidHomePosterUrl(syncUrl)) {
             img.classList.remove('is-poster-missing');
             img.src = syncUrl;
-            if (typeof global.writeMalPosterCache === 'function') {
-                global.writeMalPosterCache(mal, syncUrl);
+            // Не кэшируем каталожный URL как verified — сверим через MAL ниже
+        }
+
+        if (typeof global.fetchVerifiedPosterUrlForMal === 'function') {
+            const verified = await global.fetchVerifiedPosterUrlForMal(mal, ctx);
+            if (verified && img.isConnected) {
+                img.classList.remove('is-poster-missing');
+                img.src = verified;
+                return;
             }
-            return;
         }
 
         if (typeof global.fetchPosterUrlForMal === 'function') {

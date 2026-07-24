@@ -1,4 +1,4 @@
-/**
+﻿/**
  * РњРѕР±РёР»СЊРЅР°СЏ РІС‘СЂСЃС‚РєР° РІРєР»СЋС‡РµРЅР° РґР»СЏ РІСЃРµС… С‚РµР»РµС„РѕРЅРѕРІ Рё СѓР·РєРёС… СЌРєСЂР°РЅРѕРІ (в‰¤900px).
  * REMINKO_ASSET_VERSION вЂ” РјРµРЅСЏР№С‚Рµ РїСЂРё РєР°Р¶РґРѕРј РґРµРїР»РѕРµ (СЃРј. APP_CONFIG.assetVersion).
  */
@@ -117,7 +117,7 @@
                 var css = document.createElement('link');
                 css.id = 'rem-theme-dark-css';
                 css.rel = 'stylesheet';
-                css.href = root + 'styles/theme-dark.css?v=20260724f';
+                css.href = root + 'styles/theme-dark.css?v=20260724q';
                 document.head.appendChild(css);
             }
             if (!document.getElementById('rem-dark-bg-preload')) {

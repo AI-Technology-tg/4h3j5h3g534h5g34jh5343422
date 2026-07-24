@@ -415,7 +415,11 @@ async function renderProfile(userData, isViewMode = false) {
             const title = item.title || '';
             const shortTitle = title.length > 15 ? title.substring(0, 15) + '...' : title;
             const searchTitle = item.titleAlt || item.title || '';
-            return `<div class="favorite-mini-card" onclick="${onclick}" title="${title.replace(/"/g, '&quot;')}" data-fav-type="${type}" data-fav-title="${searchTitle.replace(/"/g, '&quot;')}">
+            const malAttr =
+                type === 'anime' && item.mal_id != null && Number(item.mal_id) > 0
+                    ? ` data-fav-mal-id="${String(item.mal_id).replace(/"/g, '')}"`
+                    : '';
+            return `<div class="favorite-mini-card" onclick="${onclick}" title="${title.replace(/"/g, '&quot;')}" data-fav-type="${type}" data-fav-title="${searchTitle.replace(/"/g, '&quot;')}"${malAttr}>
                 <div class="favorite-mini-poster" style="${posterStyle}">
                     <div class="favorite-mini-year">${item.year || ''}</div>
                 </div>
@@ -1296,26 +1300,50 @@ function initFavoritesScroll() {
 }
 
 async function loadFavoritePosters() {
-    const cards = document.querySelectorAll('.favorite-mini-card[data-fav-title]');
+    const cards = document.querySelectorAll('.favorite-mini-card[data-fav-title], .favorite-mini-card[data-fav-mal-id]');
     if (!cards.length) return;
     
     for (const card of cards) {
         const title = card.dataset.favTitle;
         const type = card.dataset.favType || 'anime';
-        if (!title) continue;
+        const mal = parseInt(card.dataset.favMalId, 10);
         
         const posterEl = card.querySelector('.favorite-mini-poster');
         if (!posterEl) continue;
         
         try {
             let posterUrl = null;
-            if (type === 'anime' && typeof getAnimePosterFast === 'function') {
+            if (
+                type === 'anime' &&
+                Number.isFinite(mal) &&
+                mal > 0 &&
+                typeof fetchPosterUrlForMal === 'function'
+            ) {
+                if (typeof fetchVerifiedPosterUrlForMal === 'function') {
+                    posterUrl = await fetchVerifiedPosterUrlForMal(mal, {
+                        mal_id: mal,
+                        title,
+                        titleAlt: title,
+                    });
+                }
+                if (!posterUrl) {
+                    posterUrl = await fetchPosterUrlForMal(mal, {
+                        mal_id: mal,
+                        title,
+                        titleAlt: title,
+                    });
+                }
+            } else if (type === 'anime' && title && typeof getAnimePosterFast === 'function') {
                 posterUrl = await getAnimePosterFast(title);
-            } else if (type === 'manga' && typeof getMangaPosterFast === 'function') {
+            } else if (type === 'manga' && title && typeof getMangaPosterFast === 'function') {
                 posterUrl = await getMangaPosterFast(title);
             }
+
+            const weak =
+                typeof isWeakPosterSource === 'function' ? isWeakPosterSource(posterUrl) : !posterUrl;
+            const ph = typeof POSTER_PLACEHOLDER !== 'undefined' ? POSTER_PLACEHOLDER : '';
             
-            if (posterUrl && posterUrl !== POSTER_PLACEHOLDER) {
+            if (posterUrl && posterUrl !== ph && !weak) {
                 const img = new Image();
                 img.onload = () => {
                     posterEl.style.backgroundImage = `url('${posterUrl}')`;

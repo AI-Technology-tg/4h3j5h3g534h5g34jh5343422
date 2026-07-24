@@ -1366,7 +1366,7 @@ async function loadHeroWatchHistory() {
             reminkoAnimeNeedsEpisodeCountdown(a);
         if (needsCd) {
             const cd = document.createElement('span');
-            cd.className = 'home-hero-watch-countdown jikan-card-countdown';
+            cd.className = 'home-hero-watch-countdown';
             cd.setAttribute('aria-live', 'polite');
             posterWrap.appendChild(cd);
         }
@@ -1447,8 +1447,8 @@ async function hydrateHeroPosterCountdowns(animeList, cardSelector, idAttr) {
             countdownEl = document.createElement('span');
             countdownEl.className =
                 cardSelector.includes('fav')
-                    ? 'home-hero-fav-countdown jikan-card-countdown'
-                    : 'home-hero-watch-countdown jikan-card-countdown';
+                    ? 'home-hero-fav-countdown'
+                    : 'home-hero-watch-countdown';
             countdownEl.setAttribute('aria-live', 'polite');
             poster.appendChild(countdownEl);
         }
@@ -1568,7 +1568,7 @@ async function loadHeroFavorites() {
             reminkoAnimeNeedsEpisodeCountdown(a)
         ) {
             const cd = document.createElement('span');
-            cd.className = 'home-hero-fav-countdown jikan-card-countdown';
+            cd.className = 'home-hero-fav-countdown';
             cd.setAttribute('aria-live', 'polite');
             poster.appendChild(cd);
         }

@@ -360,8 +360,8 @@
         return false;
     }
 
-    // v3: сброс кэша, отравленного поиском по названию (один постер на все сезоны)
-    const POSTER_MAL_CACHE_KEY = 'reminko_poster_mal_v3';
+    // v4: не кэшируем постер из каталога без проверки по MAL (дубли сезонов)
+    const POSTER_MAL_CACHE_KEY = 'reminko_poster_mal_v4';
     const POSTER_MAL_CACHE_TTL = 30 * 86400000;
     const _posterMalMem = new Map();
 
@@ -548,20 +548,15 @@
         global.location.href = `${base}?id=${encodeURIComponent(String(virtualId))}&mal_id=${encodeURIComponent(String(mal))}`;
     }
 
-    async function fetchPosterUrlForMal(malId, anime) {
+    async function fetchVerifiedPosterUrlForMal(malId, anime) {
         const mal = parseInt(malId, 10);
         if (!Number.isFinite(mal) || mal <= 0) return '';
 
         const cached = readMalPosterCache(mal);
         if (cached) return cached;
 
-        const known = pickKnownPosterUrl(anime);
-        if (known && !isWeakPosterSource(known)) {
-            writeMalPosterCache(mal, known);
-            return known;
-        }
-
-        // Только источники по MAL-id — НЕ поиск по названию (он даёт постер 1-го сезона всем частям)
+        // Только API по MAL-id (сезон-точно). Каталожный posterUrl сюда не берём —
+        // у разных сезонов часто один и тот же KP/чужой CDN.
         if (global.shikimoriApi?.readCachedByMalId) {
             const sh = global.shikimoriApi.readCachedByMalId(mal);
             const u = shikimoriPosterUrlFromPath(sh?.image?.original);
@@ -620,16 +615,31 @@
             }
         }
 
-        // Календарь / известный слабый постер — лучше, чем пусто, но в mal-cache не кладём KP
+        return '';
+    }
+
+    async function fetchPosterUrlForMal(malId, anime) {
+        const mal = parseInt(malId, 10);
+        if (!Number.isFinite(mal) || mal <= 0) return '';
+
+        const verified = await fetchVerifiedPosterUrlForMal(mal, anime);
+        if (verified) return verified;
+
+        const known = pickKnownPosterUrl(anime);
+        if (known && !isWeakPosterSource(known)) {
+            // Показываем, но не кэшируем — мог быть общий постер на несколько сезонов
+            return known;
+        }
+
         const calOnly =
             typeof global.reminkoCalendarRowForMal === 'function'
                 ? global.reminkoCalendarRowForMal(mal)?.posterUrl
                 : '';
-        if (calOnly && !isShikimoriPlaceholderPoster(calOnly)) {
-            if (!isWeakPosterSource(calOnly)) writeMalPosterCache(mal, calOnly);
+        if (calOnly && !isShikimoriPlaceholderPoster(calOnly) && !isWeakPosterSource(calOnly)) {
             return calOnly;
         }
         if (known) return known;
+        if (calOnly && !isShikimoriPlaceholderPoster(calOnly)) return calOnly;
 
         return '';
     }
@@ -645,11 +655,10 @@
         img.decoding = 'async';
 
         const initial = String(img.getAttribute('src') || img.src || '');
-        const initialOk = initial && !isWeakPosterSource(initial);
+        const initialOk = initial && !isWeakPosterSource(initial) && !initial.startsWith('data:');
 
-        // Уже хороший постер каталога — не затираем кэшем/поиском; только догрузка при ошибке
+        // Даже при «нормальном» src из каталога сверяем с MAL — иначе дубли сезонов
         if (initialOk) {
-            writeMalPosterCache(mal, initial);
             img.onerror = () => {
                 if (!img.isConnected) return;
                 void fetchPosterUrlForMal(mal, anime).then((url) => {
@@ -661,6 +670,15 @@
                     }
                 });
             };
+            void (async () => {
+                const url = await fetchVerifiedPosterUrlForMal(mal, anime);
+                if (!img.isConnected || !url) return;
+                const cur = String(img.getAttribute('src') || img.src || '');
+                if (url !== cur) {
+                    img.classList.remove('is-poster-missing');
+                    img.src = url;
+                }
+            })();
             return;
         }
 
@@ -736,6 +754,7 @@
     global.pickKnownPosterUrl = pickKnownPosterUrl;
     global.reminkoCollectPosterSearchTitles = reminkoCollectPosterSearchTitles;
     global.fetchPosterUrlForMal = fetchPosterUrlForMal;
+    global.fetchVerifiedPosterUrlForMal = fetchVerifiedPosterUrlForMal;
     global.attachJikanPosterFallback = attachJikanPosterFallback;
     global.prefetchPosterUrlsForMals = prefetchPosterUrlsForMals;
     global.navigateToJikanAnnouncedAnime = navigateToJikanAnnouncedAnime;
