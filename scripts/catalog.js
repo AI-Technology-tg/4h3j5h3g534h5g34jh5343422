@@ -740,13 +740,37 @@ function displayResults(results, options) {
         const pageResults = uniqueResults.slice(start, end);
         
         if (pageResults.length === 0) {
-            const isEmptyCatalog = uniqueResults.length === 0;
+            let catalogSize = 0;
+            try {
+                if (typeof window.KodikCatalogStore?.getAll === 'function') {
+                    catalogSize = window.KodikCatalogStore.getAll().length;
+                } else if (typeof getAllAnime === 'function') {
+                    catalogSize = (getAllAnime() || []).length;
+                }
+            } catch (_) {
+                /* ignore */
+            }
+            const catalogLoading =
+                catalogSize === 0 &&
+                typeof window.KodikCatalogStore?.isLoaded === 'function' &&
+                !window.KodikCatalogStore.isLoaded();
+            const noMatches = uniqueResults.length === 0;
+            let emptyTitle = 'Ничего не найдено';
+            let emptyText = 'Попробуйте изменить параметры поиска или фильтры.';
+            if (catalogLoading) {
+                emptyTitle = 'Загрузка каталога';
+                emptyText = 'Подождите немного и обновите страницу.';
+            } else if (catalogSize === 0) {
+                emptyTitle = 'Каталог временно недоступен';
+                emptyText = 'Попробуйте обновить страницу чуть позже.';
+            } else if (noMatches) {
+                emptyTitle = 'Ничего не найдено';
+                emptyText = 'Попробуйте изменить параметры поиска или фильтры.';
+            }
             container.innerHTML = `
                 <div class="page-placeholder">
-                    <h2>${isEmptyCatalog ? 'Каталог пуст' : 'Ничего не найдено'}</h2>
-                    <p>${isEmptyCatalog
-                        ? 'Каталог Kodik ещё загружается или дамп не собран. Запустите: node scripts/build/kodik-build-catalog.js'
-                        : 'Попробуйте изменить параметры поиска или фильтры.'}</p>
+                    <h2>${emptyTitle}</h2>
+                    <p>${emptyText}</p>
                 </div>
             `;
             const resultsInfoEmpty = document.getElementById('resultsInfo');
