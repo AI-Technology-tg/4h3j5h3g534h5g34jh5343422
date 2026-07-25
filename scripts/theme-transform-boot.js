@@ -54,7 +54,7 @@
         var root = scriptRoot() || siteRootFromPage();
         injectOnce('rem-theme-dark-css', 'link', {
             rel: 'stylesheet',
-            href: root + 'styles/theme-dark.css?v=20260724a'
+            href: root + 'styles/theme-dark.css?v=20260725p'
         });
         injectOnce('rem-transform-overlay-css', 'link', {
             rel: 'stylesheet',

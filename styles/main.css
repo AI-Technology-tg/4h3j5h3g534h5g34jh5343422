@@ -36,7 +36,19 @@ body {
     background-size: cover, cover;
     background-position: center, center;
     background-repeat: no-repeat, no-repeat;
-    background-attachment: fixed, fixed;
+    /* scroll, не fixed — fixed + большой фон даёт рывки при прокрутке */
+    background-attachment: scroll, scroll;
+}
+
+/* Во время скролла отключаем тяжёлый blur у «хрома» (карточки без blur отдельно) */
+html.reminko-scrolling .top-navbar,
+html.reminko-scrolling .sidebar,
+html.reminko-scrolling .modal-overlay,
+html.reminko-scrolling .modal-content,
+html.reminko-scrolling .filter-dropdown,
+html.reminko-scrolling .catalog-filter-bar {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
 }
 
 /* Пока навигация не применена — не показываем шапку и лейаут (убирает мелькание при обновлении) */

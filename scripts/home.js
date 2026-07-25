@@ -504,6 +504,9 @@ function applyHomeCarouselAutoPreference() {
             if (typeof el._homeCarouselCancelAnim === 'function') el._homeCarouselCancelAnim();
         });
     }
+    if (typeof window !== 'undefined' && typeof window.__homeCarouselRestartMaster === 'function') {
+        window.__homeCarouselRestartMaster();
+    }
 }
 
 function initHomeCarouselAutoToggles() {
@@ -597,30 +600,12 @@ function ensureHomeCarouselMaster() {
     window.__homeCarouselMasterStarted = true;
     if (!window.__homeCarouselVisible) window.__homeCarouselVisible = new WeakSet();
 
-    // Fallback без IntersectionObserver — старое поведение
-    if (typeof IntersectionObserver === 'undefined') {
-        let lastTick = 0;
-        function frame(now) {
-            if (!document.hidden && now - lastTick >= HOME_CAROUSEL_INTERVAL_MS) {
-                lastTick = now;
-                if (isHomeCarouselAutoEnabled()) {
-                    window.__homeCarouselEls.forEach((el) => {
-                        if (typeof el._homeCarouselAdvance === 'function') el._homeCarouselAdvance();
-                    });
-                }
-            }
-            requestAnimationFrame(frame);
-        }
-        requestAnimationFrame(frame);
-        return;
-    }
-
-    // Крутим rAF только когда хотя бы одна лента видна и вкладка активна
-    let lastTick = 0;
-    let rafId = 0;
-    let running = false;
+    // setInterval вместо постоянного rAF — не грузим main thread каждый кадр
+    let intervalId = 0;
+    const hasIo = typeof IntersectionObserver !== 'undefined';
 
     function anyVisible() {
+        if (!hasIo) return true;
         let found = false;
         window.__homeCarouselEls.forEach((el) => {
             if (window.__homeCarouselVisible.has(el)) found = true;
@@ -628,43 +613,34 @@ function ensureHomeCarouselMaster() {
         return found;
     }
 
-    function frame(now) {
-        rafId = 0;
-        if (document.hidden || !anyVisible()) {
-            running = false;
-            return;
-        }
-        if (now - lastTick >= HOME_CAROUSEL_INTERVAL_MS) {
-            lastTick = now;
-            if (isHomeCarouselAutoEnabled()) {
-                window.__homeCarouselEls.forEach((el) => {
-                    if (
-                        window.__homeCarouselVisible.has(el) &&
-                        typeof el._homeCarouselAdvance === 'function'
-                    ) {
-                        el._homeCarouselAdvance();
-                    }
-                });
-            }
-        }
-        rafId = requestAnimationFrame(frame);
+    function tick() {
+        if (document.hidden || !isHomeCarouselAutoEnabled()) return;
+        if (!anyVisible()) return;
+        window.__homeCarouselEls.forEach((el) => {
+            if (hasIo && !window.__homeCarouselVisible.has(el)) return;
+            if (typeof el._homeCarouselAdvance === 'function') el._homeCarouselAdvance();
+        });
     }
 
     function startLoop() {
-        if (running || document.hidden || !anyVisible()) return;
-        running = true;
-        rafId = requestAnimationFrame(frame);
+        if (intervalId) return;
+        if (!isHomeCarouselAutoEnabled() || document.hidden || !anyVisible()) return;
+        intervalId = setInterval(tick, HOME_CAROUSEL_INTERVAL_MS);
     }
 
     function stopLoop() {
-        running = false;
-        if (rafId) {
-            cancelAnimationFrame(rafId);
-            rafId = 0;
+        if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = 0;
         }
     }
 
-    if (!window.__homeCarouselIo) {
+    window.__homeCarouselRestartMaster = () => {
+        stopLoop();
+        startLoop();
+    };
+
+    if (hasIo && !window.__homeCarouselIo) {
         window.__homeCarouselIo = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
@@ -675,20 +651,22 @@ function ensureHomeCarouselMaster() {
                         window.__homeCarouselVisible.delete(el);
                     }
                 });
-                if (anyVisible() && !document.hidden) startLoop();
+                if (anyVisible() && !document.hidden && isHomeCarouselAutoEnabled()) startLoop();
                 else stopLoop();
             },
             { root: null, threshold: [0, 0.05, 0.2] }
         );
     }
 
-    window.__homeCarouselEls.forEach((el) => {
-        try {
-            window.__homeCarouselIo.observe(el);
-        } catch (_) {
-            /* ignore */
-        }
-    });
+    if (hasIo) {
+        window.__homeCarouselEls.forEach((el) => {
+            try {
+                window.__homeCarouselIo.observe(el);
+            } catch (_) {
+                /* ignore */
+            }
+        });
+    }
 
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) stopLoop();
@@ -698,10 +676,12 @@ function ensureHomeCarouselMaster() {
     const prevRegister = window.__homeCarouselRegisterHook;
     window.__homeCarouselRegisterHook = function (container) {
         if (typeof prevRegister === 'function') prevRegister(container);
-        try {
-            window.__homeCarouselIo.observe(container);
-        } catch (_) {
-            /* ignore */
+        if (hasIo) {
+            try {
+                window.__homeCarouselIo.observe(container);
+            } catch (_) {
+                /* ignore */
+            }
         }
         startLoop();
     };
@@ -840,7 +820,7 @@ function enhanceHomeHorizontalScroll(container) {
     }
 
     container.addEventListener('pointerdown', onPointerDown);
-    container.addEventListener('pointermove', onPointerMove, { passive: false });
+    container.addEventListener('pointermove', onPointerMove, { passive: true });
     container.addEventListener('pointerup', onPointerEnd);
     container.addEventListener('pointercancel', onPointerEnd);
     container.addEventListener('wheel', onWheel, { passive: true });
@@ -1049,7 +1029,7 @@ function createJikanCard(anime) {
     return card;
 }
 
-const HOME_SHIKI_PREFETCH = 10;
+const HOME_SHIKI_PREFETCH = 4;
 
 function applyShikiPatchToCards(container, anime, sh) {
     if (typeof patchJikanVirtualShiki === 'function') patchJikanVirtualShiki(anime.mal_id, sh);

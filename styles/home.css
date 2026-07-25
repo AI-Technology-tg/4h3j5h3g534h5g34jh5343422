@@ -1089,6 +1089,8 @@
 /* Секции */
 .home-section {
     margin-bottom: 2.5rem;
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 420px;
 }
 
 .section-header {
@@ -1406,7 +1408,9 @@ html.home-carousel-auto-off .home-section--kodik .home-horizontal-scroll {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.06);
     cursor: pointer;
-    transition: all 0.3s;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    content-visibility: auto;
+    contain-intrinsic-size: 160px 280px;
 }
 
 .jikan-card:hover {

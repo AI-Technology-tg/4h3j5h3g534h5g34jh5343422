@@ -1503,3 +1503,19 @@ const REMINKO_NO_DRAG_CARD_SELECTOR =
         boot();
     }
 })();
+
+/** Во время скролла — класс на <html>, чтобы CSS отключал blur у хрома */
+(function reminkoInitScrollPerf() {
+    if (typeof window === 'undefined' || window.__reminkoScrollPerf) return;
+    window.__reminkoScrollPerf = true;
+    let timer = 0;
+    const onScroll = () => {
+        document.documentElement.classList.add('reminko-scrolling');
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+            document.documentElement.classList.remove('reminko-scrolling');
+            timer = 0;
+        }, 140);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+})();
