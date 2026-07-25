@@ -412,7 +412,7 @@ function _minkoUrlToNavMarker(urlOrPath) {
     if (path.startsWith('minko-ai')) return '[[nav:minko|Minko AI]]';
     if (path.startsWith('messages')) return '[[nav:messages|Сообщения]]';
     if (path.startsWith('catalog/')) return '[[nav:catalog|Каталог аниме]]';
-    return '[[nav:home|Re-Minko]]';
+    return '[[nav:info|Инфо]]';
 }
 
 /**
