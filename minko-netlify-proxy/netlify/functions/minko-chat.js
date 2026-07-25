@@ -194,10 +194,16 @@ function err(status, msg, headers) {
     return { statusCode: status, headers, body: JSON.stringify({ error: { message: msg } }) };
 }
 
+function normalizeUserGender(raw) {
+    const g = String(raw || '').trim().toLowerCase();
+    if (g === 'female' || g === 'f' || g === 'ж' || g === 'жен' || g === 'женский') return 'female';
+    return 'male';
+}
+
 function genderLine(userGender) {
     return userGender === 'female'
-        ? 'Пользовательница — девушка: в обращениях и прошедшем времени используй женский род (смотрелА, пришлА, хотелА).'
-        : 'Пользователь — парень: в обращениях мужской род (смотрел, пришёл, хотел).';
+        ? 'ПОЛ СОБЕСЕДНИКА (строго): девушка. Обращайся в женском роде: смотрелА, пришлА, хотелА, проспалА. Не путай с тем, что ТЫ (Minko) — девушка.'
+        : 'ПОЛ СОБЕСЕДНИКА (строго): парень. Обращайся в мужском роде: смотрел, пришёл, хотел, проспал. Не путай с тем, что ТЫ (Minko) — девушка: о себе говори в женском роде, к нему — в мужском.';
 }
 
 function stripHtml(s) {
@@ -1802,8 +1808,13 @@ exports.handler = async (event) => {
         return err(429, 'Слишком много сообщений. Подожди минуту и попробуй снова.', headers);
     }
     const nonSystem = messagesIn.filter((m) => m.role !== 'system');
+    // Раньше пол брали regex'ом из system («о себе в женском роде») — всегда получалась «девушка».
+    // Клиент передаёт userGender явно; fallback только по маркеру USER_GENDER=.
     const systemMsg = (messagesIn.find((m) => m.role === 'system') || {}).content || '';
-    const userGender = /женском роде/i.test(systemMsg) ? 'female' : 'male';
+    const marker = systemMsg.match(/USER_GENDER\s*=\s*(female|male)/i);
+    const userGender = normalizeUserGender(
+        json.userGender || (marker && marker[1]) || 'male'
+    );
     const lastUser = (nonSystem.filter((m) => m.role === 'user').pop() || {}).content || '';
 
     const model = MODEL_DEFAULT;

@@ -419,11 +419,21 @@ body.theme-dark .admin-panel-section {
 
 /* Модалки — один слой blur ок; сетка карточек — без blur */
 body.theme-dark .modal-content,
-body.theme-dark .register-modal-content {
+body.theme-dark .register-modal-content,
+body.theme-dark .oauth-setup-modal__card {
     background: rgba(18, 8, 31, 0.94) !important;
     border: 1px solid rgba(157, 77, 255, 0.38) !important;
     backdrop-filter: blur(10px);
     box-shadow: 0 6px 28px rgba(255, 45, 85, 0.14) !important;
+}
+
+body.theme-dark .oauth-setup-lead,
+body.theme-dark .oauth-setup-keep {
+    color: rgba(229, 231, 235, 0.72) !important;
+}
+
+body.theme-dark .oauth-setup-avatars {
+    background: rgba(0, 0, 0, 0.28) !important;
 }
 
 body.theme-dark .anime-grid-card:hover,

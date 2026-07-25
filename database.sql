@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   username TEXT NOT NULL,
   avatar TEXT,
   gender TEXT CHECK (gender IN ('male', 'female')) DEFAULT 'male',
+  profile_setup_done BOOLEAN DEFAULT true,
   telegram_id TEXT,
   last_online TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
@@ -357,6 +358,7 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telegram_id TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_online TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW());
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS gender TEXT DEFAULT 'male';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS profile_setup_done BOOLEAN DEFAULT true;
 
 -- minko_ai_state: убедиться что все поля на месте
 ALTER TABLE public.minko_ai_state ADD COLUMN IF NOT EXISTS wrong_gender_count INTEGER DEFAULT 0;
@@ -2380,7 +2382,7 @@ BEGIN
     );
   END IF;
 
-  INSERT INTO public.profiles (id, username, avatar, gender, telegram_id)
+  INSERT INTO public.profiles (id, username, avatar, gender, telegram_id, profile_setup_done)
   VALUES (
     NEW.id,
     profile_username,
@@ -2391,8 +2393,13 @@ BEGIN
       NEW.raw_user_meta_data->>'avatar',
       'Fons/1 b.jpg'
     ),
-    COALESCE(NEW.raw_user_meta_data->>'gender', 'male'),
-    telegram_id_val
+    CASE
+      WHEN lower(trim(coalesce(NEW.raw_user_meta_data->>'gender', ''))) IN ('male', 'female')
+        THEN lower(trim(NEW.raw_user_meta_data->>'gender'))
+      ELSE 'male'
+    END,
+    telegram_id_val,
+    (lower(trim(coalesce(NEW.raw_user_meta_data->>'gender', ''))) IN ('male', 'female'))
   )
   ON CONFLICT (id) DO UPDATE SET
     telegram_id = COALESCE(EXCLUDED.telegram_id, profiles.telegram_id),

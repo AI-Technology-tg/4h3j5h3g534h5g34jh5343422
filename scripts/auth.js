@@ -155,7 +155,8 @@ async function registerUser(email, password, username, avatar, gender = 'male') 
                         id: authData.user.id,
                         username: username,
                         avatar: userAvatar,
-                        gender: gender
+                        gender: gender,
+                        profile_setup_done: true
                     }, {
                         onConflict: 'id'
                     });
@@ -315,7 +316,7 @@ async function loginUser(email, password, codePassword = null, codePhrase = null
         if (typeof logger !== 'undefined') logger.log('🔄 [LOGIN] Загрузка профиля из таблицы profiles...');
         const { data: profile, error: profileError } = await supabaseClient
             .from('profiles')
-            .select('username, avatar, gender')
+            .select('username, avatar, gender, profile_setup_done')
             .eq('id', authData.user.id)
             .single();
         
@@ -332,7 +333,9 @@ async function loginUser(email, password, codePassword = null, codePhrase = null
             id: authData.user.id,
             email: authData.user.email,
             username: profile?.username || authData.user.email?.split('@')[0] || 'Пользователь',
-            avatar: profile?.avatar || 'Fons/1 b.jpg'
+            avatar: profile?.avatar || 'Fons/1 b.jpg',
+            gender: reminkoNormalizeGender(profile?.gender) || 'male',
+            profile_setup_done: profile?.profile_setup_done !== false
         };
         
         // Обновляем кэш
@@ -344,6 +347,13 @@ async function loginUser(email, password, codePassword = null, codePhrase = null
         localStorage.setItem('isAuth', 'true');
         if (typeof ensureUserDataRecord === 'function') {
             ensureUserDataRecord(userData.id);
+        }
+        if (typeof updateUserData === 'function') {
+            updateUserData(userData.id, {
+                username: userData.username,
+                avatar: userData.avatar,
+                gender: userData.gender
+            });
         }
 
         if (typeof logger !== 'undefined') logger.log('✅ [LOGIN] Вход завершен успешно!');
@@ -541,7 +551,7 @@ async function getCurrentUser(forceRefresh = false) {
             } else {
                 const row = await supabaseClient
                     .from('profiles')
-                    .select('username, avatar, gender')
+                    .select('username, avatar, gender, profile_setup_done')
                     .eq('id', su.id)
                     .maybeSingle();
                 profile = row.data;
@@ -608,7 +618,7 @@ async function getCurrentUser(forceRefresh = false) {
                 } else {
                     const fb = await supabaseClient
                         .from('profiles')
-                        .select('username, avatar, gender')
+                        .select('username, avatar, gender, profile_setup_done')
                         .eq('id', su.id)
                         .maybeSingle();
                     profile = fb.data;
@@ -679,6 +689,8 @@ async function getCurrentUser(forceRefresh = false) {
                 email: su.email || '',
                 username: resolvedUsername,
                 avatar: resolvedAvatar,
+                gender: reminkoNormalizeGender(profile?.gender) || 'male',
+                profile_setup_done: profile?.profile_setup_done !== false,
                 isAnonymous: su.is_anonymous === true,
                 is_banned: false,
                 is_site_creator: profile?.is_site_creator === true,
@@ -689,6 +701,13 @@ async function getCurrentUser(forceRefresh = false) {
             currentUserCacheTime = Date.now();
             if (typeof ensureUserDataRecord === 'function') {
                 ensureUserDataRecord(userData.id);
+            }
+            if (typeof updateUserData === 'function') {
+                updateUserData(userData.id, {
+                    username: userData.username,
+                    avatar: userData.avatar,
+                    gender: userData.gender
+                });
             }
             try {
                 sessionStorage.setItem('currentUser', JSON.stringify(userData));
@@ -783,6 +802,115 @@ async function isAuthenticated() {
 }
 
 window.isAuthenticated = isAuthenticated;
+
+/**
+ * Эвристика пола по имени (RU/EN), если в профиле пол не задан.
+ * Возвращает 'male' | 'female' | null (неясно).
+ */
+function reminkoInferGenderFromName(rawName) {
+    const first = String(rawName || '')
+        .trim()
+        .split(/[\s._\-]+/)[0]
+        .toLowerCase()
+        .replace(/[^a-zа-яёіїєґ]/gi, '');
+    if (!first || first.length < 2) return null;
+
+    const femaleExact = new Set([
+        'анна', 'анюта', 'аня', 'мария', 'маша', 'марина', 'даша', 'дарья', 'дария',
+        'катя', 'катерина', 'екатерина', 'настя', 'анастасия', 'оля', 'ольга',
+        'юля', 'юлия', 'лена', 'елена', 'алина', 'полина', 'вика', 'виктория',
+        'наташа', 'наталья', 'наталия', 'света', 'светлана', 'таня', 'татьяна',
+        'ира', 'ирина', 'кристина', 'ксения', 'оксана', 'валерия', 'лера',
+        'соня', 'софия', 'софья', 'ульяна', 'яна', 'вероника', 'диана', 'мила',
+        'милаа', 'елизавета', 'лиза', 'анжелика', 'ангелина', 'варя', 'варвара',
+        'аннаmaria', 'anna', 'maria', 'mary', 'kate', 'katie', 'sophia', 'sofia',
+        'olga', 'elena', 'julia', 'yulia', 'victoria', 'viktoria', 'daria', 'dasha',
+        'polina', 'alina', 'irina', 'marina', 'natalia', 'natalya', 'svetlana',
+        'tanya', 'tatiana', 'ksenia', 'oksana', 'valeria', 'veronica', 'diana',
+        'elizabeth', 'lisa', 'emily', 'emma', 'olivia', 'ava', 'mia', 'amelia'
+    ]);
+    const maleExact = new Set([
+        'александр', 'саша', 'алексей', 'лёша', 'леша', 'андрей', 'дмитрий', 'дима',
+        'иван', 'ваня', 'сергей', 'серёжа', 'сережа', 'максим', 'макс', 'никита',
+        'илья', 'михаил', 'миша', 'павел', 'паша', 'роман', 'ромыч', 'артём', 'артем',
+        'тимофей', 'тима', 'владимир', 'вова', 'владислав', 'влад', 'евгений', 'женя',
+        'кирилл', 'денис', 'егор', 'игорь', 'олег', 'юрий', 'ярослав', 'матвей',
+        'степан', 'фёдор', 'федор', 'григорий', 'гриша', 'богдан', 'данил', 'данило',
+        'данила', 'кузьма', 'фома', 'лука', 'савва', 'глеб', 'лев', 'марк',
+        'alexander', 'alex', 'andrew', 'andrey', 'dmitry', 'dmitri', 'ivan', 'john',
+        'sergey', 'sergei', 'maxim', 'max', 'nikita', 'ilya', 'michael', 'mike',
+        'paul', 'roman', 'artem', 'vladimir', 'vlad', 'eugene', 'kirill', 'denis',
+        'egor', 'igor', 'oleg', 'yuri', 'yaroslav', 'mark', 'leo', 'daniel', 'danil',
+        'james', 'robert', 'william', 'david', 'thomas', 'chris', 'jack', 'ryan'
+    ]);
+
+    if (femaleExact.has(first)) return 'female';
+    if (maleExact.has(first)) return 'male';
+
+    // Мужские имена на -а/-я и частые уменьшительные
+    if (
+        /^(никита|илья|иля|кузьма|фома|лука|савва|данила|данило|лёша|леша|жора|миша|вова|ваня|паша|дима|коля|толя|витя|ромыч|женя|саша)$/i.test(
+            first
+        )
+    ) {
+        return 'male';
+    }
+    // Типичные женские окончания (кроме мужских исключений выше)
+    if (/[ая]$/i.test(first)) return 'female';
+    if (/(ina|ella|ette|lyn)$/i.test(first)) return 'female';
+    if (/(son|ton|ley|ard|ert|ick|ius)$/i.test(first)) return 'male';
+    return null;
+}
+
+/** Нормализация значения пола из профиля / формы. */
+function reminkoNormalizeGender(raw) {
+    const g = String(raw || '').trim().toLowerCase();
+    if (g === 'female' || g === 'f' || g === 'ж' || g === 'жен' || g === 'женский') return 'female';
+    if (g === 'male' || g === 'm' || g === 'м' || g === 'муж' || g === 'мужской') return 'male';
+    return null;
+}
+
+/**
+ * Пол для Minko / UI: профиль → session → local users → эвристика имени → male.
+ */
+async function reminkoResolveUserGender(opts) {
+    const o = opts && typeof opts === 'object' ? opts : {};
+    const userId = o.userId || null;
+    const usernameHint = o.username || null;
+
+    let fromProfile = null;
+    if (userId && typeof supabaseClient !== 'undefined' && supabaseClient) {
+        try {
+            const { data } = await supabaseClient
+                .from('profiles')
+                .select('gender, username')
+                .eq('id', userId)
+                .maybeSingle();
+            fromProfile = reminkoNormalizeGender(data?.gender);
+            if (!usernameHint && data?.username) o.username = data.username;
+        } catch (_) {
+            /* ignore */
+        }
+    }
+
+    const sync =
+        typeof getCurrentUserSync === 'function' ? getCurrentUserSync() : null;
+    const fromSession =
+        sync && String(sync.id) === String(userId)
+            ? reminkoNormalizeGender(sync.gender)
+            : reminkoNormalizeGender(sync?.gender);
+    const local =
+        userId && typeof getUserData === 'function' ? getUserData(userId) : null;
+    const fromLocal = reminkoNormalizeGender(local?.gender);
+    const name = usernameHint || o.username || local?.username || sync?.username || '';
+    const fromName = reminkoInferGenderFromName(name);
+
+    return fromProfile || fromSession || fromLocal || fromName || 'male';
+}
+
+window.reminkoInferGenderFromName = reminkoInferGenderFromName;
+window.reminkoNormalizeGender = reminkoNormalizeGender;
+window.reminkoResolveUserGender = reminkoResolveUserGender;
 
 // Получить полную информацию о пользователе
 function getUserData(userId) {

@@ -335,6 +335,10 @@ function reminkoIsProfileSelectColumnError(error) {
 async function reminkoFetchOwnProfile(supabaseClient, userId) {
     if (!supabaseClient || !userId) return { profile: null, error: { message: 'no client' } };
     const chains = [
+        'username, avatar, gender, profile_setup_done, is_banned, ban_reason, is_site_creator',
+        'username, avatar, gender, profile_setup_done, is_banned, is_site_creator',
+        'username, avatar, gender, profile_setup_done, is_site_creator',
+        'username, avatar, gender, profile_setup_done',
         'username, avatar, gender, is_banned, ban_reason, is_site_creator',
         'username, avatar, gender, is_banned, is_site_creator',
         'username, avatar, gender, is_site_creator',

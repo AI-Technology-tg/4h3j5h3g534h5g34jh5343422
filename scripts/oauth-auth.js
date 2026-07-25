@@ -183,21 +183,22 @@ async function handleOAuthCallback() {
             (email ? email.split('@')[0] : '') ||
             `user_${user.id.slice(0, 8)}`;
 
+        let needsProfileSetup = false;
         try {
             const { data: profile } = await supabaseClient
                 .from('profiles')
-                .select('id, username, avatar')
+                .select('id, username, avatar, gender, profile_setup_done')
                 .eq('id', user.id)
                 .maybeSingle();
 
             const updates = {};
+            const googleName = (meta.full_name || meta.name || '').trim();
+            const googlePic = avatarUrl;
 
             if (fromOAuth) {
                 const emailLocal = (email.split('@')[0] || '').toLowerCase();
                 const un = (profile?.username || '').trim();
                 const unLower = un.toLowerCase();
-                const googleName = (meta.full_name || meta.name || '').trim();
-                const googlePic = avatarUrl;
 
                 const looksLikeDefaultName =
                     !un || unLower === emailLocal || /^user_[a-f0-9]{8}$/i.test(un);
@@ -217,19 +218,33 @@ async function handleOAuthCallback() {
             }
 
             if (!profile) {
+                const inferred =
+                    typeof reminkoInferGenderFromName === 'function'
+                        ? reminkoInferGenderFromName(updates.username || displayName)
+                        : null;
                 const { error: upsertErr } = await supabaseClient.from('profiles').upsert(
                     {
                         id: user.id,
                         username: updates.username || displayName,
                         avatar: updates.avatar || avatarUrl || 'Fons/1 b.jpg',
-                        gender: 'male'
+                        gender: inferred || 'male',
+                        profile_setup_done: false
                     },
                     { onConflict: 'id' }
                 );
                 if (upsertErr) console.warn('[OAuth] Профиль:', upsertErr);
-            } else if (Object.keys(updates).length > 0) {
-                const { error: upErr } = await supabaseClient.from('profiles').update(updates).eq('id', user.id);
-                if (upErr) console.warn('[OAuth] Обновление профиля:', upErr);
+                needsProfileSetup = true;
+            } else {
+                if (Object.keys(updates).length > 0) {
+                    const { error: upErr } = await supabaseClient
+                        .from('profiles')
+                        .update(updates)
+                        .eq('id', user.id);
+                    if (upErr) console.warn('[OAuth] Обновление профиля:', upErr);
+                }
+                if (profile.profile_setup_done === false) {
+                    needsProfileSetup = true;
+                }
             }
 
             if (Object.keys(updates).length > 0 && typeof updateUserData === 'function') {
@@ -249,6 +264,20 @@ async function handleOAuthCallback() {
         const loginModal = document.getElementById('loginModal');
         if (loginModal) {
             loginModal.classList.remove('active');
+        }
+
+        if (needsProfileSetup) {
+            setTimeout(() => {
+                if (typeof window.reminkoMaybeOpenOAuthProfileSetup === 'function') {
+                    void window.reminkoMaybeOpenOAuthProfileSetup(user.id);
+                } else if (typeof window.reminkoOpenOAuthProfileSetup === 'function') {
+                    window.reminkoOpenOAuthProfileSetup({
+                        username: displayName,
+                        googleAvatar: avatarUrl,
+                        avatar: avatarUrl
+                    });
+                }
+            }, 400);
         }
     } catch (error) {
         console.error('Ошибка обработки OAuth callback:', error);

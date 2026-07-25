@@ -3162,19 +3162,24 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // Получаем пол и имя пользователя из полных данных
+        // Пол/имя: профиль Supabase → session → local → эвристика имени
         let userGender = 'male';
-        let userName = null;
+        let userName = currentUser?.username || null;
         if (userId && typeof getUserData === 'function') {
             const userData = getUserData(userId);
-            if (userData) {
-                if (userData.gender) {
-                    userGender = userData.gender;
-                }
-                if (userData.username) {
-                    userName = userData.username;
-                }
+            if (userData?.username) userName = userData.username;
+        }
+        if (typeof reminkoResolveUserGender === 'function') {
+            try {
+                userGender = await reminkoResolveUserGender({ userId, username: userName });
+            } catch (_) {
+                userGender =
+                    (typeof reminkoNormalizeGender === 'function'
+                        ? reminkoNormalizeGender(currentUser?.gender)
+                        : null) || 'male';
             }
+        } else if (currentUser?.gender === 'female') {
+            userGender = 'female';
         }
 
         // Добавляем сообщение пользователя с аватаром
@@ -3366,12 +3371,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const messageCount = chatHistory.filter(m => m.role === 'user').length;
             const shouldUseName = userName && (Math.random() < 0.15 || messageCount % 8 === 0);
             
-            let additionalContext = '';
-            if (userGender === 'female') {
-                additionalContext = 'Обращайся к пользователю в женском роде (проспалА, пришлА, сделалА, думалА и т.д.).';
-            } else {
-                additionalContext = 'Обращайся к пользователю в мужском роде (проспаЛ, пришЁЛ, сделаЛ, думаЛ и т.д.).';
-            }
+            let additionalContext =
+                userGender === 'female'
+                    ? 'USER_GENDER=female\nОбращайся к пользователю в женском роде (проспалА, пришлА, сделалА, думалА). Ты (Minko) — девушка; собеседник — тоже девушка.'
+                    : 'USER_GENDER=male\nОбращайся к пользователю в мужском роде (проспаЛ, пришЁЛ, сделаЛ, думаЛ). Ты (Minko) — девушка; собеседник — парень.';
             
             if (userName) {
                 if (shouldUseName) {
@@ -3383,25 +3386,16 @@ document.addEventListener('DOMContentLoaded', () => {
             
             additionalContext += ' Не используй обращения с полом слишком часто - только когда это действительно нужно для понимания контекста.';
             
-            if (chatHistory[0] && !chatHistory[0].content.includes('Обращайся к пользователю')) {
-                chatHistory[0].content += `\n\n${additionalContext}`;
-            } else if (chatHistory[0] && shouldUseName) {
-                const existingContent = chatHistory[0].content;
-                if (!existingContent.includes(`Имя пользователя: ${userName}`)) {
-                    chatHistory[0].content = existingContent.replace(
-                        /Имя пользователя:.*?(?=\n|$)/,
-                        `Имя пользователя: ${userName}. Обратись по имени в этом ответе.`
-                    );
-                }
-            }
-            
             chatHistory.push({ role: 'user', content: userMessage });
             _saveChatToStorage();
             _setMinkoPendingReply(userMessage);
 
             const maxHistory = GROK_MAX_HISTORY;
             const apiMessages = [
-                { role: 'system', content: GROK_SYSTEM_BASE },
+                {
+                    role: 'system',
+                    content: GROK_SYSTEM_BASE + '\n\n' + additionalContext
+                },
                 ...chatHistory.slice(-maxHistory).filter(m => m.role !== 'system').map(m => ({ role: m.role, content: m.content }))
             ];
 
@@ -3429,6 +3423,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     model: 'openai',
                     messages: apiMessages,
                     sessionKey: minkoSessionKey,
+                    userGender: userGender === 'female' ? 'female' : 'male',
                     researchContext: researchContext || '',
                     max_tokens: 3200,
                     temperature: 0.72
@@ -3576,14 +3571,23 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const currentUser = typeof getCurrentUser === 'function' ? await getCurrentUser() : null;
             const userId = currentUser?.id;
-            let userGender = 'male';
-            let userName = null;
+            let userName = currentUser?.username || null;
             if (userId && typeof getUserData === 'function') {
                 const userData = getUserData(userId);
-                if (userData) {
-                    if (userData.gender) userGender = userData.gender;
-                    if (userData.username) userName = userData.username;
+                if (userData?.username) userName = userData.username;
+            }
+            let userGender = 'male';
+            if (typeof reminkoResolveUserGender === 'function') {
+                try {
+                    userGender = await reminkoResolveUserGender({ userId, username: userName });
+                } catch (_) {
+                    userGender =
+                        (typeof reminkoNormalizeGender === 'function'
+                            ? reminkoNormalizeGender(currentUser?.gender)
+                            : null) || 'male';
                 }
+            } else if (currentUser?.gender === 'female') {
+                userGender = 'female';
             }
 
             try {
@@ -3610,14 +3614,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 _saveChatToStorage();
             }
 
-            let additionalContext = '';
-            if (userGender === 'female') {
-                additionalContext =
-                    'Обращайся к пользователю в женском роде (проспалА, пришлА, сделалА, думалА и т.д.).';
-            } else {
-                additionalContext =
-                    'Обращайся к пользователю в мужском роде (проспаЛ, пришЁЛ, сделаЛ, думаЛ и т.д.).';
-            }
+            let additionalContext =
+                userGender === 'female'
+                    ? 'USER_GENDER=female\nОбращайся к пользователю в женском роде (проспалА, пришлА, сделалА, думалА). Ты (Minko) — девушка; собеседник — тоже девушка.'
+                    : 'USER_GENDER=male\nОбращайся к пользователю в мужском роде (проспаЛ, пришЁЛ, сделаЛ, думаЛ). Ты (Minko) — девушка; собеседник — парень.';
             if (userName) {
                 additionalContext += ` Имя пользователя: ${userName}, но не упоминай его в этом ответе - используй редко.`;
             }
@@ -3626,7 +3626,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const apiMessages = [
                 {
                     role: 'system',
-                    content: GROK_SYSTEM_BASE + (additionalContext ? `\n\n${additionalContext}` : '')
+                    content: GROK_SYSTEM_BASE + '\n\n' + additionalContext
                 },
                 ...chatHistory
                     .slice(-maxHistory)
@@ -3650,6 +3650,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     model: 'openai',
                     messages: apiMessages,
                     sessionKey: minkoSessionKey,
+                    userGender: userGender === 'female' ? 'female' : 'male',
                     researchContext: researchContext || '',
                     max_tokens: 3200,
                     temperature: 0.72
