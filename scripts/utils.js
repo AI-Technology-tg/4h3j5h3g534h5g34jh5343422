@@ -1508,18 +1508,13 @@ const REMINKO_NO_DRAG_CARD_SELECTOR =
     }
 })();
 
-/** Во время скролла — класс на <html>, чтобы CSS отключал blur у хрома */
-(function reminkoInitScrollPerf() {
-    if (typeof window === 'undefined' || window.__reminkoScrollPerf) return;
-    window.__reminkoScrollPerf = true;
-    let timer = 0;
-    const onScroll = () => {
-        document.documentElement.classList.add('reminko-scrolling');
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => {
-            document.documentElement.classList.remove('reminko-scrolling');
-            timer = 0;
-        }, 140);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+/** Раньше тут включали html.reminko-scrolling и мигали backdrop-filter —
+ *  из‑за этого фон (fixed) визуально «размывался / прояснялся» при скролле.
+ *  Хром уже без blur — класс больше не нужен. */
+(function reminkoClearScrollPerfClass() {
+    try {
+        document.documentElement.classList.remove('reminko-scrolling');
+    } catch (_) {
+        /* ignore */
+    }
 })();

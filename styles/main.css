@@ -39,16 +39,7 @@ body {
     background-attachment: fixed, fixed;
 }
 
-/* Во время скролла отключаем тяжёлый blur у «хрома» (карточки без blur отдельно) */
-html.reminko-scrolling .top-navbar,
-html.reminko-scrolling .sidebar,
-html.reminko-scrolling .modal-overlay,
-html.reminko-scrolling .modal-content,
-html.reminko-scrolling .filter-dropdown,
-html.reminko-scrolling .catalog-filter-bar {
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-}
+/* reminko-scrolling убран: переключение blur на скролле мигало фоном сайта */
 
 /* Пока навигация не применена — не показываем шапку и лейаут (убирает мелькание при обновлении) */
 body:not(.reminko-ui-ready) .top-navbar,

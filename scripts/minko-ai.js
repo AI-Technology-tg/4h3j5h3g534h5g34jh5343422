@@ -2392,31 +2392,62 @@ function _scrollChatToBottom() {
     const chatMessagesEl = document.getElementById('chatMessages');
     if (!chatMessagesEl) return;
     const run = () => {
+        try {
+            chatMessagesEl.style.scrollBehavior = 'auto';
+        } catch (_) {
+            /* ignore */
+        }
         chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        try {
+            const last = chatMessagesEl.lastElementChild;
+            if (last && typeof last.scrollIntoView === 'function') {
+                last.scrollIntoView({ block: 'end', behavior: 'auto' });
+            }
+        } catch (_) {
+            /* ignore */
+        }
     };
     run();
-    requestAnimationFrame(() => requestAnimationFrame(run));
+    requestAnimationFrame(() => {
+        run();
+        requestAnimationFrame(run);
+    });
+}
+
+function _minkoForceChatToEnd(reason) {
+    _scrollChatToBottom();
+    setTimeout(_scrollChatToBottom, 0);
+    setTimeout(_scrollChatToBottom, 80);
+    setTimeout(_scrollChatToBottom, 220);
+    setTimeout(_scrollChatToBottom, 500);
+    setTimeout(_scrollChatToBottom, 900);
 }
 
 function _bindChatAutoScrollToEnd() {
     const el = document.getElementById('chatMessages');
     if (!el || el._minkoScrollBound) return;
     el._minkoScrollBound = true;
-    const scroll = () => _scrollChatToBottom();
+    const nearBottom = () => el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+    // Новые сообщения — только если уже у низа (не дёргать при чтении истории)
     if (typeof MutationObserver !== 'undefined') {
-        const mo = new MutationObserver(() => requestAnimationFrame(scroll));
+        const mo = new MutationObserver(() => {
+            if (nearBottom()) requestAnimationFrame(_scrollChatToBottom);
+        });
         mo.observe(el, { childList: true, subtree: true, characterData: true });
     }
     if (typeof ResizeObserver !== 'undefined') {
-        new ResizeObserver(() => requestAnimationFrame(scroll)).observe(el);
+        new ResizeObserver(() => {
+            if (nearBottom()) requestAnimationFrame(_scrollChatToBottom);
+        }).observe(el);
     }
-    window.addEventListener('pageshow', (ev) => {
-        if (ev.persisted) setTimeout(scroll, 50);
-        setTimeout(scroll, 120);
-    });
+    // Вход / «Назад» / снова вкладка — всегда в конец
+    window.addEventListener('pageshow', () => _minkoForceChatToEnd('pageshow'));
+    window.addEventListener('focus', () => _minkoForceChatToEnd('focus'));
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') setTimeout(scroll, 80);
+        if (document.visibilityState === 'visible') _minkoForceChatToEnd('visible');
     });
+    window.addEventListener('reminko:loading-screen-hidden', () => _minkoForceChatToEnd('loading'));
+    window.addEventListener('reminko:navigation-applied', () => _minkoForceChatToEnd('nav'));
 }
 
 function _escapeHtmlSimple(text) {
@@ -2699,10 +2730,8 @@ document.addEventListener('DOMContentLoaded', () => {
         _renderSavedMessages();
         _syncMinkoAssistantReplyCountFromHistory();
     }
-    setTimeout(_scrollChatToBottom, 0);
-    setTimeout(_scrollChatToBottom, 280);
-    setTimeout(_scrollChatToBottom, 700);
-    window.addEventListener('load', () => setTimeout(_scrollChatToBottom, 80), { once: true });
+    _minkoForceChatToEnd('init');
+    window.addEventListener('load', () => _minkoForceChatToEnd('load'), { once: true });
 
     // Проверяем состояние обиды при загрузке
     setTimeout(() => {
@@ -2802,6 +2831,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingScreen.style.display = 'none';
         }
         document.body.classList.add('reminko-content-revealed', 'reminko-loading-dismissed');
+        if (typeof _minkoForceChatToEnd === 'function') _minkoForceChatToEnd('hide-loading');
     }
     // Принудительно скрываем экран загрузки
     setTimeout(hideMinkoLoadingScreen, 100);
@@ -2809,6 +2839,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('pageshow', (ev) => {
         if (ev.persisted) hideMinkoLoadingScreen();
         else setTimeout(hideMinkoLoadingScreen, 50);
+        if (typeof _minkoForceChatToEnd === 'function') _minkoForceChatToEnd('pageshow-load');
     });
     document.addEventListener(
         'click',
