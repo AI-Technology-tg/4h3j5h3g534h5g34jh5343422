@@ -14,6 +14,8 @@
     const POPULAR_YEAR_TO = 2026;
     const POPULAR_MIN_RATING = 7.7;
     let _catalog = [];
+    let _homeStrips = null;
+    let _homeStripsMeta = null;
     let _calendarItems = [];
     let _kodikCalendarItems = [];
     let _kodikAnnouncedItems = [];
@@ -69,6 +71,48 @@
         } catch (_) {
             _kodikAnnouncedItems = [];
         }
+    }
+
+    /** ~70 KB вместо полного каталога ~17 MB */
+    async function loadHomeStrips() {
+        try {
+            const res = await fetch(catalogUrl('data/kodik-home-strips.json'), {
+                credentials: 'omit',
+                cache: 'default',
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            _homeStrips = data && typeof data === 'object' ? data : null;
+            _homeStripsMeta = (_homeStrips && _homeStrips.meta) || null;
+            // Мини-каталог для метаданных анонсов / статистики героя
+            const bag = [];
+            for (const key of ['airing', 'popular']) {
+                const block = _homeStrips && _homeStrips[key];
+                if (!block) continue;
+                for (const media of ['serial', 'film']) {
+                    const list = Array.isArray(block[media]) ? block[media] : [];
+                    for (const a of list) {
+                        if (a && a.id != null) bag.push(a);
+                    }
+                }
+            }
+            if (bag.length) _catalog = filterAdult(bag);
+            return !!_homeStrips;
+        } catch (e) {
+            console.warn('[kodik-home] home-strips:', e);
+            _homeStrips = null;
+            _homeStripsMeta = null;
+            return false;
+        }
+    }
+
+    function stripList(sectionId, mediaType) {
+        if (!_homeStrips) return null;
+        const m = normalizeMediaType(mediaType);
+        const block = _homeStrips[sectionId];
+        if (!block) return null;
+        const list = Array.isArray(block[m]) ? block[m] : [];
+        return filterAdult(list);
     }
 
     function kodikAnnouncedFilter() {
@@ -440,6 +484,9 @@
     }
 
     function pickAiring(all, mediaType) {
+        const fromStrips = stripList('airing', mediaType);
+        if (fromStrips) return fromStrips.slice(0, KODIK_HOME_LIMIT);
+
         if (normalizeMediaType(mediaType) === 'film') {
             return pickAiringFilmsThisMonth(all);
         }
@@ -1079,6 +1126,9 @@
     }
 
     function pickPopular(all, mediaType) {
+        const fromStrips = stripList('popular', mediaType);
+        if (fromStrips) return fromStrips.slice(0, KODIK_POPULAR_LIMIT);
+
         const list = all.filter((a) => matchMedia(a, mediaType) && isPopularRecentHit(a));
         list.sort((a, b) => {
             const rd = (b.rating || 0) - (a.rating || 0);
@@ -1477,6 +1527,31 @@
         }
     }
 
+    function scheduleDeferredFullCatalog() {
+        if (global.__reminkoHomeFullCatalogScheduled) return;
+        global.__reminkoHomeFullCatalogScheduled = true;
+        const run = () => {
+            if (typeof global.KodikCatalogStore?.load !== 'function') return;
+            if (typeof global.KodikCatalogStore.isLoaded === 'function' && global.KodikCatalogStore.isLoaded()) {
+                return;
+            }
+            void global.KodikCatalogStore.load()
+                .then(() => {
+                    try {
+                        global.dispatchEvent(new CustomEvent('reminko:home-full-catalog'));
+                    } catch (_) {
+                        /* ignore */
+                    }
+                })
+                .catch(() => {});
+        };
+        if (typeof global.requestIdleCallback === 'function') {
+            global.requestIdleCallback(run, { timeout: 8000 });
+        } else {
+            setTimeout(run, 4000);
+        }
+    }
+
     async function renderAllSections(defaultMedia) {
         const media = normalizeMediaType(defaultMedia);
         const scrollY = global.scrollY || global.pageYOffset || 0;
@@ -1556,30 +1631,29 @@
             signalHomeReady();
 
             try {
-                // 1) Лёгкие JSON → сразу «Анонсировано» (без 17MB каталога)
-                await loadKodikAnnouncedItems();
-                await loadCalendarMalIds();
+                // 1) Лёгкие JSON → анонсы + ленты (без 17 MB каталога)
+                await Promise.all([loadKodikAnnouncedItems(), loadHomeStrips(), loadCalendarMalIds()]);
                 await reminkoYieldFrame();
                 await renderAnnouncedSection('serial');
                 await reminkoYieldFrame();
 
-                // 2) Полный каталог — только для «Выходит» / «Популярно»
-                if (typeof global.KodikCatalogStore?.load === 'function') {
-                    try {
-                        await global.KodikCatalogStore.load();
-                    } catch (_) {
-                        /* ignore */
+                // Fallback: strips нет — старый путь через полный каталог
+                if (!_homeStrips) {
+                    if (typeof global.KodikCatalogStore?.load === 'function') {
+                        try {
+                            await global.KodikCatalogStore.load();
+                        } catch (_) {
+                            /* ignore */
+                        }
                     }
+                    const raw =
+                        typeof global.KodikCatalogStore?.getAll === 'function'
+                            ? global.KodikCatalogStore.getAll()
+                            : typeof global.getAllAnime === 'function'
+                              ? global.getAllAnime().filter((a) => a.isKodikCatalog)
+                              : [];
+                    _catalog = filterAdult(raw);
                 }
-                await reminkoYieldFrame();
-
-                const raw =
-                    typeof global.KodikCatalogStore?.getAll === 'function'
-                        ? global.KodikCatalogStore.getAll()
-                        : typeof global.getAllAnime === 'function'
-                          ? global.getAllAnime().filter((a) => a.isKodikCatalog)
-                          : [];
-                _catalog = filterAdult(raw);
 
                 for (const cfg of KODIK_SECTIONS) {
                     renderSection(cfg, 'serial');
@@ -1589,6 +1663,9 @@
 
                 const stats = document.getElementById('heroStats');
                 if (stats) stats.hidden = false;
+
+                // Полный каталог — только если нужен (история/избранное/поиск), после idle
+                scheduleDeferredFullCatalog();
             } finally {
                 signalHomeReady();
             }
@@ -1599,6 +1676,7 @@
 
     global.initKodikHomeSections = initKodikHomeSections;
     global.refreshKodikHomeSections = refreshKodikHomeSections;
+    global.reminkoHomeStripsMeta = () => _homeStripsMeta;
 
     global.addEventListener('reminko-kodik-catalog-loaded', () => {
         if (!_inited) void initKodikHomeSections();

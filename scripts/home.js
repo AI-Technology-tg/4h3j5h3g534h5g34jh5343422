@@ -330,12 +330,17 @@ function updateHeroStats() {
     const mangaCountEl = document.getElementById('statMangaCount');
 
     if (animeCountEl) {
+        const stripsMeta =
+            typeof window.reminkoHomeStripsMeta === 'function' ? window.reminkoHomeStripsMeta() : null;
         const meta =
             typeof window.KodikCatalogStore?.getMeta === 'function'
                 ? window.KodikCatalogStore.getMeta()
                 : null;
         let animeCount = null;
-        if (typeof getAllAnime === 'function') {
+        if (stripsMeta && Number.isFinite(stripsMeta.catalogCount)) {
+            animeCount = stripsMeta.catalogCount;
+        }
+        if (animeCount == null && typeof getAllAnime === 'function') {
             const visible = getAllAnime();
             if (visible.length > 0) {
                 animeCount = new Set(
