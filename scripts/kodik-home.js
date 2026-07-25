@@ -4,10 +4,12 @@
 (function (global) {
     'use strict';
 
-    /** Меньше карточек на первый paint — иначе main thread 3–4 с «заморожен» и скролл дёргается */
-    const KODIK_HOME_LIMIT = 36;
-    const KODIK_ANNOUNCED_LIMIT = 72;
+    /** Короткие ленты на главной — меньше DOM/постеров/сети */
+    const KODIK_HOME_LIMIT = 20;
+    const KODIK_ANNOUNCED_LIMIT = 15;
     const KODIK_POPULAR_LIMIT = 36;
+    const CATALOG_ANNOUNCED_HREF = 'catalog/anime.html?status=' + encodeURIComponent('Анонс');
+    const CATALOG_AIRING_HREF = 'catalog/anime.html?status=' + encodeURIComponent('Онгоинг');
     const POPULAR_YEAR_FROM = 2022;
     const POPULAR_YEAR_TO = 2026;
     const POPULAR_MIN_RATING = 7.7;
@@ -25,22 +27,14 @@
             sectionEl: 'kodikHomeAiring',
             gridId: 'kodikAiringGrid',
             pick: pickAiring,
-            moreHref: (media) => {
-                if (media === 'film') {
-                    const now = new Date();
-                    const y = now.getFullYear();
-                    return `catalog/anime.html?type=Фильм&status=Завершён&yearFrom=${y}&yearTo=${y}&sort=year-desc`;
-                }
-                return 'catalog/anime.html?status=Онгоинг&type=Сериал';
-            },
+            seeAllHref: () => CATALOG_AIRING_HREF,
+            seeAllLabel: 'Онгоинги',
         },
         {
             id: 'popular',
             sectionEl: 'kodikHomePopular',
             gridId: 'kodikPopularGrid',
             pick: pickPopular,
-            moreHref: (media) =>
-                `catalog/anime.html?yearFrom=${POPULAR_YEAR_FROM}&yearTo=${POPULAR_YEAR_TO}&type=${media === 'film' ? 'Фильм' : 'Сериал'}&sort=rating-desc`,
         },
     ];
 
@@ -1329,7 +1323,27 @@
         }
     }
 
-    function renderSectionGrid(gridId, items) {
+    function createSeeAllHomeCard(href, label) {
+        const card = document.createElement('a');
+        card.className = 'jikan-card kodik-home-card kodik-home-see-all';
+        card.href = href || 'catalog/anime.html';
+        card.setAttribute('aria-label', label ? `Посмотреть все: ${label}` : 'Посмотреть все');
+        card.innerHTML = `
+        <div class="jikan-card-poster kodik-home-see-all__poster">
+            <div class="kodik-home-see-all__inner">
+                <span class="kodik-home-see-all__icon" aria-hidden="true">→</span>
+                <span class="kodik-home-see-all__title">Посмотреть все</span>
+                ${label ? `<span class="kodik-home-see-all__sub">${label}</span>` : ''}
+            </div>
+        </div>
+        <div class="jikan-card-info">
+            <div class="jikan-card-title">В каталог</div>
+            <div class="jikan-card-meta"><span>Все тайтлы раздела</span></div>
+        </div>`;
+        return card;
+    }
+
+    function renderSectionGrid(gridId, items, opts) {
         const container = document.getElementById(gridId);
         if (!container) return;
 
@@ -1338,16 +1352,19 @@
         }
 
         container.innerHTML = '';
-        if (!items.length) {
+        if (!items.length && !(opts && opts.seeAllHref)) {
             container.innerHTML = '<div class="home-loading-placeholder">Пока нет тайтлов в этой категории</div>';
             return;
         }
 
         const frag = document.createDocumentFragment();
         const EAGER_POSTERS = 10;
-        items.forEach((anime, idx) => {
+        (items || []).forEach((anime, idx) => {
             frag.appendChild(createKodikHomeCard(anime, { deferPoster: idx >= EAGER_POSTERS }));
         });
+        if (opts && opts.seeAllHref) {
+            frag.appendChild(createSeeAllHomeCard(opts.seeAllHref, opts.seeAllLabel || ''));
+        }
         container.appendChild(frag);
 
         global.requestAnimationFrame(() => {
@@ -1403,9 +1420,11 @@
         section.hidden = false;
         section.removeAttribute('aria-hidden');
         setSectionMediaUi(section, m);
-        renderSectionGrid(cfg.gridId, cfg.pick(_catalog, m));
-        const more = section.querySelector('.section-more-link');
-        if (more && cfg.moreHref) more.href = cfg.moreHref(m);
+        const seeAllHref = typeof cfg.seeAllHref === 'function' ? cfg.seeAllHref(m) : cfg.seeAllHref;
+        renderSectionGrid(cfg.gridId, cfg.pick(_catalog, m), {
+            seeAllHref: seeAllHref || '',
+            seeAllLabel: cfg.seeAllLabel || '',
+        });
     }
 
     async function renderAnnouncedSection(media) {
@@ -1415,14 +1434,14 @@
             section.hidden = false;
             section.removeAttribute('aria-hidden');
             setSectionMediaUi(section, m);
-            const more = section.querySelector('.section-more-link');
-            if (more) {
-                more.href = 'catalog/anime.html?filter=upcoming';
-            }
         }
 
+        const seeAllOpts = {
+            seeAllHref: CATALOG_ANNOUNCED_HREF,
+            seeAllLabel: 'Анонсы',
+        };
         const kodikList = pickAnnounced(_catalog, m);
-        renderSectionGrid('kodikAnnouncedGrid', kodikList);
+        renderSectionGrid('kodikAnnouncedGrid', kodikList, seeAllOpts);
 
         // Shikimori + Jikan — доп. анонсы (в kodik-announced.json их мало)
         try {
@@ -1430,9 +1449,9 @@
             if (!extra.length) return;
             const merged = mergeAnnouncedLists(kodikList, extra);
             if (merged.length > kodikList.length) {
-                renderSectionGrid('kodikAnnouncedGrid', merged);
+                renderSectionGrid('kodikAnnouncedGrid', merged, seeAllOpts);
             } else if (kodikList.length === 0 && merged.length) {
-                renderSectionGrid('kodikAnnouncedGrid', merged);
+                renderSectionGrid('kodikAnnouncedGrid', merged, seeAllOpts);
             }
         } catch (e) {
             console.warn('[kodik-home] merge announced:', e);

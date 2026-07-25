@@ -247,6 +247,21 @@ body.theme-dark .kodik-home-card:hover {
     transform: translateY(-4px);
 }
 
+body.theme-dark .kodik-home-see-all__poster {
+    background:
+        radial-gradient(120% 90% at 20% 10%, rgba(157, 77, 255, 0.4), transparent 55%),
+        radial-gradient(100% 80% at 90% 90%, rgba(255, 45, 85, 0.22), transparent 50%),
+        linear-gradient(160deg, rgba(18, 8, 31, 0.98), rgba(10, 6, 20, 0.99)) !important;
+}
+
+body.theme-dark .kodik-home-see-all__title {
+    color: #f8fafc !important;
+}
+
+body.theme-dark .kodik-home-see-all__sub {
+    color: rgba(196, 181, 253, 0.9) !important;
+}
+
 body.theme-dark .jikan-card-title {
     color: #fff !important;
 }

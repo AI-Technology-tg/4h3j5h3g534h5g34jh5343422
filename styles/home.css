@@ -1266,6 +1266,69 @@ html.home-carousel-auto-off .home-section--kodik .home-horizontal-scroll {
     cursor: pointer;
 }
 
+.kodik-home-see-all {
+    text-decoration: none;
+    color: inherit;
+}
+
+.kodik-home-see-all__poster {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(120% 90% at 20% 10%, rgba(168, 85, 247, 0.35), transparent 55%),
+        radial-gradient(100% 80% at 90% 90%, rgba(99, 102, 241, 0.28), transparent 50%),
+        linear-gradient(160deg, rgba(30, 27, 45, 0.95), rgba(15, 23, 42, 0.98));
+}
+
+.kodik-home-see-all__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.75rem;
+    text-align: center;
+}
+
+.kodik-home-see-all__icon {
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #7c3aed, #c026d3);
+    box-shadow: 0 8px 22px rgba(124, 58, 237, 0.45);
+}
+
+.kodik-home-see-all__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #f3e8ff;
+    letter-spacing: 0.01em;
+}
+
+.kodik-home-see-all__sub {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(196, 181, 253, 0.85);
+}
+
+.kodik-home-see-all:hover {
+    transform: translateY(-4px);
+    border-color: rgba(168, 85, 247, 0.45);
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.28);
+}
+
+.kodik-home-see-all:hover .kodik-home-see-all__icon {
+    transform: translateX(3px);
+    transition: transform 0.15s ease;
+}
+
 .jikan-card-countdown {
     position: absolute;
     left: 0.45rem;
@@ -1762,6 +1825,12 @@ html.home-carousel-auto-off .home-section--kodik .home-horizontal-scroll {
     }
     .jikan-card {
         flex: 0 0 140px;
+    }
+    .kodik-home-see-all__title {
+        font-size: 0.88rem;
+    }
+    .kodik-home-see-all__sub {
+        font-size: 0.68rem;
     }
     .quick-links-grid {
         grid-template-columns: 1fr;

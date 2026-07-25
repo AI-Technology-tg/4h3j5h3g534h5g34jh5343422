@@ -1461,8 +1461,7 @@ async function loadHeroWatchHistory() {
     box.hidden = false;
     box.innerHTML =
         '<p class="home-hero-watch-label">Недавно смотрели</p>' +
-        '<div class="home-hero-watch-row" tabindex="0" role="list" aria-label="Недавно смотрели"></div>' +
-        '<a class="home-hero-watch-more" href="history.html">Вся история →</a>';
+        '<div class="home-hero-watch-row" tabindex="0" role="list" aria-label="Недавно смотрели"></div>';
     const rowEl = box.querySelector('.home-hero-watch-row');
 
     for (const row of rows) {
