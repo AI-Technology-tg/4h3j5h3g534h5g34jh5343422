@@ -13,6 +13,11 @@
         if (nav && (nav.type === 'reload' || nav.type === 'back_forward')) {
             window.__reminkoSkipInitialLoading = true;
         }
+        // Профиль должен открываться сразу — без полноэкранного «Загрузка…»
+        var path = (window.location && window.location.pathname) || '';
+        if (/profile\.html$/i.test(path)) {
+            window.__reminkoSkipInitialLoading = true;
+        }
     } catch (_) {
         /* ignore */
     }
@@ -348,6 +353,15 @@ document.addEventListener('click', (e) => {
     
     // Проверяем, что это внутренняя ссылка
     if (href && !href.startsWith('http') && !href.startsWith('mailto:')) {
+        // Профиль — без полноэкранного лоадера (там свой быстрый каркас)
+        if (/profile\.html/i.test(href)) {
+            try {
+                sessionStorage.setItem('rem_transform_skip_loading', '1');
+            } catch (_) {
+                /* ignore */
+            }
+            return;
+        }
         showLoading(); // Используем рандомную фразу
     }
 }, true); // Capture phase - срабатывает раньше других обработчиков

@@ -35,8 +35,9 @@ body.theme-dark {
 }
 
 body.theme-dark .top-navbar {
-    background: rgba(8, 6, 17, 0.92) !important;
-    backdrop-filter: blur(12px) saturate(1.1);
+    background: rgba(8, 6, 17, 0.96) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
     border-bottom: 1px solid rgba(157, 77, 255, 0.42) !important;
     box-shadow: 0 6px 32px rgba(255, 45, 85, 0.12);
 }
@@ -112,9 +113,10 @@ body.theme-dark .top-notifications-btn {
 }
 
 body.theme-dark .sidebar {
-    background: rgba(8, 6, 17, 0.94) !important;
+    background: rgba(8, 6, 17, 0.97) !important;
     border: 1px solid rgba(157, 77, 255, 0.32) !important;
-    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
     box-shadow: 4px 0 28px rgba(255, 45, 85, 0.08);
 }
 

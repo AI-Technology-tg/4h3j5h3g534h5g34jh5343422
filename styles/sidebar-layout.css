@@ -2,8 +2,10 @@
 
 /* Верхняя панель */
 .top-navbar {
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
+    /* Плотный фон без blur — blur+fixed background сильно лагает при скролле */
+    background: rgba(8, 8, 14, 0.94);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
     padding: 0.6rem 0;
     position: sticky;
     top: 0;
@@ -505,8 +507,9 @@
 /* Боковая панель */
 .sidebar {
     width: 220px;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(10px);
+    background: rgba(8, 8, 14, 0.96);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
     padding: 1rem 0;
     position: sticky;
@@ -515,6 +518,7 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     flex-shrink: 0;
+    z-index: 20;
 }
 
 .sidebar-nav {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <style id="reminko-critical-first-paint">
-      /* Первый кадр до загрузки внешних CSS: тёмный фон и полноэкранный лоадер (антимигание FOUC) */
+      /* РџРµСЂРІС‹Р№ РєР°РґСЂ РґРѕ Р·Р°РіСЂСѓР·РєРё РІРЅРµС€РЅРёС… CSS: С‚С‘РјРЅС‹Р№ С„РѕРЅ Рё РїРѕР»РЅРѕСЌРєСЂР°РЅРЅС‹Р№ Р»РѕР°РґРµСЂ (Р°РЅС‚РёРјРёРіР°РЅРёРµ FOUC) */
       html { background-color: #0b0b12; }
       body { margin: 0; background-color: #0b0b12; color: #e5e7eb; }
       #loadingScreen {
@@ -27,10 +27,10 @@
     </style>
     <script src="../scripts/desktop-only-guard.js?v=20260725r"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Просмотр аниме - Re-Minko</title>
+    <title>РџСЂРѕСЃРјРѕС‚СЂ Р°РЅРёРјРµ - Re-Minko</title>
     <meta
         name="description"
-        content="Смотреть аниме онлайн на Re-Minko: страница тайтла с описанием, постером, сериями и плеером Kodik."
+        content="РЎРјРѕС‚СЂРµС‚СЊ Р°РЅРёРјРµ РѕРЅР»Р°Р№РЅ РЅР° Re-Minko: СЃС‚СЂР°РЅРёС†Р° С‚Р°Р№С‚Р»Р° СЃ РѕРїРёСЃР°РЅРёРµРј, РїРѕСЃС‚РµСЂРѕРј, СЃРµСЂРёСЏРјРё Рё РїР»РµРµСЂРѕРј Kodik."
     />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <link rel="apple-touch-icon" sizes="180x180" href="../Fons/vavo/apple-touch-icon.png">
@@ -44,54 +44,54 @@
     <link rel="stylesheet" href="../styles/notifications.css">
 </head>
 <body>
-    <!-- Экран загрузки -->
+    <!-- Р­РєСЂР°РЅ Р·Р°РіСЂСѓР·РєРё -->
     <div class="loading-screen" id="loadingScreen">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Загрузка<span class="loading-dots"></span></div>
+        <div class="loading-text">Р—Р°РіСЂСѓР·РєР°<span class="loading-dots"></span></div>
         <div class="loading-character"></div>
         <div class="loading-anime"></div>
     </div>
 
-    <!-- Верхняя панель будет добавлена через navigation.js -->
+    <!-- Р’РµСЂС…РЅСЏСЏ РїР°РЅРµР»СЊ Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅР° С‡РµСЂРµР· navigation.js -->
     
-    <!-- Основной контейнер с боковой панелью -->
+    <!-- РћСЃРЅРѕРІРЅРѕР№ РєРѕРЅС‚РµР№РЅРµСЂ СЃ Р±РѕРєРѕРІРѕР№ РїР°РЅРµР»СЊСЋ -->
     <div class="main-layout">
-        <!-- Левая боковая панель навигации будет добавлена через navigation.js -->
+        <!-- Р›РµРІР°СЏ Р±РѕРєРѕРІР°СЏ РїР°РЅРµР»СЊ РЅР°РІРёРіР°С†РёРё Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅР° С‡РµСЂРµР· navigation.js -->
         
-        <!-- Контент -->
+        <!-- РљРѕРЅС‚РµРЅС‚ -->
         <main class="main-content-wrapper anime-view-container">
         <div id="animeContent">
-            <!-- Контент будет загружен через JavaScript -->
-            <div class="loading">Загрузка...</div>
+            <!-- РљРѕРЅС‚РµРЅС‚ Р±СѓРґРµС‚ Р·Р°РіСЂСѓР¶РµРЅ С‡РµСЂРµР· JavaScript -->
+            <div class="loading">Р—Р°РіСЂСѓР·РєР°...</div>
         </div>
         </main>
     </div>
 
-    <!-- Модальное окно входа -->
+    <!-- РњРѕРґР°Р»СЊРЅРѕРµ РѕРєРЅРѕ РІС…РѕРґР° -->
     <div class="modal" id="loginModal">
         <div class="modal-content">
             <span class="close" id="closeLoginModal">&times;</span>
-            <h2 class="modal-title">Вход на сайт</h2>
+            <h2 class="modal-title">Р’С…РѕРґ РЅР° СЃР°Р№С‚</h2>
             <form class="login-form" id="loginForm" onsubmit="event.preventDefault(); const btn = document.getElementById('loginSubmit'); if(btn) btn.click(); return false;">
                 <div class="form-group">
-                    <label for="loginEmail">Почта:</label>
-                    <input type="email" id="loginEmail" placeholder="Введите вашу почту" autocomplete="email">
+                    <label for="loginEmail">РџРѕС‡С‚Р°:</label>
+                    <input type="email" id="loginEmail" placeholder="Р’РІРµРґРёС‚Рµ РІР°С€Сѓ РїРѕС‡С‚Сѓ" autocomplete="email">
                 </div>
                 <div class="form-group">
-                    <label for="loginPassword">Пароль:</label>
-                    <input type="password" id="loginPassword" placeholder="Введите пароль" autocomplete="current-password">
+                    <label for="loginPassword">РџР°СЂРѕР»СЊ:</label>
+                    <input type="password" id="loginPassword" placeholder="Р’РІРµРґРёС‚Рµ РїР°СЂРѕР»СЊ" autocomplete="current-password">
                 </div>
                 <div class="form-options">
                     <label class="checkbox-label">
-                        <input type="checkbox"> Не запоминать меня
+                        <input type="checkbox"> РќРµ Р·Р°РїРѕРјРёРЅР°С‚СЊ РјРµРЅСЏ
                     </label>
-                    <a href="#" class="forgot-password">Забыли пароль?</a>
+                    <a href="#" class="forgot-password">Р—Р°Р±С‹Р»Рё РїР°СЂРѕР»СЊ?</a>
                 </div>
                 <div id="loginError" class="error-message"></div>
-                <button type="submit" class="btn btn-primary btn-block" id="loginSubmit">Войти на сайт</button>
+                <button type="submit" class="btn btn-primary btn-block" id="loginSubmit">Р’РѕР№С‚Рё РЅР° СЃР°Р№С‚</button>
                 
                 <div class="divider">
-                    <span>или</span>
+                    <span>РёР»Рё</span>
                 </div>
                 
                 <button type="button" class="btn btn-google" id="googleLogin">
@@ -101,17 +101,17 @@
                         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                     </svg>
-                    Войти через Google
+                    Р’РѕР№С‚Рё С‡РµСЂРµР· Google
                 </button>
                 
                 <div class="register-link">
-                    <p>Нет аккаунта? <a href="#" id="switchToRegister" data-maint-lock="register">Регистрация</a></p>
+                    <p>РќРµС‚ Р°РєРєР°СѓРЅС‚Р°? <a href="#" id="switchToRegister" data-maint-lock="register">Р РµРіРёСЃС‚СЂР°С†РёСЏ</a></p>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Локальные ключи (Kodik token, Supabase): скопируйте config.local.example.js > config.local.js в корне сайта -->
+    <!-- Р›РѕРєР°Р»СЊРЅС‹Рµ РєР»СЋС‡Рё (Kodik token, Supabase): СЃРєРѕРїРёСЂСѓР№С‚Рµ config.local.example.js > config.local.js РІ РєРѕСЂРЅРµ СЃР°Р№С‚Р° -->
     <script src="../config.local.js" onerror="window.__reminkoNoLocalConfig=true"></script>
     <script src="../scripts/config.js?v=20260720h?v=20260720h"></script>
     <script src="../scripts/kodik-catalog-store.js?v=20260724d"></script>

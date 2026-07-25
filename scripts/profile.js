@@ -37,6 +37,35 @@ function getRandomAvatar() {
     return availableAvatars[Math.floor(Math.random() * availableAvatars.length)];
 }
 
+/** Мгновенный каркас профиля из session — без ожидания Supabase/каталога */
+function reminkoPaintProfileShell(userData, isViewMode) {
+    const container = document.getElementById('profileContainer');
+    if (!container || !userData) return;
+    const name = String(userData.username || 'Пользователь').replace(/[<>&]/g, '');
+    const rawAv = userData.avatar || 'Fons/1 b.jpg';
+    const av =
+        typeof reminkoResolveAssetUrl === 'function' ? reminkoResolveAssetUrl(rawAv) : rawAv;
+    const avCss = String(av).replace(/'/g, "\\'");
+    container.innerHTML = `
+        <div class="profile-modern profile-modern--shell">
+            <div class="profile-top">
+                <div class="profile-avatar-wrap">
+                    <div class="profile-avatar" style="background-image:url('${avCss}');background-size:cover;background-position:center"></div>
+                </div>
+                <div class="profile-head-main">
+                    <h1 class="profile-name">${name}</h1>
+                    <p class="profile-email">${isViewMode ? 'Профиль пользователя' : 'Ваш профиль'}</p>
+                </div>
+            </div>
+            <div class="profile-tabs" aria-hidden="true">
+                <button type="button" class="profile-tab-btn active">Обзор</button>
+                <button type="button" class="profile-tab-btn">Избранное</button>
+            </div>
+            <div class="profile-section profile-shell-hint">Открываем профиль…</div>
+        </div>
+    `;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Проверяем параметр user из URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -46,7 +75,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Загружаем профиль другого пользователя
         await loadUserProfile(userIdFromUrl);
     } else {
-        // Загружаем свой профиль
+        // Сразу рисуем каркас из кэша сессии — без «Загрузка профиля…»
+        const syncUser = typeof getCurrentUserSync === 'function' ? getCurrentUserSync() : null;
+        if (syncUser && syncUser.id) {
+            reminkoPaintProfileShell(syncUser, false);
+            if (typeof hideLoading === 'function') hideLoading();
+        }
+
         const isAuth = await isAuthenticated();
         if (!isAuth) {
             window.location.href = 'index.html';
@@ -195,71 +230,105 @@ function reminkoBuildVipWatchCheckoutUrl(clientUserId) {
 async function renderProfile(userData, isViewMode = false) {
     const container = document.getElementById('profileContainer');
     if (!container) return;
+
+    // Сразу показываем каркас — не ждём VIP/друзей/каталог
+    reminkoPaintProfileShell(userData, isViewMode);
+    if (typeof hideLoading === 'function') hideLoading();
     
     // ID профиля, который смотрим
     const profileUserId = userData.id;
     const isUUIDFormat = profileUserId && isUUID(profileUserId.toString());
 
-    // Для своего профиля загружаем данные текущего пользователя
-    const currentUser = !isViewMode ? await getCurrentUser() : null;
-    const ownUserId = currentUser ? currentUser.id : null;
+    // Для своего профиля — sync-кэш, без лишнего await getCurrentUser
+    const currentUser = !isViewMode
+        ? typeof getCurrentUserSync === 'function'
+            ? getCurrentUserSync()
+            : null
+        : null;
+    const ownUserId = currentUser ? currentUser.id : userData.id;
 
     let userAchievements = [];
     let vipSubscription = null;
     let friendsList = [];
     let friendProfiles = [];
 
-    if (!isViewMode && ownUserId && isUUID(ownUserId.toString()) && typeof window.achievementsService !== 'undefined') {
-        userAchievements = await window.achievementsService.getUserAchievements(ownUserId);
-    }
+    const achievementsPromise =
+        !isViewMode &&
+        ownUserId &&
+        isUUID(ownUserId.toString()) &&
+        typeof window.achievementsService !== 'undefined'
+            ? window.achievementsService.getUserAchievements(ownUserId).catch(() => [])
+            : Promise.resolve([]);
+
+    const socialPromise = (async () => {
+        if (!isUUIDFormat || typeof supabaseClient === 'undefined' || !supabaseClient) {
+            return { vip: null, friends: [], profiles: [] };
+        }
+        try {
+            const [{ data: vipData }, { data: friendsData }] = await Promise.all([
+                supabaseClient
+                    .from('vip_subscriptions')
+                    .select('*')
+                    .eq('user_id', profileUserId)
+                    .eq('is_active', true)
+                    .maybeSingle(),
+                supabaseClient
+                    .from('friends')
+                    .select('*')
+                    .or(`user_id.eq.${profileUserId},friend_id.eq.${profileUserId}`)
+                    .eq('status', 'accepted')
+            ]);
+            const friends = friendsData || [];
+            let profiles = [];
+            if (friends.length > 0) {
+                const friendIds = friends
+                    .map((f) => (f.user_id === profileUserId ? f.friend_id : f.user_id))
+                    .filter(Boolean);
+                const { data: p } = await supabaseClient
+                    .from('profiles')
+                    .select('id, username, avatar')
+                    .in('id', friendIds);
+                profiles = p || [];
+            }
+            return { vip: vipData || null, friends, profiles };
+        } catch (error) {
+            console.error('Ошибка загрузки данных из Supabase:', error);
+            return { vip: null, friends: [], profiles: [] };
+        }
+    })();
+
+    const [achievementsResult, socialResult] = await Promise.all([
+        achievementsPromise,
+        socialPromise
+    ]);
+    userAchievements = achievementsResult || [];
+    vipSubscription = socialResult.vip;
+    friendsList = socialResult.friends;
+    friendProfiles = socialResult.profiles;
 
     if (!isViewMode) {
         currentUserAchievements = userAchievements;
         currentUserGender = userData.gender || 'male';
-        currentUserAvatars = await getAvailableAvatarsForUser(ownUserId, currentUserGender, userAchievements);
-    }
-
-    if (isUUIDFormat && typeof supabaseClient !== 'undefined' && supabaseClient) {
-        try {
-            const { data: vipData } = await supabaseClient
-                .from('vip_subscriptions').select('*')
-                .eq('user_id', profileUserId).eq('is_active', true).maybeSingle();
-            if (vipData) vipSubscription = vipData;
-
-            const { data: friendsData } = await supabaseClient
-                .from('friends').select('*')
-                .or(`user_id.eq.${profileUserId},friend_id.eq.${profileUserId}`)
-                .eq('status', 'accepted');
-            friendsList = friendsData || [];
-
-            // Загружаем профили друзей для плиток
-            if (friendsList.length > 0) {
-                const friendIds = friendsList.map(f =>
-                    f.user_id === profileUserId ? f.friend_id : f.user_id
-                ).filter(Boolean);
-                const { data: profiles } = await supabaseClient
-                    .from('profiles').select('id, username, avatar')
-                    .in('id', friendIds);
-                friendProfiles = profiles || [];
-            }
-        } catch (error) {
-            console.error('Ошибка загрузки данных из Supabase:', error);
-        }
+        currentUserAvatars = await getAvailableAvatarsForUser(
+            ownUserId,
+            currentUserGender,
+            userAchievements
+        );
     }
 
     const registerDate = userData.registerDate ? new Date(userData.registerDate).toLocaleDateString('ru-RU') : 'Неизвестно';
 
-    // Избранное — всегда из Supabase (свой и чужой профиль); localStorage только запасной вариант
+    // Избранное — без блокирующей загрузки всего Kodik-каталога до первого кадра
     let favoritesAnime = [];
     let favoritesManga = [];
-    try {
-        if (typeof window.KodikCatalogStore?.load === 'function') {
-            await window.KodikCatalogStore.load();
-        }
-    } catch (_) {}
-    try {
-        if (typeof getAllAnimeAsync === 'function') await getAllAnimeAsync();
-    } catch (_) {}
+    // Каталог подтянем в фоне для постеров (не блокирует открытие профиля)
+    void (async () => {
+        try {
+            if (typeof window.KodikCatalogStore?.load === 'function') {
+                await window.KodikCatalogStore.load();
+            }
+        } catch (_) {}
+    })();
 
     const resolveFavAnime = (rawId) => {
         const id = parseInt(rawId, 10);
@@ -327,12 +396,14 @@ async function renderProfile(userData, isViewMode = false) {
     const isCreatorAccount =
         Boolean(userData.isSiteCreator || userData.is_site_creator) || creatorByEmail || creatorByName;
 
-    if (typeof reminkoEnsureSiteCreatorUserIdCached === 'function') {
-        await reminkoEnsureSiteCreatorUserIdCached();
-    }
-    if (typeof reminkoPrefetchTeamRoles === 'function') {
-        await reminkoPrefetchTeamRoles([profileUserId]);
-    }
+    await Promise.all([
+        typeof reminkoEnsureSiteCreatorUserIdCached === 'function'
+            ? reminkoEnsureSiteCreatorUserIdCached().catch(() => {})
+            : Promise.resolve(),
+        typeof reminkoPrefetchTeamRoles === 'function'
+            ? reminkoPrefetchTeamRoles([profileUserId]).catch(() => {})
+            : Promise.resolve()
+    ]);
     const profileTeamRole =
         typeof reminkoResolveProfileTeamRole === 'function'
             ? reminkoResolveProfileTeamRole(userData, profileUserId)
