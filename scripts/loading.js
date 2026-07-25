@@ -235,10 +235,35 @@ function reminkoWhenLayoutReady(callback) {
     );
 }
 
+function reminkoIsHomePage() {
+    try {
+        if (document.querySelector('.home-page')) return true;
+        var path = ((window.location && window.location.pathname) || '').replace(/\/+$/, '') || '/';
+        return path === '/' || /\/index\.html$/i.test(path);
+    } catch (_) {
+        return false;
+    }
+}
+
 function reminkoHideLoadingOnce() {
     if (__reminkoLoadingSettled) return;
     reminkoWhenLayoutReady(function () {
         if (__reminkoLoadingSettled) return;
+
+        // Главная: не снимаем лоадер, пока не отрисованы ленты (иначе 3–4 с «заморозки» + скачок скролла)
+        if (reminkoIsHomePage() && !window.__reminkoHomeReady) {
+            var finished = false;
+            var finishHome = function () {
+                if (finished || __reminkoLoadingSettled) return;
+                finished = true;
+                __reminkoLoadingSettled = true;
+                hideLoading();
+            };
+            window.addEventListener('reminko:home-ready', finishHome, { once: true });
+            setTimeout(finishHome, 3500);
+            return;
+        }
+
         __reminkoLoadingSettled = true;
         hideLoading();
     });

@@ -4,9 +4,10 @@
 (function (global) {
     'use strict';
 
-    const KODIK_HOME_LIMIT = 120;
-    const KODIK_ANNOUNCED_LIMIT = 120;
-    const KODIK_POPULAR_LIMIT = 50;
+    /** Меньше карточек на первый paint — иначе main thread 3–4 с «заморожен» и скролл дёргается */
+    const KODIK_HOME_LIMIT = 36;
+    const KODIK_ANNOUNCED_LIMIT = 36;
+    const KODIK_POPULAR_LIMIT = 36;
     const POPULAR_YEAR_FROM = 2022;
     const POPULAR_YEAR_TO = 2026;
     const POPULAR_MIN_RATING = 7.7;
@@ -983,32 +984,40 @@
             return;
         }
 
+        const frag = document.createDocumentFragment();
         for (const anime of items) {
-            container.appendChild(createKodikHomeCard(anime));
+            frag.appendChild(createKodikHomeCard(anime));
         }
-
-        void hydrateAnnouncedPostersForGrid(container, items);
-        applyShikimoriToKodikHomeStrip(container, items);
-
-        if (typeof global.reminkoStartLiveCountdown === 'function') {
-            container.querySelectorAll('.jikan-card-countdown[data-countdown-iso]').forEach((el) => {
-                const iso = el.getAttribute('data-countdown-iso');
-                if (!iso) return;
-                global.reminkoStartLiveCountdown(el, iso, {
-                    compact: true,
-                    unknownText: '',
-                    expiredText: 'скоро'
-                });
-            });
-        }
-
-        void hydrateHomeCardCountdowns(container, items);
+        container.appendChild(frag);
 
         global.requestAnimationFrame(() => {
             if (typeof global.enhanceHomeHorizontalScroll === 'function') {
                 global.enhanceHomeHorizontalScroll(container);
             }
         });
+
+        // Тяжёлую гидрацию (постеры/таймеры/Shiki) — после первого paint / idle
+        const hydrateLater = () => {
+            void hydrateAnnouncedPostersForGrid(container, items);
+            applyShikimoriToKodikHomeStrip(container, items);
+            if (typeof global.reminkoStartLiveCountdown === 'function') {
+                container.querySelectorAll('.jikan-card-countdown[data-countdown-iso]').forEach((el) => {
+                    const iso = el.getAttribute('data-countdown-iso');
+                    if (!iso) return;
+                    global.reminkoStartLiveCountdown(el, iso, {
+                        compact: true,
+                        unknownText: '',
+                        expiredText: 'скоро'
+                    });
+                });
+            }
+            void hydrateHomeCardCountdowns(container, items);
+        };
+        if (typeof global.requestIdleCallback === 'function') {
+            global.requestIdleCallback(hydrateLater, { timeout: 1800 });
+        } else {
+            setTimeout(hydrateLater, 400);
+        }
     }
 
     function getSectionMedia(section) {
@@ -1054,19 +1063,49 @@
         renderSectionGrid('kodikAnnouncedGrid', pickAnnounced(_catalog, m));
     }
 
+    function reminkoYieldFrame() {
+        return new Promise((resolve) => {
+            if (typeof global.requestAnimationFrame === 'function') {
+                global.requestAnimationFrame(() => resolve());
+            } else {
+                setTimeout(resolve, 0);
+            }
+        });
+    }
+
+    function signalHomeReady() {
+        try {
+            global.__reminkoHomeReady = true;
+            global.dispatchEvent(new CustomEvent('reminko:home-ready'));
+        } catch (_) {
+            global.__reminkoHomeReady = true;
+        }
+    }
+
     async function renderAllSections(defaultMedia) {
         const media = normalizeMediaType(defaultMedia);
+        const scrollY = global.scrollY || global.pageYOffset || 0;
         for (const cfg of KODIK_SECTIONS) {
             renderSection(cfg, media);
+            await reminkoYieldFrame();
         }
-        void renderAnnouncedSection(media);
+        renderAnnouncedSection(media);
+        // Не даём браузеру «утащить» скролл при росте высоты
+        try {
+            if (Math.abs((global.scrollY || 0) - scrollY) > 2) {
+                global.scrollTo(0, scrollY);
+            }
+        } catch (_) {
+            /* ignore */
+        }
     }
 
     function refreshKodikHomeSections(skipAnnounced) {
         if (!document.querySelector('.home-page')) return;
+        if (!_catalog.length) return;
         for (const cfg of KODIK_SECTIONS) {
             const section = document.getElementById(cfg.sectionEl);
-            if (!section || !_catalog.length) continue;
+            if (!section) continue;
             renderSection(cfg, getSectionMedia(section));
         }
         if (!skipAnnounced) {
@@ -1101,34 +1140,45 @@
     }
 
     async function initKodikHomeSections() {
-        if (!document.querySelector('.home-page')) return;
+        if (!document.querySelector('.home-page')) {
+            signalHomeReady();
+            return;
+        }
         if (_initPromise) return _initPromise;
 
         _initPromise = (async () => {
             bindKodikHomeToggleDelegation();
 
-            await loadKodikAnnouncedItems();
+            try {
+                await loadKodikAnnouncedItems();
+                await reminkoYieldFrame();
 
-            if (typeof global.KodikCatalogStore?.load === 'function') {
-                try {
-                    await global.KodikCatalogStore.load();
-                } catch (_) {
-                    /* ignore */
+                if (typeof global.KodikCatalogStore?.load === 'function') {
+                    try {
+                        await global.KodikCatalogStore.load();
+                    } catch (_) {
+                        /* ignore */
+                    }
                 }
-            }
-            const raw =
-                typeof global.KodikCatalogStore?.getAll === 'function'
-                    ? global.KodikCatalogStore.getAll()
-                    : typeof global.getAllAnime === 'function'
-                      ? global.getAllAnime().filter((a) => a.isKodikCatalog)
-                      : [];
-            _catalog = filterAdult(raw);
-            await loadCalendarMalIds();
-            await renderAllSections('serial');
-            _inited = true;
+                await reminkoYieldFrame();
 
-            const stats = document.getElementById('heroStats');
-            if (stats) stats.hidden = false;
+                const raw =
+                    typeof global.KodikCatalogStore?.getAll === 'function'
+                        ? global.KodikCatalogStore.getAll()
+                        : typeof global.getAllAnime === 'function'
+                          ? global.getAllAnime().filter((a) => a.isKodikCatalog)
+                          : [];
+                _catalog = filterAdult(raw);
+                await loadCalendarMalIds();
+                await reminkoYieldFrame();
+                await renderAllSections('serial');
+                _inited = true;
+
+                const stats = document.getElementById('heroStats');
+                if (stats) stats.hidden = false;
+            } finally {
+                signalHomeReady();
+            }
         })();
 
         return _initPromise;
@@ -1138,19 +1188,21 @@
     global.refreshKodikHomeSections = refreshKodikHomeSections;
 
     global.addEventListener('reminko-kodik-catalog-loaded', () => {
-        if (!_inited) initKodikHomeSections();
-        else refreshKodikHomeSections();
+        if (!_inited) void initKodikHomeSections();
+        // Уже отрисовали — не пересобираем ленты (выглядит как «вторая перезагрузка»)
     });
 
-    global.addEventListener('reminko:navigation-applied', (e) => {
+    global.addEventListener('reminko:navigation-applied', () => {
         if (!_inited) {
             void initKodikHomeSections();
-            return;
         }
-        if (e?.detail?.preservedMain) {
-            refreshKodikHomeSections(false);
-            return;
-        }
-        refreshKodikHomeSections(false);
+        // preservedMain / повторный apply — не трогаем DOM лент
     });
+
+    // Страховка: если init так и не стартовал
+    setTimeout(() => {
+        if (!global.__reminkoHomeReady && document.querySelector('.home-page')) {
+            signalHomeReady();
+        }
+    }, 4000);
 })(typeof window !== 'undefined' ? window : globalThis);

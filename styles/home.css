@@ -1405,6 +1405,8 @@ html.home-carousel-auto-off .home-section--kodik .home-horizontal-scroll {
     user-select: none;
     -webkit-user-select: none;
     contain: layout style;
+    /* Резерв высоты — меньше скачков вертикального скроллбара при подстановке карточек */
+    min-height: 280px;
 }
 
 .home-horizontal-scroll.is-dragging {
