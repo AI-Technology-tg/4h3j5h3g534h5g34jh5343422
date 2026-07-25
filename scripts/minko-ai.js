@@ -444,9 +444,9 @@ function _minkoStripReplyLinks(text) {
         if (nav) return nav;
         return String(label || '').trim();
     });
-    // голые URL сайта → кнопка
+    // голые URL сайта → кнопка (не спамим главной)
     out = out.replace(/https?:\/\/(?:www\.)?re-minko-anime\.com\/?[^\s)\]>"']*/gi, (u) => {
-        return _minkoUrlToNavMarker(u) || '[[nav:home|Re-Minko]]';
+        return _minkoUrlToNavMarker(u) || '[[nav:info|Инфо]]';
     });
     // относительные пути
     out = out.replace(
