@@ -1839,6 +1839,27 @@ body.minko-curse-shake--heavy .main-layout {
     transition: transform 0.15s ease, filter 0.15s ease;
 }
 
+/* Кнопка внутри предложения — не рвёт абзац */
+.minko-watch-chip--inline {
+    display: inline-flex;
+    vertical-align: middle;
+    margin: 0 0.2em;
+    max-width: min(100%, 240px);
+    padding: 0.22rem 0.65rem;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.22);
+}
+.minko-watch-chip--inline .minko-watch-chip__label {
+    display: none;
+}
+.minko-watch-chip--inline .minko-watch-chip__title {
+    font-size: 0.84rem;
+    max-width: 200px;
+}
+.minko-msg-bubble p .minko-watch-chip--inline,
+.message-bubble p .minko-watch-chip--inline {
+    white-space: nowrap;
+}
+
 .minko-watch-chip:hover {
     transform: translateY(-1px);
     filter: brightness(1.06);
@@ -1866,14 +1887,19 @@ body.theme-dark .minko-watch-chip {
 }
 
 @media (max-width: 900px) {
-    .minko-watch-chip {
+    .minko-watch-chips .minko-watch-chip:not(.minko-watch-chip--inline) {
         width: 100%;
         justify-content: flex-start;
         border-radius: 14px;
     }
-    .minko-watch-chip__title {
+    .minko-watch-chips .minko-watch-chip:not(.minko-watch-chip--inline) .minko-watch-chip__title {
         max-width: none;
         white-space: normal;
+    }
+    .minko-watch-chip--inline {
+        width: auto;
+        max-width: min(100%, 200px);
+        border-radius: 999px;
     }
 
     /* ── Minko AI: полноценный mobile shell (поле ввода над нижним таббаром) ── */

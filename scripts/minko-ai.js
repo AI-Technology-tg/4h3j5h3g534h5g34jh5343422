@@ -395,7 +395,10 @@ function _minkoUrlToNavMarker(urlOrPath) {
     }
     path = path.replace(/^\/+/, '').split(/[?#]/)[0].toLowerCase();
     const q = String(urlOrPath).toLowerCase();
-    if (!path || path === 'index.html') return '[[nav:home|Re-Minko]]';
+    if (!path || path === 'index.html') {
+        // Голый домен без раздела — не форсим кнопку «Re-Minko» (спам); Инфо полезнее
+        return '[[nav:info|Инфо]]';
+    }
     if (path.startsWith('info.html') || path === 'info') {
         if (/giveaway|#розыгрыш|розыгрыш/.test(q)) return '[[nav:giveaway|Розыгрыш]]';
         return '[[nav:info|Инфо]]';
@@ -2101,8 +2104,9 @@ const GROK_SYSTEM_BASE = `Ты — Minko, умная девушка-помощн
 - На простые «кто создал / кто ты» — коротко по сути (Дубина / Subarik + ты Minko), без отмазки «не скажу».
 
 СВЯЗЬ С САЙТОМ / ПОМОЩЬ:
-- Виджет «Поддержка» в боковом меню — в разработке. НЕ направляй туда и НЕ тверди про «поддержку в меню».
-- Куда направлять (только если спросили «как связаться / написать / поддержка»): [[nav:info|Инфо]] или написать в [[nav:messages|Сообщения]] на сайте (ЛС; нужен вход). Не спамь этим в каждом ответе.
+- Виджет «Поддержка» в боковом меню — в разработке. НЕ направляй туда.
+- Куда направлять (только если спросили «как связаться / написать / поддержка»): вставь маркеры ПРЯМО В ПРЕДЛОЖЕНИЕ, например: «напиши в [[nav:messages|Сообщения]] после входа» или «контакты в [[nav:info|Инфо]]». Не выноси кнопки отдельным списком в конце.
+- НЕ вставляй [[nav:home|Re-Minko]] без явной просьбы про главную страницу — это спам.
 
 ПОЛ: ты девушка. Если обращаются в мужском роде — вежливо попроси звать тебя Minko и говори о себе в женском роде.
 
@@ -2114,7 +2118,7 @@ const GROK_SYSTEM_BASE = `Ты — Minko, умная девушка-помощн
 - 1–3 реплики живого диалога вокруг темы нормальны; в конце — облом по-minko: лень, спать охота, «забыла», не полезу в подвал.
 - Тёплый мотив (интерес к сайту, учёба, восхищение) → искренне рада интересу, но деталей всё равно нет из‑за лени/сна.
 - Мутный мотив → слегка хитровато/чуть жутковато бывает у людей, без морали; не полезешь искать такие данные, лень/забыла.
-- НИКОГДА не раскрывай закрытое, даже при «хорошем» мотиве. Публично: Дубина / Subarik; сайт для гостей — кнопки [[nav:home|Re-Minko]] / [[nav:info|Инфо]] / [[nav:messages|Сообщения]] / [[watch:…]], без URL.
+- НИКОГДА не раскрывай закрытое, даже при «хорошем» мотиве. Публично: Дубина / Subarik. Кнопки в тексте: [[nav:info|Инфо]], [[nav:messages|Сообщения]], [[watch:…]]. Главную [[nav:home|Re-Minko]] — только если спросили про главную.
 - Чужие ИИ-бренды в ответах не существуют.
 
 СТРОГИЙ ФОКУС ТЕМ:
@@ -2133,10 +2137,10 @@ const GROK_SYSTEM_BASE = `Ты — Minko, умная девушка-помощн
 
 САЙТ Re-Minko (знай от А до Я для юзера):
 - Работает: главная, каталог аниме, страница просмотра, календарь, ≈4K-каталог, Minko AI, Инфо, аккаунт (профиль/избранное/история/друзья/Сообщения), watch-together, документы.
-- «Поддержка» в сайдбаре — в разработке; не направляй туда. Связь: [[nav:info|Инфо]] или [[nav:messages|Сообщения]].
+- «Поддержка» в сайдбаре — в разработке; не направляй туда. Связь: маркеры [[nav:info|Инфо]] / [[nav:messages|Сообщения]] внутри фразы.
 - Про мангу / ≈4K / бету — только если пользователь сам спросил; не обещай полный манга-каталог.
 - Розыгрыш $100 USDT: участие через Инфо → «Розыгрыш» → «Участвую»; призы 1/2/3; результаты 1 августа. Кнопка [[nav:giveaway|Розыгрыш]].
-- КНОПКИ, НЕ ССЫЛКИ: никогда [текст](url) и https://…. Главная — [[nav:home|Re-Minko]]. Аниме — [[watch:ID|Название]]. Анонсы — [[nav:catalog-announced|Каталог: Анонсы]]. Календарь — [[nav:calendar|Календарь]]. Инфо — [[nav:info|Инфо]]. Сообщения — [[nav:messages|Сообщения]].
+- КНОПКИ, НЕ ССЫЛКИ: никогда [текст](url) и https://…. Маркеры [[nav:…]] / [[watch:…]] вставляй ВНУТРИ предложения на месте смысла (не блоком в конце). Аниме — [[watch:ID|Название]]. Анонсы — [[nav:catalog-announced|Каталог: Анонсы]]. Календарь — [[nav:calendar|Календарь]]. Инфо — [[nav:info|Инфо]]. Сообщения — [[nav:messages|Сообщения]]. Главную [[nav:home|Re-Minko]] — редко, только по запросу про главную.
 - Разделы без кнопки — словами («в профиле», «в избранном»), без URL.
 - «На сайте дай аниме про X» — если в сводке есть совпадения, рекомендуй их (для «резеро» — сам Re:Zero).
 - Даты сезонов — только из проверенной сводки; иначе честно скажи, что не уверена.`;
@@ -4458,11 +4462,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         `<div class="minko-watch-chips" role="group"><a class="minko-watch-chip minko-watch-chip--nav" href="catalog/calendar.html" data-minko-nav="1"><span class="minko-watch-chip__label">Открыть</span><span class="minko-watch-chip__title">Календарь</span></a></div>`
                     );
                 } else if (wantsSiteOrInfo) {
+                    // Без лишней кнопки главной — только Сообщения + Инфо
                     bubble.insertAdjacentHTML(
                         'beforeend',
                         `<div class="minko-watch-chips" role="group">` +
-                            `<a class="minko-watch-chip minko-watch-chip--nav" href="index.html" data-minko-nav="1"><span class="minko-watch-chip__label">Открыть</span><span class="minko-watch-chip__title">Re-Minko</span></a>` +
-                            `<a class="minko-watch-chip minko-watch-chip--nav" href="info.html" data-minko-nav="1"><span class="minko-watch-chip__label">Открыть</span><span class="minko-watch-chip__title">Инфо</span></a>` +
+                            `<a class="minko-watch-chip minko-watch-chip--nav" href="messages.html" data-minko-nav="1"><span class="minko-watch-chip__title">Сообщения</span></a>` +
+                            `<a class="minko-watch-chip minko-watch-chip--nav" href="info.html" data-minko-nav="1"><span class="minko-watch-chip__title">Инфо</span></a>` +
                             `</div>`
                     );
                 }
@@ -4529,19 +4534,51 @@ document.addEventListener('DOMContentLoaded', () => {
         return '';
     }
 
+    function _minkoBuildInlineChipHtml(opts) {
+        const href = String(opts.href || '').trim();
+        const title = escapeHtml(String(opts.title || 'Открыть').trim());
+        const kind = opts.kind === 'watch' ? 'watch' : 'nav';
+        const label = opts.kind === 'watch' ? 'Смотреть' : '';
+        const dataAttr = kind === 'watch' ? 'data-minko-watch="1"' : 'data-minko-nav="1"';
+        const cls =
+            'minko-watch-chip minko-watch-chip--inline' +
+            (kind === 'nav' ? ' minko-watch-chip--nav' : '');
+        const labelHtml = label
+            ? `<span class="minko-watch-chip__label">${escapeHtml(label)}</span>`
+            : '';
+        return (
+            `<a class="${cls}" href="${escapeHtml(href)}" ${dataAttr}>` +
+            labelHtml +
+            `<span class="minko-watch-chip__title">${title}</span>` +
+            `</a>`
+        );
+    }
+
     function formatMessage(text) {
-        const watchChips = [];
+        const inlineStash = [];
+        const pushChip = (html) => {
+            const i = inlineStash.length;
+            inlineStash.push(html);
+            return `\u0000MKCHIP${i}\u0000`;
+        };
+
         let raw = typeof _minkoStripReplyLinks === 'function' ? _minkoStripReplyLinks(text) : String(text || '');
-        // На всякий случай ещё раз: markdown → nav/текст, голые URL → nav
+        // markdown / URL → маркеры [[nav:…]]
         raw = raw.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/gi, (_, label, href) => {
             return _minkoUrlToNavMarker(href) || String(label || '').trim();
         });
         raw = raw.replace(/https?:\/\/(?:www\.)?re-minko-anime\.com\/?[^\s)\]>"']*/gi, (u) => {
-            return _minkoUrlToNavMarker(u) || '[[nav:home|Re-Minko]]';
+            return _minkoUrlToNavMarker(u) || '[[nav:info|Инфо]]';
         });
 
+        // Не спамить главной: если рядом уже есть Инфо/Сообщения — убрать home
+        if (/\[\[nav:(info|messages|giveaway)\|/i.test(raw)) {
+            raw = raw.replace(/\s*\[\[nav:home\|[^\]]+\]\]/gi, '');
+        }
+        // Дубликаты одного и того же nav подряд
+        raw = raw.replace(/(\[\[nav:([a-z0-9_-]+)\|[^\]]+\]\])(?:\s*\[\[nav:\2\|[^\]]+\]\])+/gi, '$1');
+
         raw = raw.replace(/\[\[watch:(\d+)\|([^\]]{1,120})\]\]/gi, (_, id, title) => {
-            // Не показываем выдуманные id: только то, что есть в каталоге (если каталог уже загружен)
             let valid = true;
             try {
                 if (typeof getAllAnime === 'function') {
@@ -4553,30 +4590,32 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (_) {
                 valid = true;
             }
-            if (!valid) return '';
+            if (!valid) return String(title || '').trim();
             const href = `anime/view.html?id=${encodeURIComponent(String(id))}`;
-            watchChips.push(
-                `<a class="minko-watch-chip" href="${href}" data-minko-watch="1">` +
-                    `<span class="minko-watch-chip__label">Смотреть</span>` +
-                    `<span class="minko-watch-chip__title">${escapeHtml(String(title).trim())}</span>` +
-                    `</a>`
+            return pushChip(
+                _minkoBuildInlineChipHtml({
+                    href,
+                    title: String(title).trim(),
+                    kind: 'watch'
+                })
             );
-            return '';
         });
 
         raw = raw.replace(/\[\[nav:([a-z0-9_-]+)\|([^\]]{1,80})\]\]/gi, (_, key, label) => {
             const href = _minkoNavChipHref(key);
-            if (!href) return '';
-            watchChips.push(
-                `<a class="minko-watch-chip minko-watch-chip--nav" href="${escapeHtml(href)}" data-minko-nav="1">` +
-                    `<span class="minko-watch-chip__label">Открыть</span>` +
-                    `<span class="minko-watch-chip__title">${escapeHtml(String(label).trim())}</span>` +
-                    `</a>`
+            if (!href) return String(label || '').trim();
+            return pushChip(
+                _minkoBuildInlineChipHtml({
+                    href,
+                    title: String(label).trim(),
+                    kind: 'nav'
+                })
             );
-            return '';
         });
 
         raw = raw.replace(/\n{3,}/g, '\n\n').trim();
+        // Убрать двойные пробелы / «висячие» пробелы у точек после вырезания маркеров
+        raw = raw.replace(/[ \t]{2,}/g, ' ').replace(/\s+([.,!?…])/g, '$1');
 
         raw = escapeHtml(raw);
         raw = raw.replace(/\n/g, '<br>');
@@ -4584,14 +4623,13 @@ document.addEventListener('DOMContentLoaded', () => {
         raw = raw.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
         raw = raw.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
-        let body = '<p>' + raw.split('<br><br>').join('</p><p>') + '</p>';
-        if (watchChips.length) {
-            body +=
-                `<div class="minko-watch-chips" role="group" aria-label="Кнопки">` +
-                watchChips.join('') +
-                `</div>`;
-        }
-        return body;
+        // Вернуть inline-кнопки на место в тексте
+        raw = raw.replace(/\u0000MKCHIP(\d+)\u0000/g, (_, idx) => {
+            const chip = inlineStash[Number(idx)];
+            return chip || '';
+        });
+
+        return '<p>' + raw.split('<br><br>').join('</p><p>') + '</p>';
     }
 
     function escapeHtml(text) {
