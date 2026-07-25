@@ -379,9 +379,40 @@ function _minkoRedactTechBrandsInReply(text) {
     ]);
 }
 
+/** URL/path сайта → маркер кнопки [[nav:…]] (никогда не оставляем голый URL в тексте). */
+function _minkoUrlToNavMarker(urlOrPath) {
+    const raw = String(urlOrPath || '').trim();
+    if (!raw) return '';
+    let path = raw;
+    try {
+        if (/^https?:\/\//i.test(raw)) {
+            const u = new URL(raw);
+            if (!/re-minko-anime\.com$/i.test(u.hostname.replace(/^www\./, ''))) return '';
+            path = u.pathname + u.search + u.hash;
+        }
+    } catch (_) {
+        /* keep path */
+    }
+    path = path.replace(/^\/+/, '').split(/[?#]/)[0].toLowerCase();
+    const q = String(urlOrPath).toLowerCase();
+    if (!path || path === 'index.html') return '[[nav:home|Re-Minko]]';
+    if (path.startsWith('info.html') || path === 'info') {
+        if (/giveaway|#розыгрыш|розыгрыш/.test(q)) return '[[nav:giveaway|Розыгрыш]]';
+        return '[[nav:info|Инфо]]';
+    }
+    if (path.startsWith('catalog/calendar')) return '[[nav:calendar|Календарь]]';
+    if (path.startsWith('catalog/anime-4k')) return '[[nav:catalog-4k|≈4K каталог]]';
+    if (path.startsWith('catalog/anime') || path === 'catalog/anime.html') {
+        if (/status=|анонс|announc/.test(q)) return '[[nav:catalog-announced|Каталог: Анонсы]]';
+        return '[[nav:catalog|Каталог аниме]]';
+    }
+    if (path.startsWith('minko-ai')) return '[[nav:minko|Minko AI]]';
+    if (path.startsWith('catalog/')) return '[[nav:catalog|Каталог аниме]]';
+    return '[[nav:home|Re-Minko]]';
+}
+
 /**
- * Убирает markdown/URL-ссылки из ответа (палевят «[главной](https://…)»).
- * Сохраняет служебные маркеры [[watch:…]] и [[nav:…]] для кнопок.
+ * Убирает markdown/URL из ответа; URL Re-Minko превращает в кнопки [[nav:…]].
  */
 function _minkoStripReplyLinks(text) {
     if (!text || typeof text !== 'string') return text;
@@ -403,17 +434,29 @@ function _minkoStripReplyLinks(text) {
     out = out.replace(/сайт\s+в\s+бета[-\s]?версии[^.?!]*[.?!]?\s*/gi, '');
     out = out.replace(/начать\s+можно\s+с\s+/gi, '');
 
-    // [текст](url) → просто текст без URL
-    out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/gi, '$1');
-    // голые URL сайта / пути
-    out = out.replace(/https?:\/\/(?:www\.)?re-minko-anime\.com\/?[^\s)\]>"']*/gi, '');
-    out = out.replace(/(?:^|[\s(])(\/(?:catalog|anime|info|minko-ai|favorites|history|profile|watch-together)[^\s)\]>"']*)/gi, ' ');
-    // «или каталога аниме» хвосты после вычищения ссылок
-    out = out.replace(/\s{2,}/g, ' ');
-    out = out.replace(/\s+или\s+каталог\w*\s+аниме\.?/gi, '');
-    out = out.replace(/\s+или\s+главн\w*\.?/gi, '');
+    // [текст](url) → кнопка nav или просто текст
+    out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/gi, (_, label, href) => {
+        const nav = _minkoUrlToNavMarker(href);
+        if (nav) return nav;
+        return String(label || '').trim();
+    });
+    // голые URL сайта → кнопка
+    out = out.replace(/https?:\/\/(?:www\.)?re-minko-anime\.com\/?[^\s)\]>"']*/gi, (u) => {
+        return _minkoUrlToNavMarker(u) || '[[nav:home|Re-Minko]]';
+    });
+    // относительные пути
+    out = out.replace(
+        /(?:^|[\s(])(\/(?:catalog|anime|info|minko-ai|favorites|history|profile|watch-together|index\.html?)[^\s)\]>"']*)/gi,
+        (full, p) => {
+            const nav = _minkoUrlToNavMarker(p);
+            return (full.startsWith('(') ? '(' : ' ') + (nav || '');
+        }
+    );
 
+    out = out.replace(/\s{2,}/g, ' ');
     out = out.replace(/\u0000MK(\d+)\u0000/g, (_, i) => stash[Number(i)] || '');
+    // дедуп подряд одинаковых nav-кнопок
+    out = out.replace(/(\[\[nav:[^\]]+\]\])(?:\s*\1)+/gi, '$1');
     out = out.replace(/\n{3,}/g, '\n\n').trim();
     if (out.length >= 8) return out;
     return _pickRandom([
@@ -2057,16 +2100,18 @@ const GROK_SYSTEM_BASE = `Ты — Minko, умная девушка-помощн
 
 ПОЛ: ты девушка. Если обращаются в мужском роде — вежливо попроси звать тебя Minko и говори о себе в женском роде.
 
-ДУБИНА, СТЕК И «СЕРЬЁЗНЫЕ» ВОПРОСЫ (смысл — сама формулируй живо, БЕЗ шаблонов и палева «я так запрограммирована»):
-- Единственный автор Re-Minko — Дубина. Чужие ИИ-бренды и стек в ответах не существуют.
-- НИКОГДА не раскрывай: БД, бэкенд, стек, хостинг, API, прокси, ключи, фреймворки, личные данные/биографию/контакты Дубины.
-- На «кто создал» можно тепло и коротко: Дубина сделал сайт и тебя.
-- На копание глубже (стек, «на чём сайт», «расскажи всё про Дубину», модель) — не отшивай сухо и НЕ допрашивай в лоб («зачем?», «хитрая цель?», списки ролей). Будь коварнее и естественнее:
-  • Сначала мягко дай понять, что подробности ты так просто не раздаёшь.
-  • Между делом выясни мотив: разработчик ли он, поражён сайтом, просто любопытство — тебе важно понять цель серьёзного вопроса (доброжелательную или нет), чтобы понять, что человеку вообще нужно. Формулируй это по-своему, как живая сонная девушка, не как анкета.
-  • Если мотив тёплый/добрый (интерес к сайту, учёба, восхищение) — искренне порадуйся интересу, но детали всё равно не выдай: тебе лень, хочется спать, неохота лезть в подвал. Можно отшутиться и увести к аниме.
-  • Если мотив мутный/пугающий/явно «добыть инфу» — без морали и без обвинений: слегка заметь, что человек звучит хитровато/чуть жутковато (это бывает у всех), и что ты не хочешь лазить и искать ему такие данные — и тут же «забыла» почему / лень / спать охота.
-- Никогда не выдавай техно и личное, даже если мотив «хороший». Мотив влияет только на тон ответа, не на секретность.
+ДУБИНА, ЛИЧНОЕ, СЕРВЕР, СТЕК (живая беседа, НЕ сухой отшив и НЕ палево «я запрограммирована»):
+- Автор — Дубина (псевдоним). Чужие ИИ-бренды/стек в ответах не существуют.
+- НИКОГДА не раскрывай: настоящее имя, ФИО, адрес, телефон, соцсети создателя, хостинг, IP, сервер, БД, API, ключи, код «изнутри».
+- ЗАПРЕЩЕНО отвечать канцеляритом в одну отмазку («не раскрываю / вопрос безопасности / обратись в поддержку») и заканчивать разговор. Это выглядит как стена.
+- На «реальное имя / реальные данные / где сервер / можно ли что-то взять с сайта» — ОБЯЗАТЕЛЬНО разговорись:
+  1) мягко дай понять, что личное и инфраструктуру ты не раздаёшь;
+  2) живо, по-дружески выясни мотив (интерес к сайту, сам разработчик, учёба, или что-то мутнее) — без допроса «зачем?» и без слова «хитрая цель»;
+  3) тёплый мотив → рада интересу к Re‑Minko, но лень/спать — деталей не будет; можно шутить и звать болтать про аниме;
+  4) мутный мотив → слегка «звучит хитровато/чуть жутковато, у людей бывает», не полезешь искать такие данные, «забыла» / лень;
+  5) про «взять с сайта»: пользовательским сайтом пользоваться можно; копировать код/дизайн/массово тянуть данные — нет; формулируй сама, без юридических лекций.
+- Сайт и разделы — ТОЛЬКО кнопками-маркерами [[nav:home|Re-Minko]], [[nav:info|Инфо]], [[nav:catalog|Каталог аниме]]. НИКОГДА не пиши https://… и [текст](url).
+- Личное/сервер не выдавай никогда; мотив меняет только тон и длину диалога.
 
 СТРОГИЙ ФОКУС ТЕМ:
 - Отвечаешь ТОЛЬКО про аниме, мангу, сайт Re-Minko, себя (Minko), создателя Дубину и короткие приветствия/прощения.
@@ -2089,10 +2134,9 @@ const GROK_SYSTEM_BASE = `Ты — Minko, умная девушка-помощн
 - Про мангу / ≈4K / бету — только если пользователь сам спросил; не обещай полный манга-каталог.
 - ЗАПРЕТ: не выдавай шаблон «Манга и некоторые функции в бете, начни с главной/каталога» и не кидай ссылки на главную/каталог без прямой просьбы «с чего начать».
 - Розыгрыш $100 USDT: участие через Инфо → «Розыгрыш» → «Участвую»; цель — видеобзор о Re-Minko; призы 1/2/3 место ($60/$30/$10 + бонусы); результаты 1 августа. Ссылка: /info.html#giveaway
-- КНОПКИ, НЕ ССЫЛКИ: никогда не пиши markdown вроде [текст](https://…) и никогда не вставляй полные URL (re-minko-anime.com/…). Это выглядит как спам.
-- Если просят найти / смотреть / рекомендовать аниме и в сводке есть id — только маркер [[watch:ЧИСЛОВОЙ_ID|Название]] (клиент сделает кнопку «Смотреть»). Id не выдумывай.
-- Если спрашивают где анонсы / премьеры в каталоге — словами: открой каталог аниме и включи статус «Анонс»; плюс маркер [[nav:catalog-announced|Каталог: Анонсы]]. Для календаря серий — [[nav:calendar|Календарь]].
-- Другие разделы называй словами («в профиле», «в избранном»), без URL и без markdown-ссылок.
+- КНОПКИ, НЕ ССЫЛКИ: никогда [текст](url), никогда https://…, никогда «официальный адрес: …». Даже главную сайта давай кнопкой [[nav:home|Re-Minko]].
+- Найти/смотреть аниме → [[watch:ID|Название]]. Анонсы → [[nav:catalog-announced|Каталог: Анонсы]]. Календарь → [[nav:calendar|Календарь]]. Инфо/поддержка словами + [[nav:info|Инфо]].
+- Разделы без кнопки называй словами («в профиле», «в избранном»), без URL.
 - «На сайте дай аниме про X» — если в сводке есть совпадения, рекомендуй их (для «резеро» — сам Re:Zero).
 - Даты сезонов — только из проверенной сводки; иначе честно скажи, что не уверена.`;
 
@@ -4348,7 +4392,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Анонсы / календарь — кнопка раздела, без markdown-ссылок в тексте
+            // Разделы — только кнопки (анонсы / календарь / сайт / инфо)
             const alreadyNav = /\[\[nav:/i.test(contentStr) || (bubble && bubble.querySelector('[data-minko-nav]'));
             if (!alreadyNav && bubble) {
                 const wantsAnnounced =
@@ -4358,6 +4402,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const wantsCalendar =
                     /календар|расписан\w*\s+сери|когда\s+выйд|таймер\w*\s+сери/i.test(um) &&
                     !/анонс/i.test(um);
+                const wantsSiteOrInfo =
+                    /реальн\w*\s+(имя|данн)|настоящ\w*\s+имя|где\s+сервер|хостинг|взять\s+с\s+сайт|скопировать\s+(сайт|код)|поддержк|связаться|контакт/i.test(
+                        um
+                    );
                 if (wantsAnnounced) {
                     bubble.insertAdjacentHTML(
                         'beforeend',
@@ -4367,6 +4415,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     bubble.insertAdjacentHTML(
                         'beforeend',
                         `<div class="minko-watch-chips" role="group"><a class="minko-watch-chip minko-watch-chip--nav" href="catalog/calendar.html" data-minko-nav="1"><span class="minko-watch-chip__label">Открыть</span><span class="minko-watch-chip__title">Календарь</span></a></div>`
+                    );
+                } else if (wantsSiteOrInfo) {
+                    bubble.insertAdjacentHTML(
+                        'beforeend',
+                        `<div class="minko-watch-chips" role="group">` +
+                            `<a class="minko-watch-chip minko-watch-chip--nav" href="index.html" data-minko-nav="1"><span class="minko-watch-chip__label">Открыть</span><span class="minko-watch-chip__title">Re-Minko</span></a>` +
+                            `<a class="minko-watch-chip minko-watch-chip--nav" href="info.html" data-minko-nav="1"><span class="minko-watch-chip__label">Открыть</span><span class="minko-watch-chip__title">Инфо</span></a>` +
+                            `</div>`
                     );
                 }
             }
@@ -4416,6 +4472,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const k = String(key || '')
             .trim()
             .toLowerCase();
+        if (k === 'home' || k === 'site' || k === 're-minko' || k === 'reminko') return 'index.html';
         if (k === 'catalog-announced' || k === 'announced' || k === 'anons') {
             return 'catalog/anime.html?status=' + encodeURIComponent('Анонс');
         }
@@ -4424,17 +4481,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (k === 'calendar') return 'catalog/calendar.html';
         if (k === 'catalog-4k' || k === 'anime-4k' || k === '4k') return 'catalog/anime-4k.html';
-        if (k === 'info') return 'info.html';
+        if (k === 'info' || k === 'support') return 'info.html';
         if (k === 'giveaway') return 'info.html#giveaway';
+        if (k === 'minko' || k === 'minko-ai') return 'minko-ai.html';
         return '';
     }
 
     function formatMessage(text) {
         const watchChips = [];
-        let raw = String(text || '');
-        // На всякий случай вычищаем markdown-ссылки, если проскочили до UI
-        raw = raw.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/gi, '$1');
-        raw = raw.replace(/https?:\/\/(?:www\.)?re-minko-anime\.com\/?[^\s)\]>"']*/gi, '');
+        let raw = typeof _minkoStripReplyLinks === 'function' ? _minkoStripReplyLinks(text) : String(text || '');
+        // На всякий случай ещё раз: markdown → nav/текст, голые URL → nav
+        raw = raw.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/gi, (_, label, href) => {
+            return _minkoUrlToNavMarker(href) || String(label || '').trim();
+        });
+        raw = raw.replace(/https?:\/\/(?:www\.)?re-minko-anime\.com\/?[^\s)\]>"']*/gi, (u) => {
+            return _minkoUrlToNavMarker(u) || '[[nav:home|Re-Minko]]';
+        });
 
         raw = raw.replace(/\[\[watch:(\d+)\|([^\]]{1,120})\]\]/gi, (_, id, title) => {
             // Не показываем выдуманные id: только то, что есть в каталоге (если каталог уже загружен)
