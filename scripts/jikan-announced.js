@@ -259,7 +259,13 @@
     /** Shikimori anons → формат карточек Jikan (с русским title_russian). */
     function shikimoriAnonsToJikanShape(item) {
         if (!item) return null;
-        const mal = parseInt(item.myanimelist_id || item.id, 10);
+        // В списке /animes?status=anons часто нет myanimelist_id — id Shikimori обычно = MAL
+        const mal = parseInt(
+            item.myanimelist_id != null && item.myanimelist_id !== ''
+                ? item.myanimelist_id
+                : item.id,
+            10
+        );
         if (!Number.isFinite(mal) || mal <= 0) return null;
         const poster = shikimoriPosterUrlFromPath(item.image?.original || item.image?.preview);
         const ru = String(item.russian || '').trim();
@@ -270,6 +276,9 @@
                   .replace(/<[^>]+>/g, ' ')
                   .replace(/\s+/g, ' ')
                   .trim();
+        const kind = String(item.kind || '').toLowerCase();
+        // Спешлы/музыка не нужны в ленте анонсов
+        if (kind === 'music' || kind === 'pv') return null;
         return {
             mal_id: mal,
             title: en || ru || `MAL #${mal}`,
@@ -280,12 +289,8 @@
             type: mapShikiKindToJikanType(item.kind),
             status: 'Not yet aired',
             episodes: item.episodes || null,
-            score: item.score || null,
-            members: item.rates_statuses_stats
-                ? null
-                : item.score
-                  ? Math.round(Number(item.score) * 1000)
-                  : 0,
+            score: item.score ? Number(item.score) : null,
+            members: Number(item.scores_stats_total || item.rates_count || 0) || 0,
             aired: { from: item.aired_on || item.released_on || null },
             images: poster
                 ? {
@@ -918,6 +923,8 @@
 
     global.shikimoriPosterUrlFromPath = shikimoriPosterUrlFromPath;
     global.fetchJikanAnnouncedList = fetchJikanAnnouncedList;
+    global.fetchShikimoriAnnouncedAsJikan = fetchShikimoriAnnouncedAsJikan;
+    global.shikimoriAnonsToJikanShape = shikimoriAnonsToJikanShape;
     global.getJikanAnnouncedCachedSync = getJikanAnnouncedCachedSync;
     global.filterJikanAnnouncedForHome = filterJikanAnnouncedForHome;
     global.filterAnnouncedJikanByMedia = filterAnnouncedJikanByMedia;

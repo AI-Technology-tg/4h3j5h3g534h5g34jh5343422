@@ -6,7 +6,7 @@
 
     /** Меньше карточек на первый paint — иначе main thread 3–4 с «заморожен» и скролл дёргается */
     const KODIK_HOME_LIMIT = 36;
-    const KODIK_ANNOUNCED_LIMIT = 36;
+    const KODIK_ANNOUNCED_LIMIT = 72;
     const KODIK_POPULAR_LIMIT = 36;
     const POPULAR_YEAR_FROM = 2022;
     const POPULAR_YEAR_TO = 2026;
@@ -531,7 +531,7 @@
         const catMap = catalogByMalMap();
         const list = [];
 
-        // Только календарные анонсы (kodik-announced.json).
+        // База: календарные анонсы (kodik-announced.json).
         // Дополнение из каталога по status=«Анонс» убивало ленту: туда попадали
         // Блич/Чёрный клевер с плеером и фильмы с кривым статусом.
         for (const row of _kodikAnnouncedItems || []) {
@@ -547,7 +547,11 @@
             list.push(card);
         }
 
-        list.sort((a, b) => {
+        return sortAnnouncedCards(list).slice(0, KODIK_ANNOUNCED_LIMIT);
+    }
+
+    function sortAnnouncedCards(list) {
+        return [...(list || [])].sort((a, b) => {
             const ac = a._calendarRow || kodikAnnouncedRowForMal(a.mal_id);
             const bc = b._calendarRow || kodikAnnouncedRowForMal(b.mal_id);
             const at =
@@ -557,8 +561,171 @@
             if (at !== bt) return at - bt;
             return (b.rating || 0) - (a.rating || 0);
         });
+    }
 
-        return list.slice(0, KODIK_ANNOUNCED_LIMIT);
+    function announcedCardFromJikanLike(a) {
+        if (!a) return null;
+        const mal = parseInt(a.mal_id, 10);
+        if (!Number.isFinite(mal) || mal <= 0) return null;
+        const catMap = catalogByMalMap();
+        const catalogItem = catMap.get(mal);
+        if (catalogItem) {
+            const cst = String(catalogItem.status || '');
+            const hasLink = !!(catalogItem._kodik && catalogItem._kodik.link);
+            if (
+                cst === 'Онгоинг' ||
+                cst === 'Завершён' ||
+                cst === 'Вышел' ||
+                hasLink ||
+                kodikReleasedEpisodes(catalogItem) >= 1
+            ) {
+                return null;
+            }
+        }
+        const isFilm = a.type === 'Movie' || a.type === 'Фильм';
+        const titleRu = String(a.title_russian || '').trim();
+        const titleEn = String(a.title_english || a.title || '').trim();
+        const poster =
+            (typeof global.jikanPosterFromAnime === 'function'
+                ? global.jikanPosterFromAnime(a)
+                : '') ||
+            a.images?.jpg?.large_image_url ||
+            a.images?.jpg?.image_url ||
+            a.posterUrl ||
+            '';
+        const nextAt = (a.aired && a.aired.from) || a.next_at || '';
+        const calRow = {
+            mal_id: mal,
+            next_episode: 1,
+            next_at: nextAt,
+            title_ru: titleRu,
+            title_en: titleEn,
+            posterUrl: poster,
+            score: a.score || 0,
+            status: 'anons',
+        };
+        if (catalogItem && catalogItem.isKodikCatalog !== false) {
+            return {
+                ...catalogItem,
+                title: titleRu || catalogItem.title,
+                titleAlt: titleEn || catalogItem.titleAlt || catalogItem.title,
+                posterUrl: poster || catalogItem.posterUrl || '',
+                status: 'Анонс',
+                isKodikCalendarAnnounced: true,
+                _calendarRow: calRow,
+                _jikan: a._jikan || a,
+                _fromExtraAnnounced: true,
+            };
+        }
+        return {
+            id: 10_000_000 + mal,
+            mal_id: mal,
+            title: titleRu || titleEn || `MAL #${mal}`,
+            titleAlt: titleEn || titleRu || '',
+            type: isFilm ? 'Фильм' : 'Сериал',
+            status: 'Анонс',
+            isKodikCalendarAnnounced: true,
+            rating: Number(a.score) || 0,
+            genres: Array.isArray(a.genres)
+                ? a.genres.map((g) => (typeof g === 'string' ? g : g && g.name)).filter(Boolean)
+                : [],
+            posterUrl: poster,
+            _calendarRow: calRow,
+            _jikan: a._jikan || a,
+            _fromExtraAnnounced: true,
+        };
+    }
+
+    async function fetchExtraAnnouncedCards(mediaType) {
+        const m = normalizeMediaType(mediaType);
+        let raw = [];
+
+        // Сначала быстрый Shikimori (RU названия) — полный Jikan upcoming слишком долгий для главной
+        try {
+            if (typeof global.fetchShikimoriAnnouncedAsJikan === 'function') {
+                raw = await global.fetchShikimoriAnnouncedAsJikan();
+            } else if (global.shikimoriApi?.fetchShikimoriAnnounced) {
+                const sh = await global.shikimoriApi.fetchShikimoriAnnounced(false);
+                raw = (sh || [])
+                    .map((item) =>
+                        typeof global.shikimoriAnonsToJikanShape === 'function'
+                            ? global.shikimoriAnonsToJikanShape(item)
+                            : null
+                    )
+                    .filter(Boolean);
+            }
+        } catch (e) {
+            console.warn('[kodik-home] shiki announced:', e);
+        }
+
+        // Подмешать кэш Jikan, если уже есть
+        try {
+            const cached =
+                typeof global.getJikanAnnouncedCachedSync === 'function'
+                    ? global.getJikanAnnouncedCachedSync()
+                    : [];
+            if (cached?.length) {
+                const byMal = new Map(raw.map((a) => [a.mal_id, a]));
+                for (const a of cached) {
+                    if (a?.mal_id && !byMal.has(a.mal_id)) byMal.set(a.mal_id, a);
+                }
+                raw = [...byMal.values()];
+            }
+        } catch (_) {
+            /* ignore */
+        }
+
+        // Фоном дотянуть полный Jikan (для каталога / следующего визита)
+        if (typeof global.fetchJikanAnnouncedList === 'function') {
+            void global.fetchJikanAnnouncedList().then((full) => {
+                if (Array.isArray(full) && full.length) {
+                    try {
+                        global.__reminkoExtraAnnouncedJikan = full;
+                    } catch (_) {
+                        /* ignore */
+                    }
+                }
+            }).catch(() => {});
+        }
+
+        if (!Array.isArray(raw) || !raw.length) return [];
+
+        try {
+            global.__reminkoExtraAnnouncedJikan = raw;
+        } catch (_) {
+            /* ignore */
+        }
+
+        const filtered =
+            typeof global.filterAnnouncedJikanByMedia === 'function'
+                ? global.filterAnnouncedJikanByMedia(raw, m)
+                : typeof global.filterJikanAnnouncedForHome === 'function'
+                  ? global.filterJikanAnnouncedForHome(raw)
+                  : raw;
+        const out = [];
+        for (const a of filtered) {
+            const card = announcedCardFromJikanLike(a);
+            if (card) out.push(card);
+        }
+        return out;
+    }
+
+    function mergeAnnouncedLists(primary, extra) {
+        const seen = new Set();
+        const out = [];
+        for (const card of primary || []) {
+            const mal = parseInt(card && card.mal_id, 10);
+            if (!Number.isFinite(mal) || mal <= 0 || seen.has(mal)) continue;
+            seen.add(mal);
+            out.push(card);
+        }
+        for (const card of extra || []) {
+            const mal = parseInt(card && card.mal_id, 10);
+            if (!Number.isFinite(mal) || mal <= 0 || seen.has(mal)) continue;
+            seen.add(mal);
+            out.push(card);
+        }
+        return sortAnnouncedCards(out).slice(0, KODIK_ANNOUNCED_LIMIT);
     }
 
     async function hydrateAnnouncedPosterForCard(img, anime) {
@@ -1047,7 +1214,7 @@
         if (more && cfg.moreHref) more.href = cfg.moreHref(m);
     }
 
-    function renderAnnouncedSection(media) {
+    async function renderAnnouncedSection(media) {
         const m = normalizeMediaType(media);
         const section = document.getElementById('kodikHomeAnnounced');
         if (section) {
@@ -1056,11 +1223,26 @@
             setSectionMediaUi(section, m);
             const more = section.querySelector('.section-more-link');
             if (more) {
-                more.href = 'catalog/calendar.html';
+                more.href = 'catalog/anime.html?filter=upcoming';
             }
         }
 
-        renderSectionGrid('kodikAnnouncedGrid', pickAnnounced(_catalog, m));
+        const kodikList = pickAnnounced(_catalog, m);
+        renderSectionGrid('kodikAnnouncedGrid', kodikList);
+
+        // Shikimori + Jikan — доп. анонсы (в kodik-announced.json их мало)
+        try {
+            const extra = await fetchExtraAnnouncedCards(m);
+            if (!extra.length) return;
+            const merged = mergeAnnouncedLists(kodikList, extra);
+            if (merged.length > kodikList.length) {
+                renderSectionGrid('kodikAnnouncedGrid', merged);
+            } else if (kodikList.length === 0 && merged.length) {
+                renderSectionGrid('kodikAnnouncedGrid', merged);
+            }
+        } catch (e) {
+            console.warn('[kodik-home] merge announced:', e);
+        }
     }
 
     function reminkoYieldFrame() {
@@ -1089,7 +1271,7 @@
             renderSection(cfg, media);
             await reminkoYieldFrame();
         }
-        renderAnnouncedSection(media);
+        await renderAnnouncedSection(media);
         // Не даём браузеру «утащить» скролл при росте высоты
         try {
             if (Math.abs((global.scrollY || 0) - scrollY) > 2) {

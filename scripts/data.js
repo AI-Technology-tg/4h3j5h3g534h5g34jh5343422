@@ -369,6 +369,36 @@ function getCatalogAnnouncedAnimeList() {
         }
     }
 
+    // Shikimori / Jikan — кэш с главной (или после filter=upcoming)
+    if (typeof window !== 'undefined' && Array.isArray(window.__reminkoExtraAnnouncedJikan)) {
+        for (const a of window.__reminkoExtraAnnouncedJikan) {
+            if (!a || a.mal_id == null) continue;
+            const mal = parseInt(a.mal_id, 10);
+            if (!Number.isFinite(mal) || mal <= 0 || seen.has(mal)) continue;
+            const titleRu = String(a.title_russian || '').trim();
+            const titleEn = String(a.title_english || a.title || '').trim();
+            const poster =
+                (typeof window.jikanPosterFromAnime === 'function'
+                    ? window.jikanPosterFromAnime(a)
+                    : '') ||
+                a.images?.jpg?.large_image_url ||
+                a.images?.jpg?.image_url ||
+                '';
+            pushRow({
+                mal_id: mal,
+                next_episode: 1,
+                next_at: (a.aired && a.aired.from) || '',
+                title_ru: titleRu,
+                title_en: titleEn,
+                kind: a.type === 'Movie' ? 'movie' : 'tv',
+                status: 'anons',
+                score: a.score || 0,
+                posterUrl: poster,
+                type: a.type === 'Movie' ? 'Фильм' : 'Сериал',
+            });
+        }
+    }
+
     out.sort((a, b) => {
         const at = Date.parse(a._calendarRow?.next_at) || Infinity;
         const bt = Date.parse(b._calendarRow?.next_at) || Infinity;
