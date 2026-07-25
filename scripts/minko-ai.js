@@ -3065,6 +3065,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!message) return;
         if (chatInputEl.disabled) return;
 
+        try {
+            if (typeof window.reminkoMinkoMissTouchChat === 'function') {
+                window.reminkoMinkoMissTouchChat();
+            }
+        } catch (_) {
+            /* ignore */
+        }
+
         if (_minkoRemoteOffActive) {
             if (typeof showInfo === 'function') {
                 showInfo('Создатель дубина перегрыз провода — Minko AI сейчас офлайн 💤');

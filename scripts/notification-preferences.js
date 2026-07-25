@@ -167,7 +167,8 @@
             prefs.browserPushOnOtherPage &&
             (context?.type === 'new_episode' ||
                 context?.type === 'new_episode_favorite' ||
-                context?.type === 'new_episode_recent')
+                context?.type === 'new_episode_recent' ||
+                context?.type === 'minko')
         ) {
             return hidden || !focused;
         }
@@ -278,7 +279,11 @@
                     { key: 'directMessages', label: 'Личные сообщения', desc: 'Когда пишут в ЛС' },
                     { key: 'friendRequests', label: 'Друзья', desc: 'Заявки и принятие в друзья' },
                     { key: 'systemNews', label: 'Новости и системные', desc: 'Обновления сайта, админ-сообщения' },
-                    { key: 'minkoAi', label: 'Minko AI', desc: 'Пробуждение и события ассистента' }
+                    {
+                        key: 'minkoAi',
+                        label: 'Minko AI',
+                        desc: '«Скучаю», пробуждение и события ассистента'
+                    }
                 ]
             }
         ];

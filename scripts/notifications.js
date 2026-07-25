@@ -131,6 +131,10 @@ class NotificationService {
                 }
             }
         }
+        // Гости тоже получают «скучаю» (тост/push); inbox — только для залогиненных
+        if (typeof window.reminkoMinkoMissInit === 'function') {
+            window.reminkoMinkoMissInit(this);
+        }
     }
 
     /**
@@ -576,7 +580,7 @@ class NotificationService {
         const { container, toolbar } = this._ensureToastShell();
         this._capVisibleToasts(container, 5);
 
-        const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ', dm: '✉' };
+        const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ', dm: '✉', minko: '✦' };
         const icon = icons[notifType] || 'ℹ';
 
         const notificationEl = document.createElement('div');
@@ -653,6 +657,7 @@ class NotificationService {
             'warning': 'Внимание',
             'info': 'Информация',
             'new_episode': 'Новая серия',
+            'minko': 'Minko AI',
         };
         return titles[type] || 'Уведомление';
     }
