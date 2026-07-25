@@ -69,7 +69,13 @@ async function ensureKodikCatalogForPage() {
             console.warn('[Catalog] Kodik catalog:', e);
         }
     }
-    if (typeof ensureKodikAnnouncedRowsLoaded === 'function') {
+    if (typeof ensureCatalogAnnouncedSourcesLoaded === 'function') {
+        try {
+            await ensureCatalogAnnouncedSourcesLoaded();
+        } catch (e) {
+            console.warn('[Catalog] Announced sources:', e);
+        }
+    } else if (typeof ensureKodikAnnouncedRowsLoaded === 'function') {
         try {
             await ensureKodikAnnouncedRowsLoaded();
         } catch (e) {
@@ -528,61 +534,77 @@ function applyCatalogPinnedFirst(list) {
 
 // Применение фильтров
 let isApplyingFilters = false; // Флаг для предотвращения множественных вызовов
+let _applyFiltersSeq = 0;
 function applyFilters(smoothScroll = true) {
     // Предотвращаем множественные одновременные вызовы
     if (isApplyingFilters) {
         console.log('[Catalog] Фильтры уже применяются, пропускаем вызов');
         return;
     }
-    
+
     isApplyingFilters = true;
     const filters = getFilters();
-    
-    // Показываем индикатор загрузки
+    const seq = ++_applyFiltersSeq;
+
     showLoadingIndicator();
-    
-    // Используем setTimeout для предотвращения прыжков страницы
-    setTimeout(() => {
+
+    void (async () => {
         try {
-            // Фильтрация
+            // Фильтр «Анонс» — дождаться kodik-announced + Shikimori, иначе список пустой
+            if (filters.status && filters.status.includes('Анонс')) {
+                if (typeof ensureCatalogAnnouncedSourcesLoaded === 'function') {
+                    await ensureCatalogAnnouncedSourcesLoaded();
+                } else if (typeof ensureKodikAnnouncedRowsLoaded === 'function') {
+                    await ensureKodikAnnouncedRowsLoaded();
+                }
+            } else if (typeof ensureKodikAnnouncedRowsLoaded === 'function') {
+                // Фоном, без блокировки остальных фильтров
+                void ensureKodikAnnouncedRowsLoaded();
+            }
+
+            if (seq !== _applyFiltersSeq) return;
+
+            await new Promise((r) => setTimeout(r, 30));
+
             let results = filterAnime(filters);
-            
-            // Сортировка
+
             results = sortAnime(results, normalizeCatalogSort(filters.sort));
             if (normalizeCatalogSort(filters.sort) === 'rating-desc') {
                 results = applyCatalogPinnedFirst(results);
             }
 
-            // Дополнительная проверка на дубликаты по ID
             const seenIds = new Map();
             const uniqueResults = [];
             for (const anime of results) {
-                const id = parseInt(anime.id);
-                if (!seenIds.has(id)) {
-                    seenIds.set(id, true);
+                const id = parseInt(anime.id, 10);
+                const key = Number.isFinite(id) ? id : String(anime.id);
+                if (!seenIds.has(key)) {
+                    seenIds.set(key, true);
                     uniqueResults.push(anime);
                 }
             }
-            
+
+            if (seq !== _applyFiltersSeq) return;
+
             allResults = uniqueResults;
             currentPage = 1;
-            
+
             displayResults(uniqueResults, { hasActiveFilters: catalogHasActiveFilters(filters) });
             updatePagination(uniqueResults.length);
             updateFiltersInUrl(filters);
-            
-            // Плавная прокрутка вверх при изменении фильтров
+
             if (smoothScroll) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         } catch (error) {
             console.error('[Catalog] Ошибка применения фильтров:', error);
         } finally {
-            // Скрываем индикатор загрузки
-            hideLoadingIndicator();
-            isApplyingFilters = false;
+            if (seq === _applyFiltersSeq) {
+                hideLoadingIndicator();
+                isApplyingFilters = false;
+            }
         }
-    }, 100);
+    })();
 }
 
 // Получение значений фильтров из формы

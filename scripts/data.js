@@ -267,10 +267,11 @@ function reminkoAnimeCardFromAnnouncedRow(row, catalogByMal) {
         const cst = String(catalogItem.status || '');
         const last = parseInt(catalogItem._kodik && catalogItem._kodik.lastEpisode, 10);
         const released = Number.isFinite(last) ? Math.max(0, last) : 0;
-        const hasLink = !!(catalogItem._kodik && catalogItem._kodik.link);
-        if (cst === 'Онгоинг' || cst === 'Завершён' || cst === 'Вышел' || hasLink || released >= 1) {
-            return null;
-        }
+        // Уже вышло / онгоинг с сериями — не анонс. Один только link у «Анонс» не режем
+        // (иначе kodik-announced почти весь пропадает из фильтра каталога).
+        if (released >= 1) return null;
+        if (cst === 'Завершён' || cst === 'Вышел') return null;
+        if (cst === 'Онгоинг') return null;
     }
     const kind = String(row.kind || row.type || '').toLowerCase();
     const isFilm =
@@ -315,6 +316,7 @@ function reminkoAnimeCardFromAnnouncedRow(row, catalogByMal) {
         genres: Array.isArray(catalogItem?.genres) ? catalogItem.genres : [],
         posterUrl: poster,
         isKodikCalendarAnnounced: true,
+        isJikanVirtual: true,
         isSiteCatalog: false,
         _calendarRow: calRow,
     };
@@ -437,6 +439,37 @@ async function ensureKodikAnnouncedRowsLoaded() {
             window.__reminkoKodikAnnouncedLoading = null;
         });
     return window.__reminkoKodikAnnouncedLoading;
+}
+
+/** Kodik-announced + Shikimori — чтобы фильтр «Анонс» в каталоге не был пустым. */
+async function ensureCatalogAnnouncedSourcesLoaded() {
+    if (typeof window === 'undefined') return;
+    try {
+        await ensureKodikAnnouncedRowsLoaded();
+    } catch (_) {
+        /* ignore */
+    }
+    if (Array.isArray(window.__reminkoExtraAnnouncedJikan) && window.__reminkoExtraAnnouncedJikan.length) {
+        return;
+    }
+    try {
+        let list = [];
+        if (typeof window.fetchShikimoriAnnouncedAsJikan === 'function') {
+            list = await window.fetchShikimoriAnnouncedAsJikan();
+        } else if (typeof window.fetchJikanAnnouncedList === 'function') {
+            list = await window.fetchJikanAnnouncedList();
+        }
+        if (Array.isArray(list) && list.length) {
+            window.__reminkoExtraAnnouncedJikan = list;
+        }
+    } catch (e) {
+        console.warn('[Catalog] extra announced:', e);
+    }
+}
+if (typeof window !== 'undefined') {
+    window.ensureKodikAnnouncedRowsLoaded = ensureKodikAnnouncedRowsLoaded;
+    window.ensureCatalogAnnouncedSourcesLoaded = ensureCatalogAnnouncedSourcesLoaded;
+    window.getCatalogAnnouncedAnimeList = getCatalogAnnouncedAnimeList;
 }
 
 function mergeAnimeListsUniqueById(lists) {
@@ -1283,7 +1316,7 @@ function filterAnime(filters) {
                 return true;
             })
         );
-        // В основном каталоге статусов «Анонс» почти нет — подмешиваем kodik-announced / календарь
+        // В основном каталоге статусов «Анонс» почти нет — подмешиваем kodik-announced / Shikimori
         if (wantsAnnounced && typeof getCatalogAnnouncedAnimeList === 'function') {
             const announced = getCatalogAnnouncedAnimeList();
             const seenMal = new Set(
@@ -1291,9 +1324,12 @@ function filterAnime(filters) {
                     .map((a) => parseInt(a && a.mal_id, 10))
                     .filter((n) => Number.isFinite(n) && n > 0)
             );
+            const typeSet =
+                filters.type && filters.type.length > 0 ? new Set(filters.type) : null;
             for (const a of announced) {
                 const mal = parseInt(a && a.mal_id, 10);
                 if (!Number.isFinite(mal) || mal <= 0 || seenMal.has(mal)) continue;
+                if (typeSet && a.type && !typeSet.has(a.type)) continue;
                 seenMal.add(mal);
                 results.push(a);
             }
@@ -1301,11 +1337,24 @@ function filterAnime(filters) {
     }
     
     if (filters.yearFrom) {
-        results = results.filter((anime) => reminkoAnimeSortYear(anime) >= filters.yearFrom);
+        results = results.filter((anime) => {
+            const y = reminkoAnimeSortYear(anime);
+            // Анонсы без года в карточке (часто Shikimori) — не выкидывать слайдером 1990–…
+            if (y <= 0 && (anime.isKodikCalendarAnnounced || anime._fromExtraAnnounced)) {
+                return true;
+            }
+            return y >= filters.yearFrom;
+        });
     }
     
     if (filters.yearTo) {
-        results = results.filter((anime) => reminkoAnimeSortYear(anime) <= filters.yearTo);
+        results = results.filter((anime) => {
+            const y = reminkoAnimeSortYear(anime);
+            if (y <= 0 && (anime.isKodikCalendarAnnounced || anime._fromExtraAnnounced)) {
+                return true;
+            }
+            return y <= filters.yearTo;
+        });
     }
     
     if (filters.ratingMin) {
