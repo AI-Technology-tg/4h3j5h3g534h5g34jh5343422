@@ -106,7 +106,7 @@ class NavigationManager {
                         <img
                             class="top-random-anime-btn"
                             id="topRandomAnimeBtn"
-                            src="${this.basePath}Fons/slu4ainoe.png"
+                            src="${this.basePath}Fons/slu4ainoe.webp"
                             alt="Случайное аниме"
                             width="88"
                             height="88"

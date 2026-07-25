@@ -1556,9 +1556,14 @@
             signalHomeReady();
 
             try {
+                // 1) Лёгкие JSON → сразу «Анонсировано» (без 17MB каталога)
                 await loadKodikAnnouncedItems();
+                await loadCalendarMalIds();
+                await reminkoYieldFrame();
+                await renderAnnouncedSection('serial');
                 await reminkoYieldFrame();
 
+                // 2) Полный каталог — только для «Выходит» / «Популярно»
                 if (typeof global.KodikCatalogStore?.load === 'function') {
                     try {
                         await global.KodikCatalogStore.load();
@@ -1575,9 +1580,11 @@
                           ? global.getAllAnime().filter((a) => a.isKodikCatalog)
                           : [];
                 _catalog = filterAdult(raw);
-                await loadCalendarMalIds();
-                await reminkoYieldFrame();
-                await renderAllSections('serial');
+
+                for (const cfg of KODIK_SECTIONS) {
+                    renderSection(cfg, 'serial');
+                    await reminkoYieldFrame();
+                }
                 _inited = true;
 
                 const stats = document.getElementById('heroStats');

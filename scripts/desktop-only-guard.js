@@ -70,21 +70,21 @@
     w[l] = w[l] || [];
     w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
 
-    var tagSrc = 'https://www.googletagmanager.com/gtm.js?id=' + i;
-    var scripts = d.getElementsByTagName(s);
-    for (var j = 0; j < scripts.length; j++) {
-        if (scripts[j].src === tagSrc) return;
-    }
+    function inject() {
+        var tagSrc = 'https://www.googletagmanager.com/gtm.js?id=' + i;
+        var scripts = d.getElementsByTagName(s);
+        for (var j = 0; j < scripts.length; j++) {
+            if (scripts[j].src === tagSrc) return;
+        }
 
-    var f = scripts[0];
-    var gtm = d.createElement(s);
-    var dl = l !== 'dataLayer' ? '&l=' + l : '';
-    gtm.async = true;
-    gtm.src = tagSrc + dl;
-    if (f && f.parentNode) f.parentNode.insertBefore(gtm, f);
-    else (d.head || d.documentElement).appendChild(gtm);
+        var f = scripts[0];
+        var gtm = d.createElement(s);
+        var dl = l !== 'dataLayer' ? '&l=' + l : '';
+        gtm.async = true;
+        gtm.src = tagSrc + dl;
+        if (f && f.parentNode) f.parentNode.insertBefore(gtm, f);
+        else (d.head || d.documentElement).appendChild(gtm);
 
-    function injectNoScript() {
         if (d.getElementById('reminko-gtm-noscript')) return;
         var ns = d.createElement('noscript');
         ns.id = 'reminko-gtm-noscript';
@@ -93,10 +93,16 @@
             i +
             '" height="0" width="0" style="display:none;visibility:hidden"></iframe>';
         if (d.body) d.body.insertBefore(ns, d.body.firstChild);
+        else d.addEventListener('DOMContentLoaded', function () {
+            if (!d.getElementById('reminko-gtm-noscript') && d.body) {
+                d.body.insertBefore(ns, d.body.firstChild);
+            }
+        }, { once: true });
     }
 
-    if (d.body) injectNoScript();
-    else d.addEventListener('DOMContentLoaded', injectNoScript, { once: true });
+    // ?? ??????????? ? ?????????/????????? ?? ?????? ??????
+    if ('requestIdleCallback' in w) w.requestIdleCallback(inject, { timeout: 5000 });
+    else w.setTimeout(inject, 2500);
 })(window, document, 'script', 'dataLayer', 'GTM-W4RSMVH3');
 
 (function reminkoGtagBoot(w, d, s, measureId) {
@@ -112,18 +118,23 @@
     w.gtag('js', new Date());
     w.gtag('config', measureId);
 
-    var src = 'https://www.googletagmanager.com/gtag/js?id=' + measureId;
-    var scripts = d.getElementsByTagName(s);
-    for (var j = 0; j < scripts.length; j++) {
-        if (scripts[j].src === src) return;
+    function inject() {
+        var src = 'https://www.googletagmanager.com/gtag/js?id=' + measureId;
+        var scripts = d.getElementsByTagName(s);
+        for (var j = 0; j < scripts.length; j++) {
+            if (scripts[j].src === src) return;
+        }
+
+        var tag = d.createElement(s);
+        tag.async = true;
+        tag.src = src;
+        var first = scripts[0];
+        if (first && first.parentNode) first.parentNode.insertBefore(tag, first);
+        else (d.head || d.documentElement).appendChild(tag);
     }
 
-    var tag = d.createElement(s);
-    tag.async = true;
-    tag.src = src;
-    var first = scripts[0];
-    if (first && first.parentNode) first.parentNode.insertBefore(tag, first);
-    else (d.head || d.documentElement).appendChild(tag);
+    if ('requestIdleCallback' in w) w.requestIdleCallback(inject, { timeout: 5500 });
+    else w.setTimeout(inject, 2800);
 })(window, document, 'script', 'G-S9CBJW9NLK');
 
 (function remThemeEarlyBoot() {
@@ -211,7 +222,7 @@
         return false;
     }
 
-    /** Android / iOS ? Client Hints ? ???? ??? «?????? ??? ??» ? Chrome. */
+    /** Android / iOS ? Client Hints ? ???? ??? ??????? ??? ??? ? Chrome. */
     function hasMobilePlatformHintSync() {
         try {
             var platform = navigator.userAgentData && navigator.userAgentData.platform;
@@ -236,7 +247,7 @@
 
     /**
      * ????????? ??/???????: ?????????? UA + ??? mobile-hints + ??????? ????? ??? ????.
-     * ?? ?????? ? ????????? ? ?????? «?????? ??? ??» (??? UA ??????????, ?? hints/????? ? ???).
+     * ?? ?????? ? ????????? ? ?????? ??????? ??? ??? (??? UA ??????????, ?? hints/????? ? ???).
      */
     function isLikelyRealDesktop(userAgent) {
         var ua = userAgent || '';
@@ -305,7 +316,7 @@
         }
 
         if (coarse && noHover && touch >= 1) return true;
-        // «?????? ??? ??» ? Chrome: UA ??????????, ?? ????? ???????? ? ??? ????????
+        // ??????? ??? ??? ? Chrome: UA ??????????, ?? ????? ???????? ? ??? ????????
         if (touch >= 1 && sides.max <= PHONE_MAX_LONG_SIDE) return true;
 
         return false;

@@ -73,56 +73,56 @@ async function jikanHomeFetch(url) {
 const HOME_SOCIAL_INFO = {
     telegram: {
         title: 'Telegram',
-        img: 'Fons/Sociale/Telegram.png',
+        img: 'Fons/Sociale/Telegram.webp',
         url: 'https://telegram.me/re_minko',
         goLabel: 'Перейти в Telegram',
         text: 'На канале чаще всего публикуется информация о разработке и проводятся розыгрыши. Также есть Telegram-группа для общения с сообществом.',
     },
     tiktok: {
         title: 'TikTok',
-        img: 'Fons/Sociale/TikTok.png',
+        img: 'Fons/Sociale/TikTok.webp',
         url: 'https://www.tiktok.com/@re.minko',
         goLabel: 'Перейти в TikTok',
         text: 'Здесь — ролики создателя. Разработка сайта не главная тема, но иногда проскакивают промокоды и халява.',
     },
     instagram: {
         title: 'Instagram',
-        img: 'Fons/Sociale/Instagram.png',
+        img: 'Fons/Sociale/Instagram.webp',
         url: 'https://www.instagram.com/re.minko/',
         goLabel: 'Перейти в Instagram',
         text: 'Публикации комбинированные: важные объявления, новости и короткие видео в одной ленте.',
     },
     facebook: {
         title: 'Facebook',
-        img: 'Fons/Sociale/Facebook.png',
+        img: 'Fons/Sociale/Facebook.webp',
         url: 'https://www.facebook.com/share/1ayMx4Pi6F/',
         goLabel: 'Перейти в Facebook',
         text: 'По сути то же, что и в Instagram, но на Facebook чаще появляются скрытые функции и пасхалки сайта.',
     },
     twitter: {
         title: 'Twitter (X)',
-        img: 'Fons/Sociale/Twitter.png',
+        img: 'Fons/Sociale/Twitter.webp',
         url: 'https://x.com/re_minko',
         goLabel: 'Перейти в Twitter',
         text: 'Короткие анонсы и новости проекта: обновления сайта, важные объявления и быстрые ссылки на разделы Re-Minko.',
     },
     vk: {
         title: 'ВКонтакте',
-        img: 'Fons/Sociale/VK.png',
+        img: 'Fons/Sociale/VK.webp',
         url: '',
         goLabel: 'ВКонтакте скоро',
         text: 'Группа во «ВКонтакте» для новостей и розыгрышей. Ссылка появится, когда сообщество будет готово.',
     },
     discord: {
         title: 'Discord',
-        img: 'Fons/Sociale/Discord.png',
+        img: 'Fons/Sociale/Discord.webp',
         url: '',
         goLabel: 'Сервер скоро',
         text: 'Discord-сервер для информирования и проведения розыгрышей прямо на сайте. Ссылка появится, когда сервер будет готов.',
     },
     android: {
         title: 'Приложения Re-Minko',
-        img: 'Fons/androids.png',
+        img: 'Fons/androids.webp',
         imgFallback: 'Fons/Sociale/ReMinkoAndroid.svg',
         imgLarge: true,
         hideTitle: true,
@@ -265,47 +265,20 @@ document.addEventListener('DOMContentLoaded', () => {
         loadHeroWatchHistory();
         loadHeroFavorites();
 
-        if (typeof window.KodikCatalogStore?.load === 'function') {
-            window.KodikCatalogStore.load()
-                .then(() => {
-                    updateHeroStats();
-                    if (typeof initKodikHomeSections === 'function') initKodikHomeSections();
-                })
-                .catch(() => {
-                    updateHeroStats();
-                    if (typeof initKodikHomeSections === 'function') initKodikHomeSections();
-                });
-        } else if (typeof initKodikHomeSections === 'function') {
-            initKodikHomeSections();
+        // Ленты сами решают порядок: сначала лёгкие анонсы, потом полный Kodik-каталог
+        if (typeof initKodikHomeSections === 'function') {
+            void initKodikHomeSections().then(() => updateHeroStats());
         }
 
-        // Манга-каталог (~16 МБ) — после idle, чтобы не бить по первому скроллу
-        function loadRemangaWhenIdle() {
-            if (typeof window.RemangaCatalogStore?.load !== 'function') return;
-            window.RemangaCatalogStore.load()
-                .catch((e) => console.warn('[Home] ReManga catalog:', e))
-                .finally(() => {
-                    if (typeof updateHeroStats === 'function') updateHeroStats();
-                });
-        }
+        // История/избранное — после idle, без повторной гонки за 17MB каталогом
+        const hydrateHeroRows = () => {
+            loadHeroWatchHistory();
+            loadHeroFavorites();
+        };
         if (typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(loadRemangaWhenIdle, { timeout: 6000 });
+            window.requestIdleCallback(hydrateHeroRows, { timeout: 3500 });
         } else {
-            setTimeout(loadRemangaWhenIdle, 2800);
-        }
-
-        if (typeof loadHeroWatchHistory === 'function') {
-            void (async () => {
-                if (typeof window.KodikCatalogStore?.load === 'function') {
-                    try {
-                        await window.KodikCatalogStore.load();
-                    } catch (_) {
-                        /* ignore */
-                    }
-                }
-                loadHeroWatchHistory();
-                loadHeroFavorites();
-            })();
+            setTimeout(hydrateHeroRows, 1200);
         }
 
         if (
@@ -344,10 +317,6 @@ window.addEventListener('reminko-watch-history-updated', () => {
 
 window.addEventListener('reminko:favorites-loaded', () => {
     if (typeof loadHeroFavorites === 'function') loadHeroFavorites();
-});
-
-window.addEventListener('reminko-remanga-catalog-loaded', () => {
-    if (typeof updateHeroStats === 'function') updateHeroStats();
 });
 
 function formatHeroStatCount(n) {
