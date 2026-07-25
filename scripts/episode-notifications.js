@@ -365,7 +365,20 @@
 
     global.reminkoEpisodeNotifyInit = function reminkoEpisodeNotifyInit(notificationService) {
         _service = notificationService;
-        checkNewEpisodes();
+        const isHome = !!(document.querySelector && document.querySelector('.home-page'));
+        // На главной не тянем 17MB каталог сразу — проверка серий позже
+        if (isHome) {
+            const boot = () => {
+                void checkNewEpisodes();
+            };
+            if (typeof global.requestIdleCallback === 'function') {
+                global.requestIdleCallback(boot, { timeout: 45000 });
+            } else {
+                setTimeout(boot, 20000);
+            }
+        } else {
+            checkNewEpisodes();
+        }
         if (_timer) clearInterval(_timer);
         _timer = setInterval(checkNewEpisodes, CHECK_MS);
     };

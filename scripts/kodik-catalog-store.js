@@ -110,11 +110,36 @@
         return _meta;
     }
 
+    /**
+     * Лёгкие карточки главной (strips) — в индекс без полного JSON.
+     * Полный load() позже перезапишет список целиком.
+     */
+    function mergeLightItems(list) {
+        if (_loaded || !Array.isArray(list) || !list.length) return;
+        for (const a of list) {
+            if (!a || a.id == null) continue;
+            const id = parseInt(a.id, 10);
+            if (!Number.isFinite(id) || _byId.has(id)) continue;
+            _byId.set(id, a);
+            _items.push(a);
+        }
+    }
+
+    function setLightMeta(meta) {
+        if (_loaded || !meta || typeof meta !== 'object') return;
+        if (!_meta) _meta = { ...meta };
+        else if (meta.catalogCount != null && _meta.count == null) {
+            _meta = { ..._meta, count: meta.catalogCount };
+        }
+    }
+
     global.KodikCatalogStore = {
         load: loadKodikCatalog,
         getAll: getKodikCatalogAnime,
         getById: getKodikAnimeById,
         isLoaded: isKodikCatalogLoaded,
         getMeta: getKodikCatalogMeta,
+        mergeLight: mergeLightItems,
+        setLightMeta,
     };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1385,6 +1385,29 @@ async function homeHeroIsLoggedIn() {
     return !!(sync && sync.id && !sync.isAnonymous);
 }
 
+/** Полный каталог — только если на главной реально нужны id вне strips. */
+async function ensureHomeCatalogForIds(ids) {
+    const need = (ids || [])
+        .map((id) => parseInt(id, 10))
+        .filter((id) => Number.isFinite(id) && id > 0);
+    if (!need.length) return false;
+    const missing = need.filter((id) => {
+        const a = typeof getAnimeById === 'function' ? getAnimeById(id) : null;
+        return !a;
+    });
+    if (!missing.length) return false;
+    if (typeof window.KodikCatalogStore?.load !== 'function') return false;
+    if (typeof window.KodikCatalogStore.isLoaded === 'function' && window.KodikCatalogStore.isLoaded()) {
+        return false;
+    }
+    try {
+        await window.KodikCatalogStore.load();
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
 /** История в hero — тот же формат, что избранное (горизонтальные постеры + ссылка «вся история»). */
 async function loadHeroWatchHistory() {
     const box = document.getElementById('heroWatchHistory');
@@ -1415,6 +1438,8 @@ async function loadHeroWatchHistory() {
         showEmpty('Откройте тайтл в каталоге и посмотрите серию минуту — история сохранится здесь.');
         return;
     }
+
+    await ensureHomeCatalogForIds(entries.map((e) => e.animeId));
 
     const rows = [];
     for (const entry of entries) {
@@ -1629,6 +1654,8 @@ async function loadHeroFavorites() {
         showEmpty('Добавляйте аниме в избранное — они появятся здесь для быстрого доступа.');
         return;
     }
+
+    await ensureHomeCatalogForIds(ids);
 
     const rows = [];
     for (const id of ids) {

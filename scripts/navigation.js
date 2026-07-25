@@ -412,6 +412,20 @@ class NavigationManager {
             }
         };
 
+        const ensureKodikCatalogForSearch = async () => {
+            if (typeof window.KodikCatalogStore?.load !== 'function') return;
+            if (typeof window.KodikCatalogStore.isLoaded === 'function' && window.KodikCatalogStore.isLoaded()) {
+                return;
+            }
+            try {
+                dropdown.innerHTML = '<div class="search-dropdown-empty">Загрузка каталога…</div>';
+                dropdown.style.display = 'block';
+                await window.KodikCatalogStore.load();
+            } catch (_) {
+                /* ignore — поиск по уже загруженному */
+            }
+        };
+
         const showSuggestions = async (query) => {
             if (query.length < 2 || typeof searchAnime !== 'function') {
                 dropdown.style.display = 'none';
@@ -419,6 +433,7 @@ class NavigationManager {
             }
 
             await ensureAnime4kSearchReady();
+            await ensureKodikCatalogForSearch();
             
             let defaultAnime = searchAnime(query).slice(0, 10);
             let anime4kHits = typeof searchAnime4k === 'function' ? searchAnime4k(query).slice(0, 6) : [];

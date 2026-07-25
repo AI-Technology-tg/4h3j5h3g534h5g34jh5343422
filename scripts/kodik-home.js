@@ -96,7 +96,15 @@
                     }
                 }
             }
-            if (bag.length) _catalog = filterAdult(bag);
+            if (bag.length) {
+                _catalog = filterAdult(bag);
+                if (typeof global.KodikCatalogStore?.mergeLight === 'function') {
+                    global.KodikCatalogStore.mergeLight(_catalog);
+                }
+            }
+            if (_homeStripsMeta && typeof global.KodikCatalogStore?.setLightMeta === 'function') {
+                global.KodikCatalogStore.setLightMeta(_homeStripsMeta);
+            }
             return !!_homeStrips;
         } catch (e) {
             console.warn('[kodik-home] home-strips:', e);
@@ -1527,31 +1535,6 @@
         }
     }
 
-    function scheduleDeferredFullCatalog() {
-        if (global.__reminkoHomeFullCatalogScheduled) return;
-        global.__reminkoHomeFullCatalogScheduled = true;
-        const run = () => {
-            if (typeof global.KodikCatalogStore?.load !== 'function') return;
-            if (typeof global.KodikCatalogStore.isLoaded === 'function' && global.KodikCatalogStore.isLoaded()) {
-                return;
-            }
-            void global.KodikCatalogStore.load()
-                .then(() => {
-                    try {
-                        global.dispatchEvent(new CustomEvent('reminko:home-full-catalog'));
-                    } catch (_) {
-                        /* ignore */
-                    }
-                })
-                .catch(() => {});
-        };
-        if (typeof global.requestIdleCallback === 'function') {
-            global.requestIdleCallback(run, { timeout: 8000 });
-        } else {
-            setTimeout(run, 4000);
-        }
-    }
-
     async function renderAllSections(defaultMedia) {
         const media = normalizeMediaType(defaultMedia);
         const scrollY = global.scrollY || global.pageYOffset || 0;
@@ -1663,9 +1646,8 @@
 
                 const stats = document.getElementById('heroStats');
                 if (stats) stats.hidden = false;
-
-                // Полный каталог — только если нужен (история/избранное/поиск), после idle
-                scheduleDeferredFullCatalog();
+                // Полный 17MB каталог на главной НЕ грузим автоматически —
+                // только по запросу (поиск / история / избранное вне strips).
             } finally {
                 signalHomeReady();
             }
