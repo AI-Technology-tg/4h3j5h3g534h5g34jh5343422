@@ -169,9 +169,13 @@
     }
 
     .home-section-controls {
-        width: 100%;
-        justify-content: space-between;
+        width: auto;
+        justify-content: flex-end;
         gap: 0.45rem;
+    }
+
+    .section-header-main .home-carousel-anim-toggle {
+        margin-left: 0.15rem;
     }
 
     .home-carousel-anim-toggle {

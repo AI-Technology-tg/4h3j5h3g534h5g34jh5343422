@@ -566,6 +566,24 @@ function createAnimeCard(anime, clickHandler) {
             openAnime4kPage(anime.id);
             return;
         }
+        if (anime.isKodikCalendarAnnounced && anime.mal_id != null) {
+            const mal = parseInt(anime.mal_id, 10);
+            if (Number.isFinite(mal) && mal > 0) {
+                try {
+                    sessionStorage.setItem('previousUrl', window.location.href);
+                } catch (_) {
+                    /* ignore */
+                }
+                const path =
+                    window.location.pathname.includes('/catalog/') ||
+                    window.location.pathname.includes('/anime/') ||
+                    window.location.pathname.includes('/manga/')
+                        ? '../anime/view.html'
+                        : 'anime/view.html';
+                window.location.href = `${path}?mal_id=${encodeURIComponent(String(mal))}`;
+                return;
+            }
+        }
         if (typeof openAnimePage === 'function') {
             openAnimePage(anime.id);
         } else {

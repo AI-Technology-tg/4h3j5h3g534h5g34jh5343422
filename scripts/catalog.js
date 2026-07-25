@@ -69,6 +69,13 @@ async function ensureKodikCatalogForPage() {
             console.warn('[Catalog] Kodik catalog:', e);
         }
     }
+    if (typeof ensureKodikAnnouncedRowsLoaded === 'function') {
+        try {
+            await ensureKodikAnnouncedRowsLoaded();
+        } catch (e) {
+            console.warn('[Catalog] Announced list:', e);
+        }
+    }
     if (typeof reminkoLoadAllCalendarData === 'function') {
         try {
             await reminkoLoadAllCalendarData();
@@ -728,11 +735,15 @@ function displayResults(results, options) {
         const seenIds = new Map();
         const uniqueResults = [];
         for (const anime of results) {
-            const id = parseInt(anime.id);
-            if (!seenIds.has(id)) {
-                seenIds.set(id, true);
-                uniqueResults.push(anime);
-            }
+            const idKey =
+                anime && anime.id != null && String(anime.id).trim() !== ''
+                    ? String(anime.id)
+                    : anime && anime.mal_id != null
+                      ? `mal:${anime.mal_id}`
+                      : '';
+            if (!idKey || seenIds.has(idKey)) continue;
+            seenIds.set(idKey, true);
+            uniqueResults.push(anime);
         }
         
         const start = (currentPage - 1) * itemsPerPage;
@@ -788,11 +799,15 @@ function displayResults(results, options) {
         const pageSeenIds = new Set();
         const uniquePageResults = [];
         for (const anime of pageResults) {
-            const id = parseInt(anime.id);
-            if (!pageSeenIds.has(id)) {
-                pageSeenIds.add(id);
-                uniquePageResults.push(anime);
-            }
+            const idKey =
+                anime && anime.id != null && String(anime.id).trim() !== ''
+                    ? String(anime.id)
+                    : anime && anime.mal_id != null
+                      ? `mal:${anime.mal_id}`
+                      : '';
+            if (!idKey || pageSeenIds.has(idKey)) continue;
+            pageSeenIds.add(idKey);
+            uniquePageResults.push(anime);
         }
         
         const items = uniquePageResults.map(anime => {

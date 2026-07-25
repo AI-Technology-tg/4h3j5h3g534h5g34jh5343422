@@ -256,6 +256,159 @@ function getKodikCatalogAnimeList() {
     return [];
 }
 
+/** Анонсы из календаря / kodik-announced.json → карточки для фильтра «Анонс». */
+function reminkoAnimeCardFromAnnouncedRow(row, catalogByMal) {
+    if (!row) return null;
+    const mal = parseInt(row.mal_id, 10);
+    if (!Number.isFinite(mal) || mal <= 0) return null;
+    const catalogItem =
+        catalogByMal && typeof catalogByMal.get === 'function' ? catalogByMal.get(mal) : null;
+    if (catalogItem) {
+        const cst = String(catalogItem.status || '');
+        const last = parseInt(catalogItem._kodik && catalogItem._kodik.lastEpisode, 10);
+        const released = Number.isFinite(last) ? Math.max(0, last) : 0;
+        const hasLink = !!(catalogItem._kodik && catalogItem._kodik.link);
+        if (cst === 'Онгоинг' || cst === 'Завершён' || cst === 'Вышел' || hasLink || released >= 1) {
+            return null;
+        }
+    }
+    const kind = String(row.kind || row.type || '').toLowerCase();
+    const isFilm =
+        row.type === 'Фильм' || kind === 'movie' || kind === 'mv' || kind === 'film';
+    const titleRu = (row.title_ru && String(row.title_ru).trim()) || '';
+    const titleEn = (row.title_en && String(row.title_en).trim()) || '';
+    const poster =
+        (row.posterUrl && String(row.posterUrl).trim()) ||
+        (catalogItem && catalogItem.posterUrl) ||
+        '';
+    const calRow = {
+        mal_id: mal,
+        next_episode: row.next_episode != null ? row.next_episode : 1,
+        next_at: row.next_at || row.nextAt || '',
+        title_ru: titleRu,
+        title_en: titleEn,
+        kind: row.kind,
+        status: row.status || 'anons',
+        posterUrl: poster,
+        score: row.score || 0,
+    };
+    if (catalogItem && catalogItem.isKodikCatalog !== false) {
+        return {
+            ...catalogItem,
+            title: titleRu || catalogItem.title,
+            titleAlt: titleEn || catalogItem.titleAlt || catalogItem.title,
+            posterUrl: poster || catalogItem.posterUrl || '',
+            status: 'Анонс',
+            isKodikCalendarAnnounced: true,
+            _calendarRow: calRow,
+        };
+    }
+    return {
+        id: 10_000_000 + mal,
+        mal_id: mal,
+        title: titleRu || titleEn || `MAL #${mal}`,
+        titleAlt: titleEn || titleRu || '',
+        type: isFilm ? 'Фильм' : 'Сериал',
+        status: 'Анонс',
+        year: calRow.next_at ? new Date(calRow.next_at).getFullYear() || '' : '',
+        rating: Number(row.score) || 0,
+        genres: Array.isArray(catalogItem?.genres) ? catalogItem.genres : [],
+        posterUrl: poster,
+        isKodikCalendarAnnounced: true,
+        isSiteCatalog: false,
+        _calendarRow: calRow,
+    };
+}
+
+function getCatalogAnnouncedAnimeList() {
+    const catalog = getKodikCatalogAnimeList();
+    const byMal = new Map();
+    for (const a of catalog) {
+        const mal = a && a.mal_id != null ? parseInt(a.mal_id, 10) : NaN;
+        if (Number.isFinite(mal) && mal > 0) byMal.set(mal, a);
+    }
+    const out = [];
+    const seen = new Set();
+    const pushRow = (row) => {
+        if (!row) return;
+        const mal = parseInt(row.mal_id, 10);
+        if (!Number.isFinite(mal) || mal <= 0 || seen.has(mal)) return;
+        if (
+            typeof window !== 'undefined' &&
+            typeof window.reminkoIsKidsCartoonCalendarRow === 'function' &&
+            window.reminkoIsKidsCartoonCalendarRow(row, byMal.get(mal))
+        ) {
+            return;
+        }
+        const card = reminkoAnimeCardFromAnnouncedRow(row, byMal);
+        if (!card) return;
+        seen.add(mal);
+        out.push(card);
+    };
+
+    if (typeof window !== 'undefined' && Array.isArray(window.__reminkoKodikAnnouncedRows)) {
+        for (const row of window.__reminkoKodikAnnouncedRows) {
+            // Файл уже собран фильтром анонсов; не режем по «будущей» дате
+            const ep = parseInt(row && row.next_episode, 10) || 1;
+            if (ep > 1) continue;
+            pushRow(row);
+        }
+    }
+    if (
+        typeof window !== 'undefined' &&
+        typeof window.reminkoMergedCalendarItems === 'function' &&
+        typeof window.reminkoSplitCalendarRows === 'function'
+    ) {
+        try {
+            const split = window.reminkoSplitCalendarRows(window.reminkoMergedCalendarItems(), byMal);
+            if (Array.isArray(split?.announced)) {
+                for (const row of split.announced) pushRow(row);
+            }
+        } catch (_) {
+            /* ignore */
+        }
+    }
+
+    out.sort((a, b) => {
+        const at = Date.parse(a._calendarRow?.next_at) || Infinity;
+        const bt = Date.parse(b._calendarRow?.next_at) || Infinity;
+        if (at !== bt) return at - bt;
+        return (b.rating || 0) - (a.rating || 0);
+    });
+    return out;
+}
+
+async function ensureKodikAnnouncedRowsLoaded() {
+    if (typeof window === 'undefined') return [];
+    if (Array.isArray(window.__reminkoKodikAnnouncedRows) && window.__reminkoKodikAnnouncedRows.length) {
+        return window.__reminkoKodikAnnouncedRows;
+    }
+    if (window.__reminkoKodikAnnouncedLoading) return window.__reminkoKodikAnnouncedLoading;
+    const depth =
+        window.location && window.location.pathname
+            ? (window.location.pathname.match(/\//g) || []).length - 1
+            : 0;
+    const prefix = depth > 0 ? '../'.repeat(depth) : '';
+    window.__reminkoKodikAnnouncedLoading = fetch(`${prefix}data/kodik-announced.json`, {
+        credentials: 'omit',
+        cache: 'default',
+    })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+            const items = Array.isArray(data?.items) ? data.items : [];
+            window.__reminkoKodikAnnouncedRows = items;
+            return items;
+        })
+        .catch(() => {
+            window.__reminkoKodikAnnouncedRows = window.__reminkoKodikAnnouncedRows || [];
+            return window.__reminkoKodikAnnouncedRows;
+        })
+        .finally(() => {
+            window.__reminkoKodikAnnouncedLoading = null;
+        });
+    return window.__reminkoKodikAnnouncedLoading;
+}
+
 function mergeAnimeListsUniqueById(lists) {
     const seenIds = new Map();
     const uniqueAnime = [];
@@ -1082,13 +1235,13 @@ function filterAnime(filters) {
             const n = parseInt(epStr, 10);
             return Number.isFinite(n) && n > 0 ? n : 0;
         };
+        const wantsAnnounced = filters.status.includes('Анонс');
         results = results.filter((anime) =>
             filters.status.some((s) => {
                 if (!statusAliases(s, effectiveStatus(anime))) return false;
-                // «Анонс» в каталоге = только Kodik-премьеры (не сотни Jikan из localStorage).
-                // На главной — отдельная лента из календаря (~10–15 ближайших).
+                // «Анонс» в каталоге = только реальные премьеры (не Jikan virtual из кэша).
                 if (s === 'Анонс') {
-                    if (anime.isJikanVirtual) return false;
+                    if (anime.isJikanVirtual && !anime.isKodikCalendarAnnounced) return false;
                     if (releasedEps(anime) >= 1) return false;
                     if (anime._kodik && anime._kodik.link) return false;
                     if (typeof window.reminkoShikimoriCalendarRowForMal === 'function' && anime.mal_id != null) {
@@ -1100,6 +1253,21 @@ function filterAnime(filters) {
                 return true;
             })
         );
+        // В основном каталоге статусов «Анонс» почти нет — подмешиваем kodik-announced / календарь
+        if (wantsAnnounced && typeof getCatalogAnnouncedAnimeList === 'function') {
+            const announced = getCatalogAnnouncedAnimeList();
+            const seenMal = new Set(
+                results
+                    .map((a) => parseInt(a && a.mal_id, 10))
+                    .filter((n) => Number.isFinite(n) && n > 0)
+            );
+            for (const a of announced) {
+                const mal = parseInt(a && a.mal_id, 10);
+                if (!Number.isFinite(mal) || mal <= 0 || seenMal.has(mal)) continue;
+                seenMal.add(mal);
+                results.push(a);
+            }
+        }
     }
     
     if (filters.yearFrom) {
@@ -1158,7 +1326,8 @@ function reminkoAnimeSortYear(anime) {
         anime.updated_at,
         anime.aired_on,
         anime.aired_from,
-        anime.premiered
+        anime.premiered,
+        anime._calendarRow && (anime._calendarRow.next_at || anime._calendarRow.nextAt),
     ];
     for (const candidate of dateCandidates) {
         const raw = String(candidate || '').trim();
