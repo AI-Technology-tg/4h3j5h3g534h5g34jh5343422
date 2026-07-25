@@ -2580,6 +2580,10 @@ function animeEligibleForWatchHistory(anime) {
 
 let _watchHistoryTimer = null;
 let _watchHistoryTimerKey = '';
+let _watchHistoryPending = null;
+
+/** ~20 с просмотра достаточно; при уходе со страницы — flush сразу. */
+const WATCH_HISTORY_DELAY_MS = 20000;
 
 function scheduleWatchHistoryAfterMinute(animeId, episode) {
     if (typeof addToWatchHistory !== 'function') return;
@@ -2587,23 +2591,59 @@ function scheduleWatchHistoryAfterMinute(animeId, episode) {
     if (_watchHistoryTimerKey === key && _watchHistoryTimer) return;
     clearTimeout(_watchHistoryTimer);
     _watchHistoryTimerKey = key;
+    _watchHistoryPending = { animeId, episode };
     _watchHistoryTimer = setTimeout(() => {
-        if (
-            currentPlayerAnime &&
-            String(currentPlayerAnime.id) === String(animeId) &&
-            currentEpisode === episode
-        ) {
-            addToWatchHistory(animeId, episode);
-        }
+        const pend = _watchHistoryPending;
         _watchHistoryTimer = null;
         _watchHistoryTimerKey = '';
-    }, 60000);
+        _watchHistoryPending = null;
+        if (
+            pend &&
+            currentPlayerAnime &&
+            String(currentPlayerAnime.id) === String(pend.animeId) &&
+            currentEpisode === pend.episode
+        ) {
+            addToWatchHistory(pend.animeId, pend.episode);
+        }
+    }, WATCH_HISTORY_DELAY_MS);
+}
+
+function flushWatchHistoryTimer() {
+    if (!_watchHistoryPending || typeof addToWatchHistory !== 'function') {
+        clearWatchHistoryTimer();
+        return;
+    }
+    const pend = _watchHistoryPending;
+    clearWatchHistoryTimer();
+    if (
+        currentPlayerAnime &&
+        String(currentPlayerAnime.id) === String(pend.animeId) &&
+        Number(currentEpisode) === Number(pend.episode)
+    ) {
+        addToWatchHistory(pend.animeId, pend.episode);
+    }
 }
 
 function clearWatchHistoryTimer() {
     clearTimeout(_watchHistoryTimer);
     _watchHistoryTimer = null;
     _watchHistoryTimerKey = '';
+    _watchHistoryPending = null;
+}
+
+if (typeof window !== 'undefined' && !window.__reminkoWatchHistoryFlushBound) {
+    window.__reminkoWatchHistoryFlushBound = true;
+    const flush = () => {
+        try {
+            flushWatchHistoryTimer();
+        } catch (_) {
+            /* ignore */
+        }
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flush();
+    });
 }
 
 async function applyKodikIframeSrc(anime, episode) {

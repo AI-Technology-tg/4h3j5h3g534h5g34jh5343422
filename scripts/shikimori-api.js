@@ -230,6 +230,63 @@
         }).catch(() => []);
     }
 
+    const ANONS_CACHE_KEY = 'reminko_shiki_anons_v1';
+    const ANONS_CACHE_TTL_MS = 45 * 60 * 1000;
+
+    function readAnonsCache() {
+        try {
+            const raw = sessionStorage.getItem(ANONS_CACHE_KEY);
+            if (!raw) return null;
+            const o = JSON.parse(raw);
+            if (Date.now() - (o.ts || 0) > ANONS_CACHE_TTL_MS) return null;
+            return Array.isArray(o.data) ? o.data : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function writeAnonsCache(data) {
+        try {
+            sessionStorage.setItem(ANONS_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+        } catch {
+            /* ignore */
+        }
+    }
+
+    /**
+     * Анонсы с Shikimori (русские названия из коробки) — доп. источник к Jikan.
+     * @returns {Promise<object[]>} сырые объекты Shikimori
+     */
+    async function fetchShikimoriAnnounced(force) {
+        if (!force) {
+            const cached = readAnonsCache();
+            if (cached?.length) return cached;
+        }
+        const all = [];
+        const seen = new Set();
+        const maxPages = 5;
+        for (let page = 1; page <= maxPages; page++) {
+            const chunk = await enqueueShikiTask(async () => {
+                const list = await shikiFetch(
+                    `/animes?status=anons&order=popularity&limit=50&page=${page}&censored=true`
+                );
+                return Array.isArray(list) ? list : [];
+            }).catch(() => []);
+            if (!chunk.length) break;
+            for (const item of chunk) {
+                if (!item || !item.id) continue;
+                const key = item.myanimelist_id || item.id;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                all.push(item);
+            }
+            if (chunk.length < 50) break;
+            await sleep(400);
+        }
+        writeAnonsCache(all);
+        return all;
+    }
+
     function formatAiredTotal(jikanAnime, shiki) {
         const totalJ = jikanAnime.episodes;
         let aired = null;
@@ -253,6 +310,7 @@
         readCachedByMalId,
         searchAnimesByQuery,
         fetchShikimoriCalendar,
+        fetchShikimoriAnnounced,
         stripHtml,
         formatAiredTotal,
         useShikiProxy

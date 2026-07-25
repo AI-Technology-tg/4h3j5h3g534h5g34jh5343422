@@ -96,6 +96,9 @@ function reminkoSyncAuthStorage(session) {
         } catch (_) {
             prev = {};
         }
+        const prevAv = String(prev.avatar || '')
+            .trim()
+            .replace(/^\/+/, '');
         sessionStorage.setItem(
             'currentUser',
             JSON.stringify({
@@ -105,7 +108,8 @@ function reminkoSyncAuthStorage(session) {
                     prev.username ||
                     (session.user.email && session.user.email.split('@')[0]) ||
                     'Пользователь',
-                avatar: prev.avatar || '/Fons/1 b.jpg'
+                // Не затираем реальный аватар дефолтом и без ведущего «/»
+                avatar: prevAv || 'Fons/1 b.jpg'
             })
         );
     } else {

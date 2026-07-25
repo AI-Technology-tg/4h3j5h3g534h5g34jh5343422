@@ -672,18 +672,25 @@ async function getCurrentUser(forceRefresh = false) {
                 (metaNameOk ? anonMetaName : null) ||
                 (su.is_anonymous ? anonMetaName || 'Гость' : su.email?.split('@')[0]) ||
                 'Пользователь';
-            const profileAvatar = profile?.avatar ? String(profile.avatar).trim() : '';
+            const profileAvatar = profile?.avatar
+                ? String(profile.avatar).trim().replace(/^\/+/, '')
+                : '';
             const profileAvatarIsDefault =
                 !profileAvatar ||
                 profileAvatar === 'Fons/seitFon.jpg' ||
                 /^Fons\/1\s+[bg]\.jpg$/i.test(profileAvatar);
-            const resolvedAvatar =
+            const metaPicture = String(
+                meta.avatar || meta.avatar_url || meta.picture || ''
+            ).trim();
+            const resolvedAvatar = (
                 (su.is_anonymous && profileAvatarIsDefault && anonMetaAvatar
                     ? anonMetaAvatar
                     : null) ||
                 profileAvatar ||
                 anonMetaAvatar ||
-                'Fons/1 b.jpg';
+                (profileAvatarIsDefault && metaPicture ? metaPicture : '') ||
+                'Fons/1 b.jpg'
+            ).replace(/^\/+/, '');
             const userData = {
                 id: su.id,
                 email: su.email || '',

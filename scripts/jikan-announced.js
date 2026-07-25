@@ -6,8 +6,8 @@
     'use strict';
 
     const JIKAN_BASE = 'https://api.jikan.moe/v4';
-    const CACHE_KEY = 'reminko_jikan_announced_v2';
-    const CACHE_LS_KEY = 'reminko_jikan_announced_ls_v1';
+    const CACHE_KEY = 'reminko_jikan_announced_v3';
+    const CACHE_LS_KEY = 'reminko_jikan_announced_ls_v2';
     const CACHE_TTL = 25 * 60 * 1000;
     const CACHE_LS_TTL = 7 * 24 * 60 * 60 * 1000;
     const SEASONS_MAX_PAGES = 27;
@@ -19,7 +19,34 @@
     function dedupeMal(list) {
         const m = new Map();
         for (const x of list || []) {
-            if (x && x.mal_id && !m.has(x.mal_id)) m.set(x.mal_id, x);
+            if (!x || !x.mal_id) continue;
+            const prev = m.get(x.mal_id);
+            if (!prev) {
+                m.set(x.mal_id, x);
+                continue;
+            }
+            // Склеиваем: Jikan-метаданные + русское название/описание с Shikimori
+            const ru =
+                (x.title_russian && String(x.title_russian).trim()) ||
+                (prev.title_russian && String(prev.title_russian).trim()) ||
+                '';
+            const syn =
+                (prev.synopsis && String(prev.synopsis).trim()) ||
+                (x.synopsis && String(x.synopsis).trim()) ||
+                '';
+            const base = prev._fromShikimori && !x._fromShikimori ? x : prev;
+            const other = base === prev ? x : prev;
+            m.set(x.mal_id, {
+                ...other,
+                ...base,
+                title_russian: ru || base.title_russian || other.title_russian || '',
+                synopsis: syn || base.synopsis || other.synopsis || '',
+                images: base.images || other.images,
+                genres: (base.genres && base.genres.length ? base.genres : other.genres) || [],
+                members: Math.max(base.members || 0, other.members || 0) || base.members,
+                _shiki: base._shiki || other._shiki,
+                _fromShikimori: !!(base._fromShikimori || other._fromShikimori)
+            });
         }
         return [...m.values()];
     }
@@ -219,6 +246,115 @@
         });
     }
 
+    function mapShikiKindToJikanType(kind) {
+        const k = String(kind || '').toLowerCase();
+        if (k === 'movie') return 'Movie';
+        if (k === 'ova') return 'OVA';
+        if (k === 'ona') return 'ONA';
+        if (k === 'special' || k === 'tv_special') return 'Special';
+        if (k === 'music') return 'Music';
+        return 'TV';
+    }
+
+    /** Shikimori anons → формат карточек Jikan (с русским title_russian). */
+    function shikimoriAnonsToJikanShape(item) {
+        if (!item) return null;
+        const mal = parseInt(item.myanimelist_id || item.id, 10);
+        if (!Number.isFinite(mal) || mal <= 0) return null;
+        const poster = shikimoriPosterUrlFromPath(item.image?.original || item.image?.preview);
+        const ru = String(item.russian || '').trim();
+        const en = String(item.name || '').trim();
+        const desc = global.shikimoriApi?.stripHtml
+            ? global.shikimoriApi.stripHtml(item.description || '')
+            : String(item.description || '')
+                  .replace(/<[^>]+>/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+        return {
+            mal_id: mal,
+            title: en || ru || `MAL #${mal}`,
+            title_english: en || '',
+            title_russian: ru || '',
+            title_japanese: '',
+            synopsis: desc || '',
+            type: mapShikiKindToJikanType(item.kind),
+            status: 'Not yet aired',
+            episodes: item.episodes || null,
+            score: item.score || null,
+            members: item.rates_statuses_stats
+                ? null
+                : item.score
+                  ? Math.round(Number(item.score) * 1000)
+                  : 0,
+            aired: { from: item.aired_on || item.released_on || null },
+            images: poster
+                ? {
+                      jpg: {
+                          image_url: poster,
+                          large_image_url: poster,
+                          small_image_url: poster
+                      }
+                  }
+                : undefined,
+            genres: [],
+            _shiki: item,
+            _fromShikimori: true
+        };
+    }
+
+    async function fetchShikimoriAnnouncedAsJikan() {
+        if (!global.shikimoriApi?.fetchShikimoriAnnounced) return [];
+        try {
+            const raw = await global.shikimoriApi.fetchShikimoriAnnounced(false);
+            const out = [];
+            for (const item of raw || []) {
+                const row = shikimoriAnonsToJikanShape(item);
+                if (row) out.push(row);
+            }
+            return out;
+        } catch (e) {
+            console.warn('[announced] Shikimori anons:', e);
+            return [];
+        }
+    }
+
+    /** Подтянуть русские названия с Shikimori для англ. записей Jikan. */
+    async function enrichAnnouncedWithRussianTitles(list) {
+        if (!Array.isArray(list) || !list.length) return list || [];
+        if (!global.shikimoriApi?.enqueueFetchShikimoriByMalId) return list;
+
+        const need = list.filter(
+            (a) =>
+                a &&
+                a.mal_id &&
+                !String(a.title_russian || '').trim() &&
+                !/[а-яё]/i.test(String(a.title || ''))
+        );
+        // Не больше 12 сетевых запросов за проход — остальное из кэша / уже RU с Shiki-ленты
+        const slice = need.slice(0, 12);
+        await Promise.all(
+            slice.map(async (a) => {
+                try {
+                    const sh = await global.shikimoriApi.enqueueFetchShikimoriByMalId(
+                        a.mal_id,
+                        a.title_english || a.title || ''
+                    );
+                    if (sh?.russian) {
+                        a.title_russian = String(sh.russian).trim();
+                    }
+                    if (sh?.description && !a.synopsis) {
+                        a.synopsis = global.shikimoriApi.stripHtml
+                            ? global.shikimoriApi.stripHtml(sh.description)
+                            : String(sh.description).replace(/<[^>]+>/g, ' ').trim();
+                    }
+                } catch (_) {
+                    /* ignore */
+                }
+            })
+        );
+        return list;
+    }
+
     function announcedFallbackOrEmpty() {
         const stale = readAnyAnnouncedCache(true);
         return stale?.length ? stale : [];
@@ -262,6 +398,11 @@
             const merged = [];
             let seasons = [];
             let top = [];
+            let shiki = [];
+
+            // Параллельно тянем Shikimori (RU названия) — не ждём медленный Jikan
+            const shikiPromise = fetchShikimoriAnnouncedAsJikan().catch(() => []);
+
             try {
                 seasons = await jikanAnnouncedFetchPaged(
                     '/seasons/upcoming?limit=25&order_by=members&sort=desc',
@@ -295,7 +436,16 @@
                 if (!seasons.length && !isJikanTransientError(e)) throw e;
             }
 
-            const combined = dedupeMal([...seasons, ...top]);
+            try {
+                shiki = await shikiPromise;
+            } catch (_) {
+                shiki = [];
+            }
+            if (shiki.length) {
+                emitAnnouncedProgress([...seasons, ...top, ...shiki], onProgress);
+            }
+
+            const combined = dedupeMal([...seasons, ...top, ...shiki]);
             if (!combined.length) {
                 const stale = announcedFallbackOrEmpty();
                 _listCache = stale;
@@ -304,7 +454,13 @@
                 return stale;
             }
 
-            const list = sortAnnouncedList(filterJikanAnnouncedForHome(combined));
+            let list = sortAnnouncedList(filterJikanAnnouncedForHome(combined));
+            // Для Jikan-only без RU — точечно подтянуть названия
+            try {
+                list = await enrichAnnouncedWithRussianTitles(list);
+            } catch (_) {
+                /* ignore */
+            }
             _listCache = list;
             writeSessionCache(list);
             if (onProgress) onProgress(list);

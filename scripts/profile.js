@@ -37,20 +37,71 @@ function getRandomAvatar() {
     return availableAvatars[Math.floor(Math.random() * availableAvatars.length)];
 }
 
+/** Нормализация пути аватара (без ведущего /, без лишних пробелов). */
+function reminkoNormalizeAvatarPath(raw) {
+    let s = String(raw || '').trim();
+    if (!s) return '';
+    if (/^https?:\/\//i.test(s) || s.startsWith('data:') || s.startsWith('blob:')) return s;
+    s = s.replace(/^\/+/, '');
+    // Частый косяк кэша: "/Fons/1 b.jpg" vs "Fons/1 b.jpg"
+    if (/^fons\//i.test(s)) {
+        s = 'Fons/' + s.slice(5);
+    }
+    return s;
+}
+
+function reminkoIsRemoteOrCustomAvatar(url) {
+    const s = String(url || '').trim();
+    if (!s) return false;
+    if (/^https?:\/\//i.test(s) || s.startsWith('data:') || s.startsWith('blob:')) return true;
+    if (/googleusercontent|gravatar|supabase\.co\/storage/i.test(s)) return true;
+    const norm = reminkoNormalizeAvatarPath(s);
+    if (!norm) return false;
+    if (reminkoIsKnownPresetAvatar(norm)) return false;
+    if (/^Fons\/Creator/i.test(norm)) return false;
+    // Неизвестный путь — не затирать случайным пресетом
+    return true;
+}
+
+function reminkoIsKnownPresetAvatar(url) {
+    const norm = reminkoNormalizeAvatarPath(url);
+    if (!norm) return false;
+    if (availableAvatars.includes(norm)) return true;
+    // Регистр B/G у 6–15
+    const lowerMap = new Map(availableAvatars.map((a) => [a.toLowerCase(), a]));
+    return lowerMap.has(norm.toLowerCase());
+}
+
+function reminkoResolvePresetAvatarPath(url) {
+    const norm = reminkoNormalizeAvatarPath(url);
+    if (!norm) return '';
+    if (availableAvatars.includes(norm)) return norm;
+    const hit = availableAvatars.find((a) => a.toLowerCase() === norm.toLowerCase());
+    return hit || norm;
+}
+
 /** Мгновенный каркас профиля из session — без ожидания Supabase/каталога */
 function reminkoPaintProfileShell(userData, isViewMode) {
     const container = document.getElementById('profileContainer');
     if (!container || !userData) return;
     const name = String(userData.username || 'Пользователь').replace(/[<>&]/g, '');
-    const rawAv = userData.avatar || 'Fons/1 b.jpg';
-    const av =
-        typeof reminkoResolveAssetUrl === 'function' ? reminkoResolveAssetUrl(rawAv) : rawAv;
+    const rawAv = reminkoNormalizeAvatarPath(userData.avatar);
+    // Не рисуем дефолт Fons/1, если аватар ещё неизвестен — меньше мигания
+    const hasRealAv = !!(rawAv && rawAv !== 'Fons/1 b.jpg');
+    const av = hasRealAv
+        ? typeof reminkoResolveAssetUrl === 'function'
+            ? reminkoResolveAssetUrl(rawAv)
+            : rawAv
+        : '';
     const avCss = String(av).replace(/'/g, "\\'");
+    const avStyle = avCss
+        ? `background-image:url('${avCss}');background-size:cover;background-position:center;background-color:#2a2a32`
+        : 'background-color:#2a2a32';
     container.innerHTML = `
         <div class="profile-modern profile-modern--shell">
             <div class="profile-top">
                 <div class="profile-avatar-wrap">
-                    <div class="profile-avatar" style="background-image:url('${avCss}');background-size:cover;background-position:center"></div>
+                    <div class="profile-avatar" style="${avStyle}"></div>
                 </div>
                 <div class="profile-head-main">
                     <h1 class="profile-name">${name}</h1>
@@ -128,11 +179,16 @@ async function loadUserProfile(userId) {
             id: profile.id,
             email: '',
             username: profile.username || 'Пользователь',
-            avatar: isCreator ? 'Fons/Creator ava.png' : (profile.avatar || 'Fons/1 b.jpg'),
+            avatar: isCreator
+                ? 'Fons/Creator ava.png'
+                : reminkoNormalizeAvatarPath(profile.avatar) || 'Fons/1 b.jpg',
             gender: profile.gender || 'male',
             registerDate: profile.created_at || null,
             isSiteCreator: isCreator
         };
+
+        // Сразу каркас с реальным аватаром из profiles — без мигания дефолта
+        reminkoPaintProfileShell(userData, true);
         
         await renderProfile(userData, true); // true = просмотр чужого профиля
         initFavoritesScroll();
@@ -158,7 +214,7 @@ async function loadProfile() {
         id: user.id,
         email: user.email || '',
         username: user.username || user.email?.split('@')[0] || 'Пользователь',
-        avatar: user.avatar || 'Fons/1 b.jpg',
+        avatar: reminkoNormalizeAvatarPath(user.avatar) || 'Fons/1 b.jpg',
         gender: user.gender || 'male'
     };
     
@@ -170,7 +226,10 @@ async function loadProfile() {
             id: user.id,
             email: user.email || localData.email || '',
             username: user.username || localData.username || user.email?.split('@')[0] || 'Пользователь',
-            avatar: user.avatar || localData.avatar || 'Fons/1 b.jpg',
+            avatar:
+                reminkoNormalizeAvatarPath(user.avatar) ||
+                reminkoNormalizeAvatarPath(localData.avatar) ||
+                'Fons/1 b.jpg',
             gender: localData.gender || user.gender || 'male'
         };
     }
@@ -186,13 +245,26 @@ async function loadProfile() {
             
             if (profile && !error) {
                 finalUserData.username = profile.username || finalUserData.username;
-                finalUserData.avatar = profile.avatar || finalUserData.avatar;
+                finalUserData.avatar =
+                    reminkoNormalizeAvatarPath(profile.avatar) || finalUserData.avatar;
                 finalUserData.gender = profile.gender || finalUserData.gender;
                 if (profile.created_at) finalUserData.registerDate = profile.created_at;
             }
         } catch (err) {
             console.error('Ошибка загрузки профиля из Supabase:', err);
         }
+    }
+
+    // Выгрузить локальные избранные/историю в облако (чужие профили + счётчик)
+    if (typeof loadFavorites === 'function') {
+        try {
+            await loadFavorites(true);
+        } catch (_) {
+            /* ignore */
+        }
+    }
+    if (typeof reminkoPushLocalWatchHistoryToSupabase === 'function') {
+        reminkoPushLocalWatchHistoryToSupabase(user.id);
     }
     
     await renderProfile(finalUserData);
@@ -318,27 +390,31 @@ async function renderProfile(userData, isViewMode = false) {
 
     const registerDate = userData.registerDate ? new Date(userData.registerDate).toLocaleDateString('ru-RU') : 'Неизвестно';
 
-    // Избранное — без блокирующей загрузки всего Kodik-каталога до первого кадра
+    // Избранное — ждём каталог коротко, чтобы постеры/названия были у чужих профилей
     let favoritesAnime = [];
     let favoritesManga = [];
-    // Каталог подтянем в фоне для постеров (не блокирует открытие профиля)
-    void (async () => {
-        try {
-            if (typeof window.KodikCatalogStore?.load === 'function') {
-                await window.KodikCatalogStore.load();
-            }
-        } catch (_) {}
-    })();
+    try {
+        if (typeof window.KodikCatalogStore?.load === 'function') {
+            await Promise.race([
+                window.KodikCatalogStore.load(),
+                new Promise((r) => setTimeout(r, 4500))
+            ]);
+        }
+    } catch (_) {
+        /* ignore */
+    }
 
     const resolveFavAnime = (rawId) => {
         const id = parseInt(rawId, 10);
         if (Number.isNaN(id)) return null;
         let anime = typeof getAnimeById === 'function' ? getAnimeById(id) : null;
         if (!anime && typeof window.KodikCatalogStore?.getById === 'function') {
-            anime = window.KodikCatalogStore.getById(id) || window.KodikCatalogStore.getById(String(id));
+            anime =
+                window.KodikCatalogStore.getById(id) ||
+                window.KodikCatalogStore.getById(String(id));
         }
         if (!anime) {
-            return { id, title: 'Аниме #' + id, year: '' };
+            return { id, title: 'Аниме #' + id, year: '', posterUrl: null };
         }
         return typeof initAnimeStats === 'function' ? initAnimeStats(anime) : anime;
     };
@@ -347,10 +423,11 @@ async function renderProfile(userData, isViewMode = false) {
     let mangaIds = [];
     if (supabaseClient && profileUserId) {
         try {
-            const { data: favAnime } = await supabaseClient
+            const { data: favAnime, error: favErr } = await supabaseClient
                 .from('favorites_anime')
                 .select('anime_id')
                 .eq('user_id', profileUserId);
+            if (favErr) console.warn('[profile] favorites_anime:', favErr);
             if (Array.isArray(favAnime)) {
                 animeIds = favAnime.map((f) => f && f.anime_id).filter((id) => id != null);
             }
@@ -363,15 +440,20 @@ async function renderProfile(userData, isViewMode = false) {
             }
         } catch (_) {}
     }
-    if (!animeIds.length && !isViewMode) {
+    if (!isViewMode) {
         if (typeof loadFavorites === 'function') {
             try {
                 await loadFavorites(true);
             } catch (_) {}
         }
         if (typeof getFavoriteAnimeIds === 'function') {
-            animeIds = getFavoriteAnimeIds();
-        } else {
+            const localIds = getFavoriteAnimeIds() || [];
+            const merged = new Set([
+                ...animeIds.map(String),
+                ...localIds.map(String)
+            ]);
+            animeIds = [...merged];
+        } else if (!animeIds.length) {
             animeIds = userData.favorites || [];
         }
     }
@@ -409,12 +491,27 @@ async function renderProfile(userData, isViewMode = false) {
             ? reminkoResolveProfileTeamRole(userData, profileUserId)
             : null;
 
-    let avatarUrl = isCreatorAccount ? 'Fons/Creator ava.png' : (userData.avatar || 'Fons/1 b.jpg');
+    let avatarUrl = isCreatorAccount
+        ? 'Fons/Creator ava.png'
+        : reminkoNormalizeAvatarPath(userData.avatar) || 'Fons/1 b.jpg';
+    if (reminkoIsKnownPresetAvatar(avatarUrl)) {
+        avatarUrl = reminkoResolvePresetAvatarPath(avatarUrl);
+    }
     if (!isViewMode) {
         const userAvatars = currentUserAvatars.length > 0 ? currentUserAvatars : availableAvatars;
-        if (!isCreatorAccount && (!avatarUrl || !userAvatars.includes(avatarUrl))) {
+        const isCustom = reminkoIsRemoteOrCustomAvatar(avatarUrl);
+        const inPresets =
+            userAvatars.includes(avatarUrl) || reminkoIsKnownPresetAvatar(avatarUrl);
+        // Не перезаписывать Google/HTTPS/кастом и валидные пресеты случайным Fons
+        if (!isCreatorAccount && !avatarUrl) {
             avatarUrl = getRandomAvatar();
             updateUserData(userData.id, { avatar: avatarUrl });
+        } else if (!isCreatorAccount && !isCustom && !inPresets && /^Fons\//i.test(avatarUrl)) {
+            // Битый путь пресета (регистр/слеш) — попробуем починить, иначе оставить как есть
+            const fixed = reminkoResolvePresetAvatarPath(avatarUrl);
+            if (reminkoIsKnownPresetAvatar(fixed)) {
+                avatarUrl = fixed;
+            }
         }
     }
     const avatarUrlCss =
@@ -422,46 +519,49 @@ async function renderProfile(userData, isViewMode = false) {
     /* Как у всех: круг 150×150 из CSS, cover + center — без 92% / 18%, иначе «плывёт» круг */
     const avatarStyle = `background-image: url('${avatarUrlCss.replace(/'/g, "\\'")}'); background-size: cover; background-position: center; background-repeat: no-repeat;`;
 
-    // Время просмотра (для своего профиля из localStorage, для чужого из Supabase)
+    function formatWatchMinutes(totalMinutes) {
+        const m = Math.max(0, parseInt(totalMinutes, 10) || 0);
+        if (m >= 60) {
+            const hours = Math.floor(m / 60);
+            const mins = m % 60;
+            return mins > 0 ? `${hours} ч ${mins} мин` : `${hours} ч`;
+        }
+        return `${m} мин`;
+    }
+
+    // Время просмотра: свой = local ∪ Supabase; чужой = Supabase
     let watchTimeLabel = '0 мин';
+    const uniqueEpisodes = new Set();
+    const uniqueChapters = new Set();
+
     if (!isViewMode) {
         const watchHistory = userData.watchHistory || [];
-        const uniqueEpisodes = new Set();
-        const uniqueChapters = new Set();
-        watchHistory.forEach(entry => {
+        watchHistory.forEach((entry) => {
             if (entry.type === 'manga') {
-                uniqueChapters.add(`${entry.mangaId || entry.animeId}-${entry.chapterNumber || entry.episodeNumber}`);
+                uniqueChapters.add(
+                    `${entry.mangaId || entry.animeId}-${entry.chapterNumber || entry.episodeNumber}`
+                );
             } else {
                 uniqueEpisodes.add(`${entry.animeId}-${entry.episodeNumber}`);
             }
         });
-        const totalMinutes = (uniqueEpisodes.size * 24) + (uniqueChapters.size * 5);
-        if (totalMinutes >= 60) {
-            const hours = Math.floor(totalMinutes / 60);
-            const mins = totalMinutes % 60;
-            watchTimeLabel = mins > 0 ? `${hours} ч ${mins} мин` : `${hours} ч`;
-        } else {
-            watchTimeLabel = `${totalMinutes} мин`;
-        }
-    } else if (isUUIDFormat && supabaseClient) {
+    }
+
+    if (isUUIDFormat && supabaseClient) {
         try {
             const { data: watchedRows } = await supabaseClient
                 .from('watch_history')
                 .select('anime_id, episode_number')
                 .eq('user_id', profileUserId);
-            const uniqueEpisodes = new Set(
-                (watchedRows || []).map(row => `${row.anime_id}-${row.episode_number}`)
-            );
-            const totalMinutes = uniqueEpisodes.size * 24;
-            if (totalMinutes >= 60) {
-                const hours = Math.floor(totalMinutes / 60);
-                const mins = totalMinutes % 60;
-                watchTimeLabel = mins > 0 ? `${hours} ч ${mins} мин` : `${hours} ч`;
-            } else {
-                watchTimeLabel = `${totalMinutes} мин`;
-            }
-        } catch (_) {}
+            (watchedRows || []).forEach((row) => {
+                uniqueEpisodes.add(`${row.anime_id}-${row.episode_number}`);
+            });
+        } catch (_) {
+            /* ignore */
+        }
     }
+
+    watchTimeLabel = formatWatchMinutes(uniqueEpisodes.size * 24 + uniqueChapters.size * 5);
     if (isCreatorAccount) {
         watchTimeLabel = 'Несколько лет';
     }

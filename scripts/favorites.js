@@ -32,6 +32,34 @@
         }
     }
 
+    /** Локальные избранные → Supabase, чтобы чужие профили их видели. */
+    async function pushMissingFavoritesToSupabase(userId, knownIds) {
+        if (!userId || typeof supabaseClient === 'undefined' || !supabaseClient) return;
+        if (typeof getUserData !== 'function') return;
+        const ud = getUserData(userId);
+        const local = (ud && Array.isArray(ud.favorites) ? ud.favorites : []) || [];
+        const have = knownIds instanceof Set ? knownIds : new Set(knownIds || []);
+        const missing = [];
+        for (const raw of local) {
+            const id = parseAnimeId(raw);
+            if (id == null) continue;
+            const s = String(id);
+            if (have.has(s)) continue;
+            have.add(s);
+            missing.push(s);
+        }
+        if (!missing.length) return;
+        const rows = missing.map((anime_id) => ({ user_id: userId, anime_id }));
+        try {
+            const { error } = await supabaseClient
+                .from('favorites_anime')
+                .upsert(rows, { onConflict: 'user_id,anime_id', ignoreDuplicates: true });
+            if (error) console.warn('[favorites] sync local→cloud:', error);
+        } catch (e) {
+            console.warn('[favorites] sync local→cloud:', e);
+        }
+    }
+
     async function loadFavorites(force) {
         if (_loaded && !force) return _cache;
         if (_loading && !force) return _loading;
@@ -54,6 +82,15 @@
                 user = global.getCurrentUserSync();
             }
 
+            if (user && typeof getUserData === 'function') {
+                const ud = getUserData(user.id);
+                const favs = (ud && ud.favorites) || [];
+                for (const id of favs) {
+                    const n = parseAnimeId(id);
+                    if (n != null) next.add(String(n));
+                }
+            }
+
             if (user && !user.isAnonymous && typeof supabaseClient !== 'undefined' && supabaseClient) {
                 try {
                     const { data, error } = await supabaseClient
@@ -64,22 +101,18 @@
                         for (const row of data) {
                             if (row && row.anime_id != null) next.add(String(row.anime_id));
                         }
-                        syncLocalFavorites(user.id, [...next]);
-                        _cache.clear();
-                        for (const id of next) _cache.add(id);
-                        _loaded = true;
-                        dispatchFavoritesLoaded();
-                        return _cache;
                     }
+                    // Старые избранные жили только в localStorage — выгружаем в облако
+                    await pushMissingFavoritesToSupabase(user.id, next);
+                    syncLocalFavorites(user.id, [...next]);
+                    _cache.clear();
+                    for (const id of next) _cache.add(id);
+                    _loaded = true;
+                    dispatchFavoritesLoaded();
+                    return _cache;
                 } catch (e) {
                     console.warn('[favorites] Supabase:', e);
                 }
-            }
-
-            if (user && typeof getUserData === 'function') {
-                const ud = getUserData(user.id);
-                const favs = (ud && ud.favorites) || [];
-                for (const id of favs) next.add(String(id));
             }
 
             _cache.clear();
