@@ -9,7 +9,7 @@ html[data-rem-theme="dark"] body {
     background-size: cover, cover !important;
     background-position: center, center !important;
     background-repeat: no-repeat, no-repeat !important;
-    background-attachment: scroll, scroll !important;
+    background-attachment: fixed, fixed !important;
 }
 
 body.theme-dark {
@@ -31,7 +31,7 @@ body.theme-dark {
     background-size: cover, cover !important;
     background-position: center, center !important;
     background-repeat: no-repeat, no-repeat !important;
-    background-attachment: scroll, scroll !important;
+    background-attachment: fixed, fixed !important;
 }
 
 body.theme-dark .top-navbar {

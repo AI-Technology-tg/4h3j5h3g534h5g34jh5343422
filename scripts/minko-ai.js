@@ -379,6 +379,35 @@ function _minkoRedactTechBrandsInReply(text) {
     ]);
 }
 
+/** Убирает шаблон «манга в бете → иди на главную/каталог», которым модель часто затыкает ответ. */
+function _minkoStripBetaBoilerplate(text) {
+    if (!text || typeof text !== 'string') return text;
+    let out = text;
+    out = out.replace(
+        /манга\s+и\s+некоторы[ех]\s+функци\w*\s+пока\s+могут\s+быть\s+в\s+бете[^.?!]*[.?!]?\s*/gi,
+        ''
+    );
+    out = out.replace(
+        /манга\s+и\s+часть\s+разделов\s+[^.?!]*(бете|недоступн\w*)[^.?!]*[.?!]?\s*/gi,
+        ''
+    );
+    out = out.replace(
+        /начать\s+можно\s+с\s+(\[[^\]]+\]\([^)]+\)|[^\n.]+)(\s+или\s+(\[[^\]]+\]\([^)]+\)|[^\n.]+))?\.?\s*/gi,
+        ''
+    );
+    out = out.replace(
+        /сайт\s+в\s+бета[-\s]?версии[^.?!]*[.?!]?\s*/gi,
+        ''
+    );
+    out = out.replace(/\n{3,}/g, '\n\n').trim();
+    if (out.length >= 12) return out;
+    return _pickRandom([
+        '*зевает* О чём болтаем — тайтл, сюжет или что подобрать по настроению? 💤',
+        'Я тут, спрашивай про аниме или сайт — без канцелярита ✨',
+        '*потягивается* Давай по делу: что смотришь или что найти? 🌸',
+    ]);
+}
+
 // Особые ответы на клиенте (до запроса к прокси; единый тон для всех режимов)
 /** «Кто ты / кто создал / представься / любимое аниме» — только через ИИ, не заготовки. */
 function _isIdentityOrCreatorQuestion(m) {
@@ -2089,7 +2118,8 @@ const GROK_SYSTEM_BASE = `Ты — Minko, умная девушка-помощн
 
 САЙТ Re-Minko (знай от А до Я для юзера):
 - Работает: главная, каталог аниме, страница просмотра, календарь, ≈4K-каталог, Minko AI, Инфо, аккаунт (профиль/избранное/история/друзья/ЛС), watch-together, поддержка, документы.
-- В разработке/ограничено: манга (может быть закрыта), расширение ≈4K, бета-функции.
+- Про мангу / ≈4K / бету — только если пользователь сам спросил; не обещай полный манга-каталог.
+- ЗАПРЕТ: не выдавай шаблон «Манга и некоторые функции в бете, начни с главной/каталога» и не кидай ссылки на главную/каталог без прямой просьбы «с чего начать».
 - Розыгрыш $100 USDT: участие через Инфо → «Розыгрыш» → «Участвую»; цель — видеобзор о Re-Minko; призы 1/2/3 место ($60/$30/$10 + бонусы); результаты 1 августа. Ссылка: /info.html#giveaway
 - Если просят смотреть аниме и в сводке есть id каталога — добавь маркер [[watch:ЧИСЛОВОЙ_ID|Название]] (клиент покажет кнопку). Id и slug не выдумывай.
 - «На сайте дай аниме про X / на тему X» — если в сводке каталога есть совпадения, рекомендуй их (для «резеро» — сам Re:Zero), а не случайный isekai «похожий по атмосфере».
@@ -3396,6 +3426,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let assistantMessage = apiData.choices?.[0]?.message?.content?.trim() || '…';
             assistantMessage = _minkoRedactTechBrandsInReply(assistantMessage);
+            assistantMessage = _minkoStripBetaBoilerplate(assistantMessage);
             assistantMessage = _ensureSleepyFlavorInReply(assistantMessage);
             if (minkoNextInCycle === MINKO_SLEEP_CYCLE_EVERY - 1) {
                 assistantMessage = _pickRandom(MINKO_NINTH_CYCLE_WARNINGS) + '\n\n' + assistantMessage;
@@ -3614,6 +3645,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let assistantMessage = apiData.choices?.[0]?.message?.content?.trim() || '…';
             assistantMessage = _minkoRedactTechBrandsInReply(assistantMessage);
+            assistantMessage = _minkoStripBetaBoilerplate(assistantMessage);
             assistantMessage = _ensureSleepyFlavorInReply(assistantMessage);
 
             chatHistory.push({ role: 'assistant', content: assistantMessage });
