@@ -174,8 +174,25 @@
         gap: 0.45rem;
     }
 
-    .section-header-main .home-carousel-anim-toggle {
-        margin-left: 0.15rem;
+    .section-header--announced-anim {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            'main controls'
+            'anim anim';
+        gap: 0.55rem 0.65rem;
+    }
+
+    .section-header--announced-anim .section-header-main {
+        grid-area: main;
+    }
+
+    .section-header--announced-anim .home-carousel-anim-toggle--center {
+        grid-area: anim;
+        justify-self: center;
+    }
+
+    .section-header--announced-anim .home-section-controls {
+        grid-area: controls;
     }
 
     .home-carousel-anim-toggle {
@@ -1103,8 +1120,31 @@
 
 .section-header--with-toggle {
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 1rem;
+}
+
+/* Анонсы: Анимация ровно между «Скоро» и Сериалы/Фильмы */
+.section-header--announced-anim {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem 1rem;
+}
+
+.section-header--announced-anim .section-header-main {
+    justify-self: start;
+    flex: unset;
+}
+
+.section-header--announced-anim .home-carousel-anim-toggle--center {
+    justify-self: center;
+    grid-column: 2;
+}
+
+.section-header--announced-anim .home-section-controls {
+    justify-self: end;
+    grid-column: 3;
 }
 
 .section-header-main {

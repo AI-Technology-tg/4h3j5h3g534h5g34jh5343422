@@ -647,10 +647,11 @@
         return false;
     }
 
-    /** Детские / ежедневные мультсериалы — не показываем в анонсах календаря. */
+    /** Детские / ежедневные мультсериалы — синхрон с kodik-announced-filter.js */
     const REMINKO_KIDS_CARTOON_MAL = new Set([
         966, 1960, 235, 2406, 6149, 8687, 53876, 56566, 32353, 50418, 60534, 50250, 18941, 63356,
-        62933, 63383, 63150, 63403, 64357, 63641, 62683, 62856, 63042, 63352, 37096, 42295
+        62933, 63383, 63150, 63403, 64357, 63641, 62683, 62856, 63042, 63352, 37096, 42295, 63011,
+        63512, 64502, 63142, 63219, 41458,
     ]);
 
     const REMINKO_KIDS_GENRE_NAMES = new Set(['kids', 'детское', 'детский']);
@@ -672,7 +673,9 @@
     }
 
     function reminkoRowTitleLooksLikeKidsCartoon(row, meta) {
-        const title = String((row && row.title_ru) || (meta && meta.title) || '')
+        const title = String(
+            (row && (row.title_ru || row.title)) || (meta && meta.title) || ''
+        )
             .trim()
             .toLowerCase();
         if (!title) return false;
@@ -697,8 +700,15 @@
             /бейблэйд/,
             /отряд\s+мистики/,
             /qq\s+гома/,
+            /тиби-годзилла/,
+            /chibi\s+godzilla/,
+            /кардбот|cardbot/,
+            /мэйсаку|meisaku/,
+            /всезнайка/,
+            /счастливая\s+улыбка/,
+            /origami\s+ninja/,
             /детектив\s+конан/,
-            /detective\s+conan/
+            /detective\s+conan/,
         ];
         return patterns.some((re) => re.test(title));
     }
@@ -716,19 +726,27 @@
 
     /** Детский мульт / долгий ежедневный сериал — скрываем из календарных анонсов. */
     function reminkoIsKidsCartoonCalendarRow(row, catalogMeta) {
-        const mal = parseInt(row && row.mal_id, 10);
-        if (Number.isFinite(mal) && mal > 0 && REMINKO_KIDS_CARTOON_MAL.has(mal)) return true;
-        if (reminkoRowHasKidsGenre(catalogMeta)) return true;
-        if (reminkoRowTitleLooksLikeKidsCartoon(row, catalogMeta)) return true;
+        const shared = global.ReminkoKodikAnnouncedFilter;
+        if (shared && typeof shared.isKidsCartoonRow === 'function') {
+            if (shared.isKidsCartoonRow(row, catalogMeta)) return true;
+        } else {
+            const mal = parseInt(row && row.mal_id, 10);
+            if (Number.isFinite(mal) && mal > 0 && REMINKO_KIDS_CARTOON_MAL.has(mal)) return true;
+            if (reminkoRowHasKidsGenre(catalogMeta)) return true;
+            if (reminkoRowTitleLooksLikeKidsCartoon(row, catalogMeta)) return true;
+        }
         if (reminkoIsMislabeledOngoingPremiere(row, catalogMeta)) return true;
         return false;
     }
 
-    /** Настоящая премьера: 1-я серия, не детский мульт и не уже идущий онгоинг. */
+    /** Настоящая премьера: 1-я серия, не онгоинг/мульт. */
     function reminkoIsTrueCalendarAnnounced(row, catalogMeta) {
         const ep = parseInt(row && row.next_episode, 10) || 1;
         if (ep > 1) return false;
         if (!row || !row.next_at || !Number.isFinite(Date.parse(row.next_at))) return false;
+        const st = String((row && row.status) || '').toLowerCase();
+        // Онгоинги с next_episode=1 (мультики и т.п.) — не анонсы
+        if (st === 'ongoing' || st === 'released' || st === 'finished') return false;
         if (reminkoIsKidsCartoonCalendarRow(row, catalogMeta)) return false;
         if (catalogMeta && catalogMeta.status === 'Онгоинг') {
             const last =

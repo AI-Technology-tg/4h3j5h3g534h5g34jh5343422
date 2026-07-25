@@ -105,7 +105,7 @@
     <link rel="manifest" href="Fons/vavo/site.webmanifest">
     <link rel="stylesheet" href="styles/main.css?v=20260725p">
     <link rel="stylesheet" href="styles/sidebar-layout.css?v=20260724a">
-    <link rel="stylesheet" href="styles/home.css?v=20260725p">
+    <link rel="stylesheet" href="styles/home.css?v=20260725q">
     <link rel="stylesheet" href="styles/loading.css">
     <link rel="stylesheet" href="styles/register-flow.css">
     <link rel="stylesheet" href="styles/notifications.css">
@@ -269,16 +269,16 @@
 
             <!-- Kodik: анонсы / выходит / популярное -->
             <section class="home-section home-section--kodik" id="kodikHomeAnnounced" hidden aria-hidden="true">
-                <div class="section-header section-header--with-toggle">
+                <div class="section-header section-header--with-toggle section-header--announced-anim">
                     <div class="section-header-main">
                         <h2 class="section-title">Анонсировано</h2>
                         <span class="section-badge badge-upcoming">Скоро</span>
-                        <label class="home-carousel-anim-toggle" title="Автопрокрутка постеров в лентах">
-                            <input type="checkbox" data-home-carousel-auto checked>
-                            <span class="home-carousel-anim-toggle__track" aria-hidden="true"><span class="home-carousel-anim-toggle__knob"></span></span>
-                            <span class="home-carousel-anim-toggle__text">Анимация</span>
-                        </label>
                     </div>
+                    <label class="home-carousel-anim-toggle home-carousel-anim-toggle--center" title="Автопрокрутка постеров в лентах">
+                        <input type="checkbox" data-home-carousel-auto checked>
+                        <span class="home-carousel-anim-toggle__track" aria-hidden="true"><span class="home-carousel-anim-toggle__knob"></span></span>
+                        <span class="home-carousel-anim-toggle__text">Анимация</span>
+                    </label>
                     <div class="home-section-controls">
                         <div class="home-type-toggle" role="tablist" aria-label="Тип: анонсы">
                             <button type="button" class="home-type-toggle-btn is-active" data-media="serial" role="tab" aria-selected="true">Сериалы</button>
@@ -386,7 +386,7 @@
     <script src="scripts/direct-messages.js" defer></script>
     <script src="scripts/oauth-auth.js"></script>
     <script src="scripts/mature-content.js?v=20260724i" defer></script>
-    <script src="scripts/kodik-announced-filter.js?v=20260724n" defer></script>
+    <script src="scripts/kodik-announced-filter.js?v=20260725q" defer></script>
     <script src="scripts/data.js?v=20260725c" defer></script>
     <script src="scripts/anime4k-catalog-store.js" defer></script>
     <script src="scripts/anime4k-data.js" defer></script>
@@ -412,7 +412,7 @@
     <script src="scripts/friends.js" defer></script>
     <script src="scripts/main.js"></script>
     <script src="scripts/loading.js" defer></script>
-    <script src="scripts/release-countdown.js?v=20260724m" defer></script>
+    <script src="scripts/release-countdown.js?v=20260725q" defer></script>
     <div id="homeSocialPanel" class="home-social-panel" hidden>
         <div class="home-social-panel__backdrop"></div>
         <div class="home-social-panel__card" role="dialog" aria-modal="true" aria-labelledby="homeSocialPanelTitle">
