@@ -379,10 +379,19 @@ function _minkoRedactTechBrandsInReply(text) {
     ]);
 }
 
-/** Убирает шаблон «манга в бете → иди на главную/каталог», которым модель часто затыкает ответ. */
-function _minkoStripBetaBoilerplate(text) {
+/**
+ * Убирает markdown/URL-ссылки из ответа (палевят «[главной](https://…)»).
+ * Сохраняет служебные маркеры [[watch:…]] и [[nav:…]] для кнопок.
+ */
+function _minkoStripReplyLinks(text) {
     if (!text || typeof text !== 'string') return text;
-    let out = text;
+    const stash = [];
+    let out = text.replace(/\[\[(watch|nav):[^\]]+\]\]/gi, (m) => {
+        const i = stash.length;
+        stash.push(m);
+        return `\u0000MK${i}\u0000`;
+    });
+
     out = out.replace(
         /манга\s+и\s+некоторы[ех]\s+функци\w*\s+пока\s+могут\s+быть\s+в\s+бете[^.?!]*[.?!]?\s*/gi,
         ''
@@ -391,16 +400,22 @@ function _minkoStripBetaBoilerplate(text) {
         /манга\s+и\s+часть\s+разделов\s+[^.?!]*(бете|недоступн\w*)[^.?!]*[.?!]?\s*/gi,
         ''
     );
-    out = out.replace(
-        /начать\s+можно\s+с\s+(\[[^\]]+\]\([^)]+\)|[^\n.]+)(\s+или\s+(\[[^\]]+\]\([^)]+\)|[^\n.]+))?\.?\s*/gi,
-        ''
-    );
-    out = out.replace(
-        /сайт\s+в\s+бета[-\s]?версии[^.?!]*[.?!]?\s*/gi,
-        ''
-    );
+    out = out.replace(/сайт\s+в\s+бета[-\s]?версии[^.?!]*[.?!]?\s*/gi, '');
+    out = out.replace(/начать\s+можно\s+с\s+/gi, '');
+
+    // [текст](url) → просто текст без URL
+    out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/gi, '$1');
+    // голые URL сайта / пути
+    out = out.replace(/https?:\/\/(?:www\.)?re-minko-anime\.com\/?[^\s)\]>"']*/gi, '');
+    out = out.replace(/(?:^|[\s(])(\/(?:catalog|anime|info|minko-ai|favorites|history|profile|watch-together)[^\s)\]>"']*)/gi, ' ');
+    // «или каталога аниме» хвосты после вычищения ссылок
+    out = out.replace(/\s{2,}/g, ' ');
+    out = out.replace(/\s+или\s+каталог\w*\s+аниме\.?/gi, '');
+    out = out.replace(/\s+или\s+главн\w*\.?/gi, '');
+
+    out = out.replace(/\u0000MK(\d+)\u0000/g, (_, i) => stash[Number(i)] || '');
     out = out.replace(/\n{3,}/g, '\n\n').trim();
-    if (out.length >= 12) return out;
+    if (out.length >= 8) return out;
     return _pickRandom([
         '*зевает* О чём болтаем — тайтл, сюжет или что подобрать по настроению? 💤',
         'Я тут, спрашивай про аниме или сайт — без канцелярита ✨',
@@ -2074,9 +2089,12 @@ const GROK_SYSTEM_BASE = `Ты — Minko, умная девушка-помощн
 - Про мангу / ≈4K / бету — только если пользователь сам спросил; не обещай полный манга-каталог.
 - ЗАПРЕТ: не выдавай шаблон «Манга и некоторые функции в бете, начни с главной/каталога» и не кидай ссылки на главную/каталог без прямой просьбы «с чего начать».
 - Розыгрыш $100 USDT: участие через Инфо → «Розыгрыш» → «Участвую»; цель — видеобзор о Re-Minko; призы 1/2/3 место ($60/$30/$10 + бонусы); результаты 1 августа. Ссылка: /info.html#giveaway
-- Если просят смотреть аниме и в сводке есть id каталога — добавь маркер [[watch:ЧИСЛОВОЙ_ID|Название]] (клиент покажет кнопку). Id и slug не выдумывай.
-- «На сайте дай аниме про X / на тему X» — если в сводке каталога есть совпадения, рекомендуй их (для «резеро» — сам Re:Zero), а не случайный isekai «похожий по атмосфере».
-- Даты сезонов и «вышел в этом году» — только из проверенной сводки; иначе честно скажи, что не уверена.`;
+- КНОПКИ, НЕ ССЫЛКИ: никогда не пиши markdown вроде [текст](https://…) и никогда не вставляй полные URL (re-minko-anime.com/…). Это выглядит как спам.
+- Если просят найти / смотреть / рекомендовать аниме и в сводке есть id — только маркер [[watch:ЧИСЛОВОЙ_ID|Название]] (клиент сделает кнопку «Смотреть»). Id не выдумывай.
+- Если спрашивают где анонсы / премьеры в каталоге — словами: открой каталог аниме и включи статус «Анонс»; плюс маркер [[nav:catalog-announced|Каталог: Анонсы]]. Для календаря серий — [[nav:calendar|Календарь]].
+- Другие разделы называй словами («в профиле», «в избранном»), без URL и без markdown-ссылок.
+- «На сайте дай аниме про X» — если в сводке есть совпадения, рекомендуй их (для «резеро» — сам Re:Zero).
+- Даты сезонов — только из проверенной сводки; иначе честно скажи, что не уверена.`;
 
 // История сообщений
 let chatHistory = [
@@ -3379,7 +3397,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let assistantMessage = apiData.choices?.[0]?.message?.content?.trim() || '…';
             assistantMessage = _minkoRedactTechBrandsInReply(assistantMessage);
-            assistantMessage = _minkoStripBetaBoilerplate(assistantMessage);
+            assistantMessage = _minkoStripReplyLinks(assistantMessage);
             assistantMessage = _ensureSleepyFlavorInReply(assistantMessage);
             if (minkoNextInCycle === MINKO_SLEEP_CYCLE_EVERY - 1) {
                 assistantMessage = _pickRandom(MINKO_NINTH_CYCLE_WARNINGS) + '\n\n' + assistantMessage;
@@ -3598,7 +3616,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let assistantMessage = apiData.choices?.[0]?.message?.content?.trim() || '…';
             assistantMessage = _minkoRedactTechBrandsInReply(assistantMessage);
-            assistantMessage = _minkoStripBetaBoilerplate(assistantMessage);
+            assistantMessage = _minkoStripReplyLinks(assistantMessage);
             assistantMessage = _ensureSleepyFlavorInReply(assistantMessage);
 
             chatHistory.push({ role: 'assistant', content: assistantMessage });
@@ -4307,28 +4325,50 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        if (
-            role === 'assistant' &&
-            options &&
-            Array.isArray(options.catalogHits) &&
-            options.catalogHits.length
-        ) {
-            const alreadyLinked = /\[\[watch:/i.test(String(content || ''));
+        if (role === 'assistant' && options) {
             const um = String(options.userMessage || '');
-            // «сколько серий / какая последняя» — не вешаем чужие «Смотреть»
-            const factOnly =
-                /скольк|какая\s+последн|какая\s+сери|последн\w*\s+сери|сколько\s+сери|эпизод\w*\s+вышл/i.test(
-                    um
-                );
-            const wantsWatch =
-                !factOnly &&
-                /смотр|открой|найди|дай\s*ссыл|перейд|где\s*смотр|watch|каталог|посмотр|тайтл|рекоменд|похож/i.test(
-                    um
-                );
-            if (!alreadyLinked && (wantsWatch || (!factOnly && options.catalogHits.length === 1))) {
-                const bubble = messageDiv.querySelector('.message-bubble');
-                const cards = _buildCatalogWatchCardsHtml(options.catalogHits);
-                if (bubble && cards) bubble.insertAdjacentHTML('beforeend', cards);
+            const bubble = messageDiv.querySelector('.message-bubble');
+            const contentStr = String(content || '');
+
+            if (Array.isArray(options.catalogHits) && options.catalogHits.length) {
+                const alreadyLinked = /\[\[watch:/i.test(contentStr);
+                // «сколько серий / какая последняя» — не вешаем чужие «Смотреть»
+                const factOnly =
+                    /скольк|какая\s+последн|какая\s+сери|последн\w*\s+сери|сколько\s+сери|эпизод\w*\s+вышл/i.test(
+                        um
+                    );
+                const wantsWatch =
+                    !factOnly &&
+                    /смотр|открой|найди|дай\s*ссыл|перейд|где\s*смотр|watch|посмотр|тайтл|рекоменд|похож/i.test(
+                        um
+                    );
+                if (!alreadyLinked && (wantsWatch || (!factOnly && options.catalogHits.length === 1))) {
+                    const cards = _buildCatalogWatchCardsHtml(options.catalogHits);
+                    if (bubble && cards) bubble.insertAdjacentHTML('beforeend', cards);
+                }
+            }
+
+            // Анонсы / календарь — кнопка раздела, без markdown-ссылок в тексте
+            const alreadyNav = /\[\[nav:/i.test(contentStr) || (bubble && bubble.querySelector('[data-minko-nav]'));
+            if (!alreadyNav && bubble) {
+                const wantsAnnounced =
+                    /анонс|премьер|скоро\s+выйд|где\s+(смотреть|смотреть\s+)?анонс|каталог.*(анонс|премьер)/i.test(
+                        um
+                    );
+                const wantsCalendar =
+                    /календар|расписан\w*\s+сери|когда\s+выйд|таймер\w*\s+сери/i.test(um) &&
+                    !/анонс/i.test(um);
+                if (wantsAnnounced) {
+                    bubble.insertAdjacentHTML(
+                        'beforeend',
+                        `<div class="minko-watch-chips" role="group"><a class="minko-watch-chip minko-watch-chip--nav" href="catalog/anime.html?status=${encodeURIComponent('Анонс')}" data-minko-nav="1"><span class="minko-watch-chip__label">Открыть</span><span class="minko-watch-chip__title">Каталог: Анонсы</span></a></div>`
+                    );
+                } else if (wantsCalendar) {
+                    bubble.insertAdjacentHTML(
+                        'beforeend',
+                        `<div class="minko-watch-chips" role="group"><a class="minko-watch-chip minko-watch-chip--nav" href="catalog/calendar.html" data-minko-nav="1"><span class="minko-watch-chip__label">Открыть</span><span class="minko-watch-chip__title">Календарь</span></a></div>`
+                    );
+                }
             }
         }
 
@@ -4372,9 +4412,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<div class="minko-watch-chips" role="group" aria-label="Ссылки на просмотр">${cards.join('')}</div>`;
     }
 
+    function _minkoNavChipHref(key) {
+        const k = String(key || '')
+            .trim()
+            .toLowerCase();
+        if (k === 'catalog-announced' || k === 'announced' || k === 'anons') {
+            return 'catalog/anime.html?status=' + encodeURIComponent('Анонс');
+        }
+        if (k === 'catalog' || k === 'catalog-anime' || k === 'anime') {
+            return 'catalog/anime.html';
+        }
+        if (k === 'calendar') return 'catalog/calendar.html';
+        if (k === 'catalog-4k' || k === 'anime-4k' || k === '4k') return 'catalog/anime-4k.html';
+        if (k === 'info') return 'info.html';
+        if (k === 'giveaway') return 'info.html#giveaway';
+        return '';
+    }
+
     function formatMessage(text) {
         const watchChips = [];
         let raw = String(text || '');
+        // На всякий случай вычищаем markdown-ссылки, если проскочили до UI
+        raw = raw.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/gi, '$1');
+        raw = raw.replace(/https?:\/\/(?:www\.)?re-minko-anime\.com\/?[^\s)\]>"']*/gi, '');
+
         raw = raw.replace(/\[\[watch:(\d+)\|([^\]]{1,120})\]\]/gi, (_, id, title) => {
             // Не показываем выдуманные id: только то, что есть в каталоге (если каталог уже загружен)
             let valid = true;
@@ -4398,6 +4459,19 @@ document.addEventListener('DOMContentLoaded', () => {
             );
             return '';
         });
+
+        raw = raw.replace(/\[\[nav:([a-z0-9_-]+)\|([^\]]{1,80})\]\]/gi, (_, key, label) => {
+            const href = _minkoNavChipHref(key);
+            if (!href) return '';
+            watchChips.push(
+                `<a class="minko-watch-chip minko-watch-chip--nav" href="${escapeHtml(href)}" data-minko-nav="1">` +
+                    `<span class="minko-watch-chip__label">Открыть</span>` +
+                    `<span class="minko-watch-chip__title">${escapeHtml(String(label).trim())}</span>` +
+                    `</a>`
+            );
+            return '';
+        });
+
         raw = raw.replace(/\n{3,}/g, '\n\n').trim();
 
         raw = escapeHtml(raw);
@@ -4409,7 +4483,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let body = '<p>' + raw.split('<br><br>').join('</p><p>') + '</p>';
         if (watchChips.length) {
             body +=
-                `<div class="minko-watch-chips" role="group" aria-label="Ссылки на просмотр">` +
+                `<div class="minko-watch-chips" role="group" aria-label="Кнопки">` +
                 watchChips.join('') +
                 `</div>`;
         }
