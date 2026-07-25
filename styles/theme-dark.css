@@ -286,6 +286,24 @@ body.theme-dark .home-type-toggle {
     border: 1px solid rgba(157, 77, 255, 0.4) !important;
 }
 
+body.theme-dark .home-carousel-anim-toggle {
+    color: #d8c7ff !important;
+}
+
+body.theme-dark .home-carousel-anim-toggle__track {
+    background: rgba(18, 8, 31, 0.95) !important;
+    border-color: rgba(157, 77, 255, 0.45) !important;
+}
+
+body.theme-dark .home-carousel-anim-toggle input:checked + .home-carousel-anim-toggle__track {
+    background: linear-gradient(135deg, #ff2d55, #b00045) !important;
+    border-color: rgba(255, 45, 85, 0.55) !important;
+}
+
+body.theme-dark .home-carousel-anim-toggle__knob {
+    background: #f3e8ff !important;
+}
+
 body.theme-dark .section-badge {
     background: rgba(157, 77, 255, 0.15) !important;
     color: #c35bff !important;

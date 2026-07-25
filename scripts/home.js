@@ -405,6 +405,7 @@ const HOME_CAROUSEL_ANIM_MS = 780;
 const HOME_CAROUSEL_DRAG_PX = 22;
 const HOME_CAROUSEL_PAUSE_MS = 5000;
 const HOME_CAROUSEL_TAP_MAX_MS = 380;
+const HOME_CAROUSEL_AUTO_SETTING = 'homeCarouselAuto';
 
 function homeCarouselEaseOutCubic(t) {
     const x = Math.min(1, Math.max(0, t));
@@ -416,6 +417,126 @@ function homeCarouselPrefersReducedMotion() {
         return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     } catch (_) {
         return false;
+    }
+}
+
+function reminkoHomeCarouselUserId() {
+    try {
+        const u =
+            typeof getCurrentUserSync === 'function'
+                ? getCurrentUserSync()
+                : typeof window !== 'undefined' && typeof window.getCurrentUserSync === 'function'
+                  ? window.getCurrentUserSync()
+                  : null;
+        if (u && u.id && !u.isAnonymous) return String(u.id);
+    } catch (_) {
+        /* ignore */
+    }
+    return '';
+}
+
+function reminkoHomeCarouselStorageKey(userId) {
+    return userId
+        ? `reminko_home_carousel_auto_${userId}`
+        : 'reminko_home_carousel_auto_guest';
+}
+
+/** Автопрокрутка лент Kodik: по умолчанию вкл.; настройка привязана к user id. */
+function isHomeCarouselAutoEnabled() {
+    const uid = reminkoHomeCarouselUserId();
+    if (uid) {
+        try {
+            const ud = typeof getUserData === 'function' ? getUserData(uid) : null;
+            if (ud?.settings && typeof ud.settings[HOME_CAROUSEL_AUTO_SETTING] === 'boolean') {
+                return ud.settings[HOME_CAROUSEL_AUTO_SETTING] !== false;
+            }
+        } catch (_) {
+            /* ignore */
+        }
+    }
+    try {
+        const raw = localStorage.getItem(reminkoHomeCarouselStorageKey(uid));
+        if (raw === '0') return false;
+        if (raw === '1') return true;
+    } catch (_) {
+        /* ignore */
+    }
+    return true;
+}
+
+function setHomeCarouselAutoEnabled(enabled) {
+    const on = !!enabled;
+    const uid = reminkoHomeCarouselUserId();
+    try {
+        localStorage.setItem(reminkoHomeCarouselStorageKey(uid), on ? '1' : '0');
+    } catch (_) {
+        /* ignore */
+    }
+    if (uid) {
+        if (typeof saveSetting === 'function') {
+            saveSetting(HOME_CAROUSEL_AUTO_SETTING, on, { silent: true });
+        } else if (typeof updateUserData === 'function') {
+            try {
+                const ud =
+                    typeof ensureUserDataRecord === 'function'
+                        ? ensureUserDataRecord(uid)
+                        : typeof getUserData === 'function'
+                          ? getUserData(uid)
+                          : null;
+                const settings = { ...(ud?.settings || {}), [HOME_CAROUSEL_AUTO_SETTING]: on };
+                updateUserData(uid, { settings });
+            } catch (_) {
+                /* ignore */
+            }
+        }
+    }
+    applyHomeCarouselAutoPreference();
+}
+
+function applyHomeCarouselAutoPreference() {
+    const on = isHomeCarouselAutoEnabled();
+    document.documentElement.classList.toggle('home-carousel-auto-off', !on);
+    document.querySelectorAll('[data-home-carousel-auto]').forEach((input) => {
+        if (input instanceof HTMLInputElement) input.checked = on;
+    });
+    if (!on && typeof window !== 'undefined' && window.__homeCarouselEls) {
+        window.__homeCarouselEls.forEach((el) => {
+            if (typeof el._homeCarouselCancelAnim === 'function') el._homeCarouselCancelAnim();
+        });
+    }
+}
+
+function initHomeCarouselAutoToggles() {
+    if (typeof document === 'undefined' || document.documentElement.dataset.homeCarouselToggleInit === '1') {
+        applyHomeCarouselAutoPreference();
+        return;
+    }
+    document.documentElement.dataset.homeCarouselToggleInit = '1';
+    document.addEventListener('change', (e) => {
+        const input = e.target;
+        if (!(input instanceof HTMLInputElement) || !input.hasAttribute('data-home-carousel-auto')) return;
+        setHomeCarouselAutoEnabled(input.checked);
+    });
+    applyHomeCarouselAutoPreference();
+    try {
+        if (typeof supabaseClient !== 'undefined' && supabaseClient?.auth?.onAuthStateChange) {
+            supabaseClient.auth.onAuthStateChange(() => {
+                applyHomeCarouselAutoPreference();
+            });
+        }
+    } catch (_) {
+        /* ignore */
+    }
+    window.addEventListener('reminko:auth-changed', () => {
+        applyHomeCarouselAutoPreference();
+    });
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initHomeCarouselAutoToggles);
+    } else {
+        initHomeCarouselAutoToggles();
     }
 }
 
@@ -482,9 +603,11 @@ function ensureHomeCarouselMaster() {
         function frame(now) {
             if (!document.hidden && now - lastTick >= HOME_CAROUSEL_INTERVAL_MS) {
                 lastTick = now;
-                window.__homeCarouselEls.forEach((el) => {
-                    if (typeof el._homeCarouselAdvance === 'function') el._homeCarouselAdvance();
-                });
+                if (isHomeCarouselAutoEnabled()) {
+                    window.__homeCarouselEls.forEach((el) => {
+                        if (typeof el._homeCarouselAdvance === 'function') el._homeCarouselAdvance();
+                    });
+                }
             }
             requestAnimationFrame(frame);
         }
@@ -513,14 +636,16 @@ function ensureHomeCarouselMaster() {
         }
         if (now - lastTick >= HOME_CAROUSEL_INTERVAL_MS) {
             lastTick = now;
-            window.__homeCarouselEls.forEach((el) => {
-                if (
-                    window.__homeCarouselVisible.has(el) &&
-                    typeof el._homeCarouselAdvance === 'function'
-                ) {
-                    el._homeCarouselAdvance();
-                }
-            });
+            if (isHomeCarouselAutoEnabled()) {
+                window.__homeCarouselEls.forEach((el) => {
+                    if (
+                        window.__homeCarouselVisible.has(el) &&
+                        typeof el._homeCarouselAdvance === 'function'
+                    ) {
+                        el._homeCarouselAdvance();
+                    }
+                });
+            }
         }
         rafId = requestAnimationFrame(frame);
     }
@@ -747,6 +872,7 @@ function enhanceHomeHorizontalScroll(container) {
     );
 
     container._homeCarouselAdvance = () => {
+        if (!isHomeCarouselAutoEnabled()) return;
         if (document.hidden) return;
         if (Date.now() < pauseUntil) return;
         if (drag || animating) return;
@@ -764,12 +890,15 @@ function enhanceHomeHorizontalScroll(container) {
         animateScrollTo(next, HOME_CAROUSEL_ANIM_MS);
     };
 
+    container._homeCarouselCancelAnim = cancelAutoScrollAnim;
+
     registerCarouselEl(container);
 
     container._homeHorizontalTeardown = () => {
         cancelAutoScrollAnim();
         unregisterCarouselEl(container);
         delete container._homeCarouselAdvance;
+        delete container._homeCarouselCancelAnim;
         container.removeEventListener('pointerdown', onPointerDown);
         container.removeEventListener('pointermove', onPointerMove);
         container.removeEventListener('pointerup', onPointerEnd);
@@ -781,6 +910,9 @@ function enhanceHomeHorizontalScroll(container) {
 
 if (typeof window !== 'undefined') {
     window.enhanceHomeHorizontalScroll = enhanceHomeHorizontalScroll;
+    window.isHomeCarouselAutoEnabled = isHomeCarouselAutoEnabled;
+    window.setHomeCarouselAutoEnabled = setHomeCarouselAutoEnabled;
+    window.applyHomeCarouselAutoPreference = applyHomeCarouselAutoPreference;
 }
 
 function initialEpLine(anime) {

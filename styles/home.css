@@ -167,6 +167,27 @@
         grid-template-columns: 1fr;
         gap: 1.1rem;
     }
+
+    .home-section-controls {
+        width: 100%;
+        justify-content: space-between;
+        gap: 0.45rem;
+    }
+
+    .home-carousel-anim-toggle {
+        font-size: 0.7rem;
+    }
+
+    .home-carousel-anim-toggle__text {
+        max-width: 5.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .home-type-toggle-btn {
+        padding: 0.32rem 0.7rem;
+        font-size: 0.74rem;
+    }
 }
 
 .home-hero-watch-label {
@@ -1087,6 +1108,80 @@
     flex-wrap: wrap;
     flex: 1;
     min-width: 0;
+}
+
+.home-section-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.home-carousel-anim-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    user-select: none;
+    color: #c4b5fd;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.home-carousel-anim-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+
+.home-carousel-anim-toggle__track {
+    position: relative;
+    width: 2.1rem;
+    height: 1.15rem;
+    border-radius: 999px;
+    background: rgba(55, 48, 78, 0.95);
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    transition: background 0.2s, border-color 0.2s;
+    flex-shrink: 0;
+}
+
+.home-carousel-anim-toggle__knob {
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 50%;
+    background: #e5e7eb;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.home-carousel-anim-toggle input:checked + .home-carousel-anim-toggle__track {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border-color: rgba(196, 181, 253, 0.55);
+}
+
+.home-carousel-anim-toggle input:checked + .home-carousel-anim-toggle__track .home-carousel-anim-toggle__knob {
+    transform: translateX(0.9rem);
+    background: #fff;
+}
+
+.home-carousel-anim-toggle input:focus-visible + .home-carousel-anim-toggle__track {
+    outline: 2px solid rgba(167, 139, 250, 0.85);
+    outline-offset: 2px;
+}
+
+.home-carousel-anim-toggle__text {
+    white-space: nowrap;
+}
+
+html.home-carousel-auto-off .home-section--kodik .home-horizontal-scroll {
+    scroll-behavior: auto;
 }
 
 .home-type-toggle {

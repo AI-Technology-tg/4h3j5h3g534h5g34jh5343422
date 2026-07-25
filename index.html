@@ -105,7 +105,7 @@
     <link rel="manifest" href="Fons/vavo/site.webmanifest">
     <link rel="stylesheet" href="styles/main.css?v=20260724q">
     <link rel="stylesheet" href="styles/sidebar-layout.css?v=20260724a">
-    <link rel="stylesheet" href="styles/home.css?v=20260724q">
+    <link rel="stylesheet" href="styles/home.css?v=20260725a">
     <link rel="stylesheet" href="styles/loading.css">
     <link rel="stylesheet" href="styles/register-flow.css">
     <link rel="stylesheet" href="styles/notifications.css">
@@ -275,9 +275,16 @@
                         <span class="section-badge badge-upcoming">Скоро</span>
                         <a href="catalog/calendar.html" class="section-more-link">Календарь →</a>
                     </div>
-                    <div class="home-type-toggle" role="tablist" aria-label="Тип: анонсы">
-                        <button type="button" class="home-type-toggle-btn is-active" data-media="serial" role="tab" aria-selected="true">Сериалы</button>
-                        <button type="button" class="home-type-toggle-btn" data-media="film" role="tab" aria-selected="false">Фильмы</button>
+                    <div class="home-section-controls">
+                        <label class="home-carousel-anim-toggle" title="Автопрокрутка постеров в ленте">
+                            <input type="checkbox" data-home-carousel-auto checked>
+                            <span class="home-carousel-anim-toggle__track" aria-hidden="true"><span class="home-carousel-anim-toggle__knob"></span></span>
+                            <span class="home-carousel-anim-toggle__text">Анимация</span>
+                        </label>
+                        <div class="home-type-toggle" role="tablist" aria-label="Тип: анонсы">
+                            <button type="button" class="home-type-toggle-btn is-active" data-media="serial" role="tab" aria-selected="true">Сериалы</button>
+                            <button type="button" class="home-type-toggle-btn" data-media="film" role="tab" aria-selected="false">Фильмы</button>
+                        </div>
                     </div>
                 </div>
                 <p class="section-subtitle">Анонсированные аниме из календаря Kodik</p>
@@ -293,9 +300,16 @@
                         <span class="section-badge badge-season">Онгоинг</span>
                         <a href="catalog/calendar.html" class="section-more-link">Календарь →</a>
                     </div>
-                    <div class="home-type-toggle" role="tablist" aria-label="Тип: выходит">
-                        <button type="button" class="home-type-toggle-btn is-active" data-media="serial" role="tab" aria-selected="true">Сериалы</button>
-                        <button type="button" class="home-type-toggle-btn" data-media="film" role="tab" aria-selected="false">Фильмы</button>
+                    <div class="home-section-controls">
+                        <label class="home-carousel-anim-toggle" title="Автопрокрутка постеров в ленте">
+                            <input type="checkbox" data-home-carousel-auto checked>
+                            <span class="home-carousel-anim-toggle__track" aria-hidden="true"><span class="home-carousel-anim-toggle__knob"></span></span>
+                            <span class="home-carousel-anim-toggle__text">Анимация</span>
+                        </label>
+                        <div class="home-type-toggle" role="tablist" aria-label="Тип: выходит">
+                            <button type="button" class="home-type-toggle-btn is-active" data-media="serial" role="tab" aria-selected="true">Сериалы</button>
+                            <button type="button" class="home-type-toggle-btn" data-media="film" role="tab" aria-selected="false">Фильмы</button>
+                        </div>
                     </div>
                 </div>
                 <p class="section-subtitle">Онгоинги Kodik — таймер до следующей серии из Shikimori</p>
@@ -311,9 +325,16 @@
                         <span class="section-badge badge-recent">Топ</span>
                         <a href="catalog/anime.html?yearFrom=2022&yearTo=2026&sort=rating-desc" class="section-more-link">В каталог →</a>
                     </div>
-                    <div class="home-type-toggle" role="tablist" aria-label="Тип: популярное">
-                        <button type="button" class="home-type-toggle-btn is-active" data-media="serial" role="tab" aria-selected="true">Сериалы</button>
-                        <button type="button" class="home-type-toggle-btn" data-media="film" role="tab" aria-selected="false">Фильмы</button>
+                    <div class="home-section-controls">
+                        <label class="home-carousel-anim-toggle" title="Автопрокрутка постеров в ленте">
+                            <input type="checkbox" data-home-carousel-auto checked>
+                            <span class="home-carousel-anim-toggle__track" aria-hidden="true"><span class="home-carousel-anim-toggle__knob"></span></span>
+                            <span class="home-carousel-anim-toggle__text">Анимация</span>
+                        </label>
+                        <div class="home-type-toggle" role="tablist" aria-label="Тип: популярное">
+                            <button type="button" class="home-type-toggle-btn is-active" data-media="serial" role="tab" aria-selected="true">Сериалы</button>
+                            <button type="button" class="home-type-toggle-btn" data-media="film" role="tab" aria-selected="false">Фильмы</button>
+                        </div>
                     </div>
                 </div>
                 <p class="section-subtitle">Самые любимые сериалы и фильмы последних лет</p>
@@ -416,7 +437,7 @@
         </div>
     </div>
 
-    <script src="scripts/home.js?v=20260724s" defer></script>
+    <script src="scripts/home.js?v=20260725a" defer></script>
     <script src="scripts/kodik-home.js?v=20260724s" defer></script>
     <script src="scripts/apply-navigation.js?v=20260723a" defer></script>
     <script src="scripts/site-visit-tracker.js" defer></script>
