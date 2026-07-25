@@ -1,12 +1,11 @@
 /**
  * Настройки уведомлений сайта: тосты, звук, push браузера.
- * Опрос показывается один раз; повторно — из панели «Уведомления» или профиля.
+ * Модалка открывается только вручную (колокольчик → Настройки / профиль).
  */
 (function (global) {
     'use strict';
 
     const STORAGE_KEY = 'reminko_notification_prefs_v1';
-    const SURVEY_KEY = 'reminko_notify_survey_done_v1';
 
     const DEFAULT_PREFS = {
         toastSite: true,
@@ -321,11 +320,6 @@
                 prefs[input.dataset.prefKey] = input.checked;
             });
             reminkoSaveNotificationPrefs(prefs);
-            try {
-                localStorage.setItem(SURVEY_KEY, '1');
-            } catch (_) {
-                /* ignore */
-            }
             modal.classList.remove('active');
         });
 
@@ -347,7 +341,7 @@
         return modal;
     }
 
-    function reminkoOpenNotificationPrefsModal(options) {
+    function reminkoOpenNotificationPrefsModal() {
         const modal = ensurePrefsModal();
         const prefs = reminkoGetNotificationPrefs();
         modal.querySelectorAll('[data-pref-key]').forEach((input) => {
@@ -355,32 +349,12 @@
         });
         const titleEl = modal.querySelector('#notificationPrefsTitle');
         const leadEl = modal.querySelector('.notification-prefs-lead');
-        if (options && options.survey) {
-            if (titleEl) titleEl.textContent = 'Настройте уведомления Re-Minko';
-            if (leadEl) {
-                leadEl.textContent =
-                    'Подскажите, как вам удобнее: тосты на сайте, звук и push на устройство. Всё можно изменить позже.';
-            }
-        } else {
-            if (titleEl) titleEl.textContent = 'Настройки уведомлений';
-            if (leadEl) {
-                leadEl.textContent =
-                    'Тосты на сайте, звук и push браузера. Изменения сохраняются в вашем аккаунте.';
-            }
+        if (titleEl) titleEl.textContent = 'Настройки уведомлений';
+        if (leadEl) {
+            leadEl.textContent =
+                'Тосты на сайте, звук и push браузера. Изменения сохраняются в вашем аккаунте.';
         }
         modal.classList.add('active');
-    }
-
-    function maybeShowNotificationSurvey() {
-        try {
-            if (localStorage.getItem(SURVEY_KEY) === '1') return;
-        } catch (_) {
-            return;
-        }
-        if (typeof isAuthenticatedSync !== 'function' || !isAuthenticatedSync()) return;
-        setTimeout(() => {
-            reminkoOpenNotificationPrefsModal({ survey: true });
-        }, 2200);
     }
 
     global.reminkoGetNotificationPrefs = reminkoGetNotificationPrefs;
@@ -391,10 +365,4 @@
     global.reminkoShowBrowserNotification = reminkoShowBrowserNotification;
     global.reminkoRequestBrowserNotifyPermission = reminkoRequestBrowserNotifyPermission;
     global.reminkoOpenNotificationPrefsModal = reminkoOpenNotificationPrefsModal;
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', maybeShowNotificationSurvey);
-    } else {
-        maybeShowNotificationSurvey();
-    }
 })(typeof window !== 'undefined' ? window : globalThis);
