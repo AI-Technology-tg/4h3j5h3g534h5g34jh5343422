@@ -977,8 +977,9 @@ function createJikanCard(anime) {
     const posterImg = card.querySelector('.jikan-card-poster img');
     if (posterImg) {
         posterImg.alt = titleDisplay || 'Постер аниме';
-        if (typeof attachJikanPosterFallback === 'function') {
-            attachJikanPosterFallback(posterImg, anime.mal_id, anime);
+        // Fallback вешаем лениво в renderJikanCards (начало ленты + скролл)
+        if (!imgUrl || imgUrl.startsWith('data:')) {
+            posterImg.dataset.posterPending = '1';
         }
     }
 
@@ -1148,25 +1149,37 @@ function renderJikanCards(containerId, animeList) {
     requestAnimationFrame(() => {
         enhanceHomeHorizontalScroll(container);
         applyShikimoriToStrip(container, displayList);
-    });
 
-    if (typeof prefetchPosterUrlsForMals === 'function') {
-        void prefetchPosterUrlsForMals(displayList.slice(0, 8), { concurrency: 1, delayMs: 600 }).then(
-            () => {
-                if (typeof readMalPosterCache !== 'function') return;
-                container.querySelectorAll('img[data-jikan-poster]').forEach((img) => {
-                    const card = img.closest('.jikan-card');
-                    const mal = parseInt(card?.dataset?.malId, 10);
-                    if (!Number.isFinite(mal) || mal <= 0) return;
-                    const url = readMalPosterCache(mal);
-                    if (url && img.src !== url) {
-                        img.src = url;
-                        img.classList.remove('is-poster-missing');
-                    }
-                });
+        const cards = [...container.querySelectorAll('.jikan-card')];
+        const attach = (card) => {
+            if (!card || card.dataset.posterQueued === '1') return;
+            card.dataset.posterQueued = '1';
+            const img = card.querySelector('img[data-jikan-poster]');
+            const mal = parseInt(card.dataset.malId, 10);
+            if (!img || !Number.isFinite(mal)) return;
+            const anime = displayList.find((a) => parseInt(a.mal_id, 10) === mal);
+            if (typeof attachJikanPosterFallback === 'function') {
+                attachJikanPosterFallback(img, mal, anime || { mal_id: mal });
             }
-        );
-    }
+        };
+        cards.slice(0, 8).forEach(attach);
+        const rest = cards.slice(8);
+        if (rest.length && typeof IntersectionObserver !== 'undefined') {
+            const io = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach((ent) => {
+                        if (!ent.isIntersecting) return;
+                        io.unobserve(ent.target);
+                        attach(ent.target);
+                    });
+                },
+                { root: container, rootMargin: '220px', threshold: 0.01 }
+            );
+            rest.forEach((c) => io.observe(c));
+        } else {
+            rest.forEach(attach);
+        }
+    });
 }
 
 function appendJikanCards(containerId, animeList, excludeMalIds) {

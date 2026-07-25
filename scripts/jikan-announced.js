@@ -10,8 +10,9 @@
     const CACHE_LS_KEY = 'reminko_jikan_announced_ls_v2';
     const CACHE_TTL = 25 * 60 * 1000;
     const CACHE_LS_TTL = 7 * 24 * 60 * 60 * 1000;
-    const SEASONS_MAX_PAGES = 27;
-    const TOP_MAX_PAGES = 28;
+    /** Меньше страниц: seasons/upcoming часто 504, основное — Shikimori */
+    const SEASONS_MAX_PAGES = 2;
+    const TOP_MAX_PAGES = 2;
 
     let _fetchPromise = null;
     let _listCache = null;
@@ -400,57 +401,65 @@
         }
 
         _fetchPromise = (async () => {
-            const merged = [];
             let seasons = [];
             let top = [];
             let shiki = [];
 
-            // Параллельно тянем Shikimori (RU названия) — не ждём медленный Jikan
-            const shikiPromise = fetchShikimoriAnnouncedAsJikan().catch(() => []);
-
+            // 1) Сначала Shikimori — быстрый RU-источник, без зависимости от Jikan 504
             try {
-                seasons = await jikanAnnouncedFetchPaged(
-                    '/seasons/upcoming?limit=25&order_by=members&sort=desc',
-                    SEASONS_MAX_PAGES,
-                    (chunk) => {
-                        merged.length = 0;
-                        merged.push(...chunk);
-                        emitAnnouncedProgress(merged, onProgress);
-                    }
-                );
-            } catch (e) {
-                if (!isJikanTransientError(e)) throw e;
-            }
-
-            merged.length = 0;
-            merged.push(...seasons);
-            if (seasons.length) emitAnnouncedProgress(merged, onProgress);
-
-            if (seasons.length) {
-                await new Promise((r) => setTimeout(r, 1200));
-            }
-            try {
-                top = await jikanAnnouncedFetchPaged(
-                    '/top/anime?filter=upcoming&limit=25',
-                    TOP_MAX_PAGES,
-                    (chunk) => {
-                        emitAnnouncedProgress([...seasons, ...chunk], onProgress);
-                    }
-                );
-            } catch (e) {
-                if (!seasons.length && !isJikanTransientError(e)) throw e;
-            }
-
-            try {
-                shiki = await shikiPromise;
+                shiki = await fetchShikimoriAnnouncedAsJikan();
             } catch (_) {
                 shiki = [];
             }
             if (shiki.length) {
-                emitAnnouncedProgress([...seasons, ...top, ...shiki], onProgress);
+                const early = sortAnnouncedList(filterJikanAnnouncedForHome(shiki));
+                _listCache = early;
+                writeSessionCache(early);
+                emitAnnouncedProgress(early, onProgress);
             }
 
-            const combined = dedupeMal([...seasons, ...top, ...shiki]);
+            // 2) Jikan — только если circuit закрыт (иначе seasons/upcoming сыплет 504)
+            const jikanOk =
+                typeof global.reminkoJikanIsCircuitOpen !== 'function' ||
+                !global.reminkoJikanIsCircuitOpen();
+            if (jikanOk) {
+                try {
+                    seasons = await jikanAnnouncedFetchPaged(
+                        '/seasons/upcoming?limit=25&order_by=members&sort=desc',
+                        SEASONS_MAX_PAGES,
+                        (chunk) => {
+                            emitAnnouncedProgress(dedupeMal([...shiki, ...chunk]), onProgress);
+                        }
+                    );
+                } catch (e) {
+                    if (!isJikanTransientError(e) && !shiki.length) throw e;
+                }
+
+                if (seasons.length) {
+                    await new Promise((r) => setTimeout(r, 800));
+                }
+                const stillOk =
+                    typeof global.reminkoJikanIsCircuitOpen !== 'function' ||
+                    !global.reminkoJikanIsCircuitOpen();
+                if (stillOk) {
+                    try {
+                        top = await jikanAnnouncedFetchPaged(
+                            '/top/anime?filter=upcoming&limit=25',
+                            TOP_MAX_PAGES,
+                            (chunk) => {
+                                emitAnnouncedProgress(
+                                    dedupeMal([...shiki, ...seasons, ...chunk]),
+                                    onProgress
+                                );
+                            }
+                        );
+                    } catch (e) {
+                        if (!seasons.length && !shiki.length && !isJikanTransientError(e)) throw e;
+                    }
+                }
+            }
+
+            const combined = dedupeMal([...shiki, ...seasons, ...top]);
             if (!combined.length) {
                 const stale = announcedFallbackOrEmpty();
                 _listCache = stale;
@@ -460,7 +469,6 @@
             }
 
             let list = sortAnnouncedList(filterJikanAnnouncedForHome(combined));
-            // Для Jikan-only без RU — точечно подтянуть названия
             try {
                 list = await enrichAnnouncedWithRussianTitles(list);
             } catch (_) {

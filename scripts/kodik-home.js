@@ -258,7 +258,21 @@
             (anime.isKodikCalendarAnnounced ? kodikAnnouncedRowForMal(anime.mal_id) : null) ||
             (anime.isKodikCalendarAnnounced ? null : mergedCalendarRowForMal(anime.mal_id));
         if (row?.posterUrl) candidates.push(String(row.posterUrl).trim());
+        // Shikimori/Jikan уже в карточке — не ждать сеть
+        const jikan = anime._jikan || anime._jikanRaw;
+        if (jikan && typeof global.jikanPosterFromAnime === 'function') {
+            candidates.push(global.jikanPosterFromAnime(jikan));
+        }
+        if (anime._shiki?.image?.original && typeof global.shikimoriPosterUrlFromPath === 'function') {
+            candidates.push(global.shikimoriPosterUrlFromPath(anime._shiki.image.original));
+        }
+        if (jikan?._shiki?.image?.original && typeof global.shikimoriPosterUrlFromPath === 'function') {
+            candidates.push(global.shikimoriPosterUrlFromPath(jikan._shiki.image.original));
+        }
         if (Number.isFinite(mal) && mal > 0) {
+            if (typeof global.readMalPosterCache === 'function') {
+                candidates.push(global.readMalPosterCache(mal));
+            }
             candidates.push(malPosterUrl(mal));
             if (global.shikimoriApi?.readCachedByMalId) {
                 const sh = global.shikimoriApi.readCachedByMalId(mal);
@@ -268,7 +282,7 @@
             }
         }
         for (const u of candidates) {
-            if (isValidHomePosterUrl(u)) return u;
+            if (u && isValidHomePosterUrl(u)) return u;
         }
         return '';
     }
@@ -312,15 +326,29 @@
         }
     }
 
-    function applyShikimoriToKodikHomeStrip(container, items) {
+    function applyShikimoriToKodikHomeStrip(container, items, opts) {
         if (!container || !global.shikimoriApi?.enqueueFetchShikimoriByMalId) return;
+        const limit = Math.max(0, parseInt(opts?.limit, 10) || 0);
         const seen = new Set();
+        let n = 0;
         for (const anime of items || []) {
+            if (limit && n >= limit) break;
             const mal = parseInt(anime?.mal_id, 10);
             if (!Number.isFinite(mal) || mal <= 0 || seen.has(mal)) continue;
             seen.add(mal);
             const card = container.querySelector(`.kodik-home-card[data-mal-id="${mal}"]`);
             if (!card) continue;
+            // Уже есть нормальный постер — не дёргаем Shiki
+            const img = card.querySelector('.jikan-card-poster img');
+            if (
+                img &&
+                img.src &&
+                !img.src.startsWith('data:') &&
+                isValidHomePosterUrl(img.src)
+            ) {
+                continue;
+            }
+            n += 1;
             const searchTitle = anime.titleAlt || anime.title || '';
             void global.shikimoriApi
                 .enqueueFetchShikimoriByMalId(mal, searchTitle)
@@ -604,6 +632,7 @@
             score: a.score || 0,
             status: 'anons',
         };
+        const shikiObj = a._shiki || (a._jikan && a._jikan._shiki) || null;
         if (catalogItem && catalogItem.isKodikCatalog !== false) {
             return {
                 ...catalogItem,
@@ -614,6 +643,7 @@
                 isKodikCalendarAnnounced: true,
                 _calendarRow: calRow,
                 _jikan: a._jikan || a,
+                _shiki: shikiObj,
                 _fromExtraAnnounced: true,
             };
         }
@@ -632,6 +662,7 @@
             posterUrl: poster,
             _calendarRow: calRow,
             _jikan: a._jikan || a,
+            _shiki: shikiObj,
             _fromExtraAnnounced: true,
         };
     }
@@ -675,17 +706,23 @@
             /* ignore */
         }
 
-        // Фоном дотянуть полный Jikan (для каталога / следующего визита)
-        if (typeof global.fetchJikanAnnouncedList === 'function') {
-            void global.fetchJikanAnnouncedList().then((full) => {
-                if (Array.isArray(full) && full.length) {
-                    try {
-                        global.__reminkoExtraAnnouncedJikan = full;
-                    } catch (_) {
-                        /* ignore */
+        // Фоном Jikan — только если не в circuit (иначе 504 спам в консоли)
+        const jikanOk =
+            typeof global.reminkoJikanIsCircuitOpen !== 'function' ||
+            !global.reminkoJikanIsCircuitOpen();
+        if (jikanOk && typeof global.fetchJikanAnnouncedList === 'function') {
+            void global
+                .fetchJikanAnnouncedList()
+                .then((full) => {
+                    if (Array.isArray(full) && full.length) {
+                        try {
+                            global.__reminkoExtraAnnouncedJikan = full;
+                        } catch (_) {
+                            /* ignore */
+                        }
                     }
-                }
-            }).catch(() => {});
+                })
+                .catch(() => {});
         }
 
         if (!Array.isArray(raw) || !raw.length) return [];
@@ -755,15 +792,91 @@
         }
     }
 
-    function hydrateAnnouncedPostersForGrid(container, items) {
-        if (!container || !Array.isArray(items)) return;
-        for (const anime of items) {
-            const mal = parseInt(anime?.mal_id, 10);
-            if (!Number.isFinite(mal) || mal <= 0) continue;
-            const card = container.querySelector(`.kodik-home-card[data-mal-id="${mal}"]`);
-            const img = card?.querySelector('.jikan-card-poster img');
-            if (img) void hydrateAnnouncedPosterForCard(img, anime);
+    /**
+     * Постеры: сначала видимое начало ленты, остальные — по горизонтальному скроллу.
+     * Без шторма запросов на все 70 карточек сразу.
+     */
+    function bindLazyHomePosterHydration(container, items) {
+        if (!container || !Array.isArray(items) || !items.length) return;
+
+        if (container._posterHydrateIo) {
+            try {
+                container._posterHydrateIo.disconnect();
+            } catch (_) {
+                /* ignore */
+            }
+            container._posterHydrateIo = null;
         }
+
+        const byMal = new Map();
+        for (const a of items) {
+            const mal = parseInt(a?.mal_id, 10);
+            if (Number.isFinite(mal) && mal > 0) byMal.set(mal, a);
+        }
+
+        const queue = [];
+        let active = 0;
+        const MAX_CONCURRENT = 2;
+        const EAGER = 8;
+
+        const pump = () => {
+            while (active < MAX_CONCURRENT && queue.length) {
+                const job = queue.shift();
+                if (!job || !job.img || !job.img.isConnected) continue;
+                active += 1;
+                Promise.resolve(hydrateAnnouncedPosterForCard(job.img, job.anime))
+                    .catch(() => {})
+                    .finally(() => {
+                        active -= 1;
+                        pump();
+                    });
+            }
+        };
+
+        const enqueueCard = (card) => {
+            if (!card || card.dataset.posterQueued === '1') return;
+            card.dataset.posterQueued = '1';
+            const mal = parseInt(card.dataset.malId, 10);
+            const anime = byMal.get(mal);
+            const img = card.querySelector('.jikan-card-poster img');
+            if (!img || !anime) return;
+            const src = String(img.getAttribute('src') || img.src || '');
+            if (src && !src.startsWith('data:') && isValidHomePosterUrl(src)) return;
+            queue.push({ img, anime });
+            pump();
+        };
+
+        const cards = [...container.querySelectorAll('.kodik-home-card')];
+        cards.slice(0, EAGER).forEach(enqueueCard);
+
+        const rest = cards.slice(EAGER);
+        if (!rest.length) return;
+
+        if (typeof IntersectionObserver === 'undefined') {
+            // Без IO — по чуть-чуть, не все сразу
+            let i = 0;
+            const tick = () => {
+                const batch = rest.slice(i, i + 4);
+                i += 4;
+                batch.forEach(enqueueCard);
+                if (i < rest.length) setTimeout(tick, 350);
+            };
+            setTimeout(tick, 200);
+            return;
+        }
+
+        const io = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((ent) => {
+                    if (!ent.isIntersecting) return;
+                    io.unobserve(ent.target);
+                    enqueueCard(ent.target);
+                });
+            },
+            { root: container, rootMargin: '220px', threshold: 0.01 }
+        );
+        container._posterHydrateIo = io;
+        rest.forEach((card) => io.observe(card));
     }
 
     function resolveCardCountdownIso(anime, shiki) {
@@ -1095,7 +1208,8 @@
         const posterImg = card.querySelector('.jikan-card-poster img');
         if (posterImg) {
             posterImg.alt = title;
-            void hydrateAnnouncedPosterForCard(posterImg, anime);
+            // Постер догружаем лениво (bindLazyHomePosterHydration), не здесь — иначе шторм запросов
+            if (!imgUrl) posterImg.dataset.posterPending = '1';
         }
 
         const go = () => navigateKodikCard(anime);
@@ -1161,12 +1275,13 @@
             if (typeof global.enhanceHomeHorizontalScroll === 'function') {
                 global.enhanceHomeHorizontalScroll(container);
             }
+            // Сразу первые постеры + IO на остаток ленты
+            bindLazyHomePosterHydration(container, items);
         });
 
-        // Тяжёлую гидрацию (постеры/таймеры/Shiki) — после первого paint / idle
+        // Таймеры / точечный Shiki — idle, только для начала ленты
         const hydrateLater = () => {
-            void hydrateAnnouncedPostersForGrid(container, items);
-            applyShikimoriToKodikHomeStrip(container, items);
+            applyShikimoriToKodikHomeStrip(container, items, { limit: 8 });
             if (typeof global.reminkoStartLiveCountdown === 'function') {
                 container.querySelectorAll('.jikan-card-countdown[data-countdown-iso]').forEach((el) => {
                     const iso = el.getAttribute('data-countdown-iso');
@@ -1181,9 +1296,9 @@
             void hydrateHomeCardCountdowns(container, items);
         };
         if (typeof global.requestIdleCallback === 'function') {
-            global.requestIdleCallback(hydrateLater, { timeout: 1800 });
+            global.requestIdleCallback(hydrateLater, { timeout: 2200 });
         } else {
-            setTimeout(hydrateLater, 400);
+            setTimeout(hydrateLater, 500);
         }
     }
 

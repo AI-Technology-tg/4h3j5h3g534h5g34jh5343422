@@ -144,6 +144,13 @@ async function reminkoJikanFetchCore(url, attempt = 0) {
     }
 
     if (!res.ok) {
+        // 504/502 — Jikan лежит: сразу circuit, без тройных ретраев (засоряют консоль и тормозят UI)
+        if (res.status === 504 || res.status === 502) {
+            reminkoJikanTripCircuit();
+            const stale504 = reminkoJikanCacheGet(url, true);
+            if (stale504) return stale504;
+            throw reminkoJikanFetchError(res.status);
+        }
         if (REMINKO_JIKAN_RETRY_STATUSES.has(res.status)) {
             reminkoJikanTripCircuit();
             const stale = reminkoJikanCacheGet(url, true);
