@@ -1149,6 +1149,17 @@
         _initPromise = (async () => {
             bindKodikHomeToggleDelegation();
 
+            // Сразу показать секции с плейсхолдерами — лоадер можно снять, не дожидаясь каталога
+            ['kodikHomeAnnounced', 'kodikHomeAiring', 'kodikHomePopular'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.hidden = false;
+                el.removeAttribute('aria-hidden');
+            });
+            const statsEarly = document.getElementById('heroStats');
+            if (statsEarly) statsEarly.hidden = false;
+            signalHomeReady();
+
             try {
                 await loadKodikAnnouncedItems();
                 await reminkoYieldFrame();

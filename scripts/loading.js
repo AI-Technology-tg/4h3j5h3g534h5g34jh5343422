@@ -138,8 +138,8 @@ function hideLoading() {
     if (loadingScreen) {
         /** Раньше оверлей уходил в opacity:0 раньше, чем включался контент — под полупрозрачным слоём была «пустота» и видна только боковая колонка. Сначала показываем лейаут под непрозрачным оверлеем, затем убираем видео. */
         revealUi();
-        const contentFadeMs = 420;
-        const overlayFadeMs = 320;
+        const contentFadeMs = 80;
+        const overlayFadeMs = 180;
         const finalizeOverlay = () => {
             loadingScreen.classList.add('hidden');
             const removeNode = () => {
@@ -218,7 +218,7 @@ function reminkoWhenThemeCssReady(callback) {
 
     link.addEventListener('load', finish, { once: true });
     link.addEventListener('error', finish, { once: true });
-    setTimeout(finish, 1500);
+    setTimeout(finish, 400);
 }
 
 function reminkoWhenLayoutReady(callback) {
@@ -235,35 +235,10 @@ function reminkoWhenLayoutReady(callback) {
     );
 }
 
-function reminkoIsHomePage() {
-    try {
-        if (document.querySelector('.home-page')) return true;
-        var path = ((window.location && window.location.pathname) || '').replace(/\/+$/, '') || '/';
-        return path === '/' || /\/index\.html$/i.test(path);
-    } catch (_) {
-        return false;
-    }
-}
-
 function reminkoHideLoadingOnce() {
     if (__reminkoLoadingSettled) return;
     reminkoWhenLayoutReady(function () {
         if (__reminkoLoadingSettled) return;
-
-        // Главная: не снимаем лоадер, пока не отрисованы ленты (иначе 3–4 с «заморозки» + скачок скролла)
-        if (reminkoIsHomePage() && !window.__reminkoHomeReady) {
-            var finished = false;
-            var finishHome = function () {
-                if (finished || __reminkoLoadingSettled) return;
-                finished = true;
-                __reminkoLoadingSettled = true;
-                hideLoading();
-            };
-            window.addEventListener('reminko:home-ready', finishHome, { once: true });
-            setTimeout(finishHome, 3500);
-            return;
-        }
-
         __reminkoLoadingSettled = true;
         hideLoading();
     });
