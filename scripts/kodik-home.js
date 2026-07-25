@@ -578,8 +578,25 @@
         return sortAnnouncedCards(list).slice(0, KODIK_ANNOUNCED_LIMIT);
     }
 
+    function animeHasUsablePoster(anime) {
+        if (!anime) return false;
+        if (resolveKodikHomePosterUrl(anime)) return true;
+        const raw =
+            anime.posterUrl ||
+            anime._calendarRow?.posterUrl ||
+            (typeof global.jikanPosterFromAnime === 'function'
+                ? global.jikanPosterFromAnime(anime._jikan || anime)
+                : '') ||
+            '';
+        return !!(raw && isValidHomePosterUrl(raw));
+    }
+
     function sortAnnouncedCards(list) {
         return [...(list || [])].sort((a, b) => {
+            // С постером — вперёд: иначе в начале ленты дыры (Shikimori missing_original)
+            const ap = animeHasUsablePoster(a) ? 0 : 1;
+            const bp = animeHasUsablePoster(b) ? 0 : 1;
+            if (ap !== bp) return ap - bp;
             const ac = a._calendarRow || kodikAnnouncedRowForMal(a.mal_id);
             const bc = b._calendarRow || kodikAnnouncedRowForMal(b.mal_id);
             const at =
@@ -759,10 +776,36 @@
         for (const card of extra || []) {
             const mal = parseInt(card && card.mal_id, 10);
             if (!Number.isFinite(mal) || mal <= 0 || seen.has(mal)) continue;
+            // Без постера не тащим в ленту — Shikimori часто отдаёт missing_original
+            if (!animeHasUsablePoster(card)) continue;
             seen.add(mal);
             out.push(card);
         }
         return sortAnnouncedCards(out).slice(0, KODIK_ANNOUNCED_LIMIT);
+    }
+
+    function applyPosterSrc(img, url) {
+        if (!img || !url || !isValidHomePosterUrl(url)) return false;
+        img.loading = 'eager';
+        img.decoding = 'async';
+        img.referrerPolicy = 'no-referrer';
+        img.classList.remove('is-poster-missing');
+        img.src = url;
+        return true;
+    }
+
+    /** Браузер иногда «зависает» на loading=lazy к shikimori.io — перезапуск src оживляет. */
+    function kickStuckPosterImages(container) {
+        if (!container) return;
+        container.querySelectorAll('.jikan-card-poster img').forEach((img) => {
+            const src = String(img.getAttribute('src') || img.src || '');
+            if (!src || src.startsWith('data:')) return;
+            if (img.complete && img.naturalWidth > 1) return;
+            img.loading = 'eager';
+            const u = src;
+            img.src = '';
+            img.src = u;
+        });
     }
 
     async function hydrateAnnouncedPosterForCard(img, anime) {
@@ -772,19 +815,17 @@
 
         const ctx = animeContextForKodikHomeCard(anime);
         const syncUrl = resolveKodikHomePosterUrl(ctx);
-        if (syncUrl && isValidHomePosterUrl(syncUrl)) {
-            img.classList.remove('is-poster-missing');
-            img.src = syncUrl;
+        if (syncUrl && applyPosterSrc(img, syncUrl)) return;
+
+        // Проверенный путь с onerror/кэшем
+        if (typeof global.attachJikanPosterFallback === 'function') {
+            global.attachJikanPosterFallback(img, mal, ctx);
             return;
         }
 
         if (typeof global.fetchPosterUrlForMal === 'function') {
             const url = await global.fetchPosterUrlForMal(mal, ctx);
-            if (url && img.isConnected) {
-                img.classList.remove('is-poster-missing');
-                img.src = url;
-                return;
-            }
+            if (url && img.isConnected && applyPosterSrc(img, url)) return;
         }
 
         if (img.isConnected && img.naturalWidth <= 1) {
@@ -807,6 +848,10 @@
             }
             container._posterHydrateIo = null;
         }
+        if (container._posterKickTimers) {
+            container._posterKickTimers.forEach((id) => clearTimeout(id));
+            container._posterKickTimers = null;
+        }
 
         const byMal = new Map();
         for (const a of items) {
@@ -816,8 +861,8 @@
 
         const queue = [];
         let active = 0;
-        const MAX_CONCURRENT = 2;
-        const EAGER = 8;
+        const MAX_CONCURRENT = 4;
+        const EAGER = 10;
 
         const pump = () => {
             while (active < MAX_CONCURRENT && queue.length) {
@@ -835,13 +880,31 @@
 
         const enqueueCard = (card) => {
             if (!card || card.dataset.posterQueued === '1') return;
-            card.dataset.posterQueued = '1';
             const mal = parseInt(card.dataset.malId, 10);
             const anime = byMal.get(mal);
             const img = card.querySelector('.jikan-card-poster img');
             if (!img || !anime) return;
+            card.dataset.posterQueued = '1';
+
+            // Отложенный URL с карточки (не грузим все 36 сразу при paint)
+            const pendingUrl = String(card.dataset.posterPendingUrl || '').trim();
+            if (pendingUrl && isValidHomePosterUrl(pendingUrl)) {
+                applyPosterSrc(img, pendingUrl);
+                delete card.dataset.posterPendingUrl;
+                if (typeof global.attachJikanPosterFallback === 'function') {
+                    global.attachJikanPosterFallback(img, mal, animeContextForKodikHomeCard(anime));
+                }
+                return;
+            }
+
             const src = String(img.getAttribute('src') || img.src || '');
-            if (src && !src.startsWith('data:') && isValidHomePosterUrl(src)) return;
+            if (src && !src.startsWith('data:') && isValidHomePosterUrl(src)) {
+                img.loading = 'eager';
+                if (typeof global.attachJikanPosterFallback === 'function') {
+                    global.attachJikanPosterFallback(img, mal, animeContextForKodikHomeCard(anime));
+                }
+                return;
+            }
             queue.push({ img, anime });
             pump();
         };
@@ -850,33 +913,35 @@
         cards.slice(0, EAGER).forEach(enqueueCard);
 
         const rest = cards.slice(EAGER);
-        if (!rest.length) return;
-
-        if (typeof IntersectionObserver === 'undefined') {
-            // Без IO — по чуть-чуть, не все сразу
-            let i = 0;
-            const tick = () => {
-                const batch = rest.slice(i, i + 4);
-                i += 4;
-                batch.forEach(enqueueCard);
-                if (i < rest.length) setTimeout(tick, 350);
-            };
-            setTimeout(tick, 200);
-            return;
+        if (rest.length) {
+            if (typeof IntersectionObserver === 'undefined') {
+                let i = 0;
+                const tick = () => {
+                    const batch = rest.slice(i, i + 4);
+                    i += 4;
+                    batch.forEach(enqueueCard);
+                    if (i < rest.length) setTimeout(tick, 280);
+                };
+                setTimeout(tick, 160);
+            } else {
+                const io = new IntersectionObserver(
+                    (entries) => {
+                        entries.forEach((ent) => {
+                            if (!ent.isIntersecting) return;
+                            io.unobserve(ent.target);
+                            enqueueCard(ent.target);
+                        });
+                    },
+                    { root: container, rootMargin: '280px', threshold: 0.01 }
+                );
+                container._posterHydrateIo = io;
+                rest.forEach((card) => io.observe(card));
+            }
         }
 
-        const io = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((ent) => {
-                    if (!ent.isIntersecting) return;
-                    io.unobserve(ent.target);
-                    enqueueCard(ent.target);
-                });
-            },
-            { root: container, rootMargin: '220px', threshold: 0.01 }
+        container._posterKickTimers = [900, 2200].map((ms) =>
+            setTimeout(() => kickStuckPosterImages(container), ms)
         );
-        container._posterHydrateIo = io;
-        rest.forEach((card) => io.observe(card));
     }
 
     function resolveCardCountdownIso(anime, shiki) {
@@ -1167,23 +1232,29 @@
         global.location.href = `anime/view.html?id=${encodeURIComponent(String(anime.id))}`;
     }
 
-    function createKodikHomeCard(anime) {
+    function createKodikHomeCard(anime, opts) {
         const card = document.createElement('div');
         card.className = 'jikan-card kodik-home-card';
         card.dataset.id = String(anime.id);
         if (anime.mal_id != null) card.dataset.malId = String(anime.mal_id);
 
-        const imgUrl = resolveKodikHomePosterUrl(anime);
+        const resolvedUrl = resolveKodikHomePosterUrl(anime);
+        // Не ставим src на все карточки сразу — иначе shikimori.io зависает пачкой
+        const deferPoster = !!(opts && opts.deferPoster && resolvedUrl);
+        const imgUrl = deferPoster ? '' : resolvedUrl;
+        if (deferPoster) card.dataset.posterPendingUrl = resolvedUrl;
+
         const score = anime.rating ? Number(anime.rating).toFixed(1) : '—';
         const title = anime.title || anime.titleAlt || '—';
         const status = statusLabel(anime);
         const genres = Array.isArray(anime.genres) ? anime.genres.slice(0, 2).join(', ') : '';
         const ep = epLine(anime);
         const countdown = cardCountdownHtml(anime);
+        const loadingAttr = imgUrl ? 'eager' : 'lazy';
 
         card.innerHTML = `
         <div class="jikan-card-poster">
-            <img src="${imgUrl || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}" alt="" decoding="async" loading="lazy" referrerpolicy="no-referrer" data-poster-fallback="1">
+            <img src="${imgUrl || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}" alt="" decoding="async" loading="${loadingAttr}" referrerpolicy="no-referrer" data-poster-fallback="1">
             <div class="jikan-card-poster-hover" aria-hidden="true">
                 <button type="button" class="jikan-card-go-btn">Перейти</button>
             </div>
@@ -1208,7 +1279,6 @@
         const posterImg = card.querySelector('.jikan-card-poster img');
         if (posterImg) {
             posterImg.alt = title;
-            // Постер догружаем лениво (bindLazyHomePosterHydration), не здесь — иначе шторм запросов
             if (!imgUrl) posterImg.dataset.posterPending = '1';
         }
 
@@ -1266,9 +1336,10 @@
         }
 
         const frag = document.createDocumentFragment();
-        for (const anime of items) {
-            frag.appendChild(createKodikHomeCard(anime));
-        }
+        const EAGER_POSTERS = 10;
+        items.forEach((anime, idx) => {
+            frag.appendChild(createKodikHomeCard(anime, { deferPoster: idx >= EAGER_POSTERS }));
+        });
         container.appendChild(frag);
 
         global.requestAnimationFrame(() => {

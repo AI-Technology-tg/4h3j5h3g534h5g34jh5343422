@@ -951,9 +951,10 @@ function createJikanCard(anime) {
         .map((g) => (typeof mapJikanGenreName === 'function' ? mapJikanGenreName(g.name) : g.name))
         .join(', ');
 
+    const loadingAttr = imgUrl ? 'eager' : 'lazy';
     card.innerHTML = `
         <div class="jikan-card-poster">
-            <img src="${imgSrc}" alt="" decoding="async" loading="lazy" referrerpolicy="no-referrer" data-jikan-poster="1">
+            <img src="${imgSrc}" alt="" decoding="async" loading="${loadingAttr}" referrerpolicy="no-referrer" data-jikan-poster="1">
             <div class="jikan-card-poster-hover" aria-hidden="true">
                 <button type="button" class="jikan-card-go-btn">Перейти</button>
             </div>
@@ -1151,19 +1152,33 @@ function renderJikanCards(containerId, animeList) {
         applyShikimoriToStrip(container, displayList);
 
         const cards = [...container.querySelectorAll('.jikan-card')];
+        const kickStuck = () => {
+            cards.forEach((card) => {
+                const img = card.querySelector('img[data-jikan-poster]');
+                if (!img) return;
+                const src = String(img.getAttribute('src') || img.src || '');
+                if (!src || src.startsWith('data:')) return;
+                if (img.complete && img.naturalWidth > 1) return;
+                img.loading = 'eager';
+                const u = src;
+                img.src = '';
+                img.src = u;
+            });
+        };
         const attach = (card) => {
             if (!card || card.dataset.posterQueued === '1') return;
-            card.dataset.posterQueued = '1';
             const img = card.querySelector('img[data-jikan-poster]');
             const mal = parseInt(card.dataset.malId, 10);
             if (!img || !Number.isFinite(mal)) return;
+            card.dataset.posterQueued = '1';
+            img.loading = 'eager';
             const anime = displayList.find((a) => parseInt(a.mal_id, 10) === mal);
             if (typeof attachJikanPosterFallback === 'function') {
                 attachJikanPosterFallback(img, mal, anime || { mal_id: mal });
             }
         };
-        cards.slice(0, 8).forEach(attach);
-        const rest = cards.slice(8);
+        cards.slice(0, 10).forEach(attach);
+        const rest = cards.slice(10);
         if (rest.length && typeof IntersectionObserver !== 'undefined') {
             const io = new IntersectionObserver(
                 (entries) => {
@@ -1173,12 +1188,14 @@ function renderJikanCards(containerId, animeList) {
                         attach(ent.target);
                     });
                 },
-                { root: container, rootMargin: '220px', threshold: 0.01 }
+                { root: container, rootMargin: '280px', threshold: 0.01 }
             );
             rest.forEach((c) => io.observe(c));
         } else {
             rest.forEach(attach);
         }
+        setTimeout(kickStuck, 900);
+        setTimeout(kickStuck, 2200);
     });
 }
 
