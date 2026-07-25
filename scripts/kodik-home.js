@@ -784,13 +784,17 @@
         return sortAnnouncedCards(out).slice(0, KODIK_ANNOUNCED_LIMIT);
     }
 
-    function applyPosterSrc(img, url) {
+    function applyPosterSrc(img, url, malId) {
         if (!img || !url || !isValidHomePosterUrl(url)) return false;
         img.loading = 'eager';
         img.decoding = 'async';
         img.referrerPolicy = 'no-referrer';
         img.classList.remove('is-poster-missing');
         img.src = url;
+        const mal = parseInt(malId, 10);
+        if (Number.isFinite(mal) && mal > 0 && typeof global.writeMalPosterCache === 'function') {
+            global.writeMalPosterCache(mal, url);
+        }
         return true;
     }
 
@@ -815,7 +819,7 @@
 
         const ctx = animeContextForKodikHomeCard(anime);
         const syncUrl = resolveKodikHomePosterUrl(ctx);
-        if (syncUrl && applyPosterSrc(img, syncUrl)) return;
+        if (syncUrl && applyPosterSrc(img, syncUrl, mal)) return;
 
         // Проверенный путь с onerror/кэшем
         if (typeof global.attachJikanPosterFallback === 'function') {
@@ -825,7 +829,7 @@
 
         if (typeof global.fetchPosterUrlForMal === 'function') {
             const url = await global.fetchPosterUrlForMal(mal, ctx);
-            if (url && img.isConnected && applyPosterSrc(img, url)) return;
+            if (url && img.isConnected && applyPosterSrc(img, url, mal)) return;
         }
 
         if (img.isConnected && img.naturalWidth <= 1) {
@@ -889,7 +893,7 @@
             // Отложенный URL с карточки (не грузим все 36 сразу при paint)
             const pendingUrl = String(card.dataset.posterPendingUrl || '').trim();
             if (pendingUrl && isValidHomePosterUrl(pendingUrl)) {
-                applyPosterSrc(img, pendingUrl);
+                applyPosterSrc(img, pendingUrl, mal);
                 delete card.dataset.posterPendingUrl;
                 if (typeof global.attachJikanPosterFallback === 'function') {
                     global.attachJikanPosterFallback(img, mal, animeContextForKodikHomeCard(anime));
@@ -1243,6 +1247,10 @@
         const deferPoster = !!(opts && opts.deferPoster && resolvedUrl);
         const imgUrl = deferPoster ? '' : resolvedUrl;
         if (deferPoster) card.dataset.posterPendingUrl = resolvedUrl;
+        // URL в localStorage — следующий визит без поиска постера
+        if (imgUrl && anime.mal_id != null && typeof global.writeMalPosterCache === 'function') {
+            global.writeMalPosterCache(anime.mal_id, imgUrl);
+        }
 
         const score = anime.rating ? Number(anime.rating).toFixed(1) : '—';
         const title = anime.title || anime.titleAlt || '—';
