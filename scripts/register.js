@@ -109,14 +109,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (registerModal) {
         loadAvatarOptions();
     } else {
-        const checkModal = setInterval(() => {
-            const modal = document.getElementById('registerModal');
-            if (modal) {
-                loadAvatarOptions();
-                clearInterval(checkModal);
-            }
-        }, 100);
-        setTimeout(() => clearInterval(checkModal), 5000);
+        window.addEventListener('reminko:auth-modals-created', loadAvatarOptions, {
+            once: true
+        });
     }
 
     // capture: true — срабатываем до всплытия; не используем stopPropagation, чтобы не ломать другие обработчики

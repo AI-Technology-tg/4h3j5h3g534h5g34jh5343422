@@ -740,10 +740,12 @@ class NavigationManager {
             }
         };
 
-        if ('requestIdleCallback' in window) {
-            requestIdleCallback(boot, { timeout: 4000 });
+        if (window.ReminkoBoot && typeof window.ReminkoBoot.lateIdle === 'function') {
+            window.ReminkoBoot.lateIdle(boot, 6000);
+        } else if ('requestIdleCallback' in window) {
+            setTimeout(() => requestIdleCallback(boot, { timeout: 2500 }), 6000);
         } else {
-            setTimeout(boot, 1200);
+            setTimeout(boot, 6000);
         }
     }
 
@@ -782,12 +784,28 @@ class NavigationManager {
         this.initProtectedLinks();
         this.initDisabledNavLinks();
         this.updateAuthLinks();
-        this.initLiveInternetCounter();
+        const initLateCounters = () => {
+            this.initLiveInternetCounter();
+        };
+        if (window.ReminkoBoot && typeof window.ReminkoBoot.lateIdle === 'function') {
+            window.ReminkoBoot.lateIdle(initLateCounters, 5000);
+        } else {
+            setTimeout(initLateCounters, 5000);
+        }
         this.initYandexMetrika();
-        this.initSiteOnlineWidget();
-
-        if (typeof reminkoEnsureSiteCreatorUserIdCached === 'function' && typeof supabaseClient !== 'undefined') {
-            void reminkoEnsureSiteCreatorUserIdCached();
+        const initIdleNetwork = () => {
+            this.initSiteOnlineWidget();
+            if (
+                typeof reminkoEnsureSiteCreatorUserIdCached === 'function' &&
+                typeof supabaseClient !== 'undefined'
+            ) {
+                void reminkoEnsureSiteCreatorUserIdCached();
+            }
+        };
+        if (window.ReminkoBoot && typeof window.ReminkoBoot.on === 'function') {
+            window.ReminkoBoot.on('Idle', initIdleNetwork);
+        } else {
+            setTimeout(initIdleNetwork, 1200);
         }
 
         const navManagerInstance = this;
@@ -805,7 +823,9 @@ class NavigationManager {
             }, 100);
         }
 
-        this.ensureModalsExist();
+        // Обработчики делегированы document; тяжёлый DOM модалок создаётся
+        // только при первом реальном открытии.
+        this.initModalHandlers();
         document.body.classList.add('reminko-ui-ready');
 
         if (typeof window.reminkoApplySidebarMaintenanceLocks === 'function') {
@@ -1532,12 +1552,39 @@ class NavigationManager {
             document.body.appendChild(cancelModal);
         }
         
+        const avatarGrid = document.getElementById('avatarSelectionGrid');
+        if (
+            avatarGrid &&
+            !avatarGrid.children.length &&
+            typeof window.loadAvatarOptions === 'function'
+        ) {
+            window.loadAvatarOptions();
+        } else if (
+            avatarGrid &&
+            !avatarGrid.children.length &&
+            typeof loadAvatarOptions === 'function'
+        ) {
+            loadAvatarOptions();
+        }
+
+        if (!this._authModalsReadySignaled) {
+            this._authModalsReadySignaled = true;
+            try {
+                window.dispatchEvent(new CustomEvent('reminko:auth-modals-created'));
+            } catch (_) {
+                /* ignore */
+            }
+        }
+
         // Инициализируем обработчики для динамически созданных модальных окон
         this.initModalHandlers();
     }
     
     // Инициализация обработчиков модальных окон
     initModalHandlers() {
+        if (this._modalHandlersBound) return;
+        this._modalHandlersBound = true;
+
         const openLoginModalSafe = () => {
             this.ensureModalsExist();
             const loginModal = document.getElementById('loginModal');

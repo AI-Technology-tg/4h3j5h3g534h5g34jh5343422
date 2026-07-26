@@ -63,6 +63,29 @@
         return nativeFetch.apply(this, arguments);
     };
 })();
+(function reminkoLateThirdPartyScheduler(w, d) {
+    if (w.__reminkoScheduleLateThirdParty) return;
+    w.__reminkoScheduleLateThirdParty = function (fn, delayMs) {
+        if (typeof fn !== 'function') return;
+        var delay = Math.max(0, Number(delayMs) || 0);
+        var queue = function () {
+            if (w.ReminkoBoot && typeof w.ReminkoBoot.lateIdle === 'function') {
+                w.ReminkoBoot.lateIdle(fn, delay);
+                return;
+            }
+            w.setTimeout(function () {
+                if ('requestIdleCallback' in w) w.requestIdleCallback(fn, { timeout: 2500 });
+                else fn();
+            }, delay);
+        };
+        if (d.readyState === 'loading') {
+            d.addEventListener('DOMContentLoaded', queue, { once: true });
+        } else {
+            queue();
+        }
+    };
+})(window, document);
+
 (function reminkoGtmBoot(w, d, s, l, i) {
     if (w.__reminkoGtmBoot) return;
     w.__reminkoGtmBoot = true;
@@ -100,9 +123,8 @@
         }, { once: true });
     }
 
-    // ?? ??????????? ? ?????????/????????? ?? ?????? ??????
-    if ('requestIdleCallback' in w) w.requestIdleCallback(inject, { timeout: 5000 });
-    else w.setTimeout(inject, 2500);
+    // Аналитика сохраняется, но не конкурирует с первыми секундами страницы.
+    w.__reminkoScheduleLateThirdParty(inject, 5500);
 })(window, document, 'script', 'dataLayer', 'GTM-W4RSMVH3');
 
 (function reminkoGtagBoot(w, d, s, measureId) {
@@ -133,8 +155,7 @@
         else (d.head || d.documentElement).appendChild(tag);
     }
 
-    if ('requestIdleCallback' in w) w.requestIdleCallback(inject, { timeout: 5500 });
-    else w.setTimeout(inject, 2800);
+    w.__reminkoScheduleLateThirdParty(inject, 6000);
 })(window, document, 'script', 'G-S9CBJW9NLK');
 
 (function remThemeEarlyBoot() {

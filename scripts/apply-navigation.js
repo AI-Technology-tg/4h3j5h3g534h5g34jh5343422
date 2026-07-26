@@ -100,7 +100,7 @@
         if (!cur || !cur.src) return;
         var base = cur.src.replace(/[^/]+$/, '');
         var s = document.createElement('script');
-        s.src = base + 'live2d-widget-init.js?v=live2d-desktop-only-1';
+        s.src = base + 'live2d-widget-init.js?v=live2d-stage2';
         s.async = true;
         (document.head || document.documentElement).appendChild(s);
     } catch (e) {
@@ -128,24 +128,29 @@
         window.__reminkoSupportChatScriptLoaded = true;
         try {
             var s = document.createElement('script');
-            s.src = base + 'support-minko-chat.js?v=20260723a';
+            s.src = base + 'support-minko-chat.js?v=20260726stage2';
             s.async = true;
             (document.body || document.documentElement).appendChild(s);
         } catch (e) {
             console.warn('[Support Minko] inject:', e);
         }
     }
-    // Idle через BootManager (fallback — прежний requestIdleCallback после load)
+    // Чат сохраняется, но его парсинг не конкурирует с первым взаимодействием.
     function schedule() {
-        if (typeof window.ReminkoBoot !== 'undefined' && typeof window.ReminkoBoot.on === 'function') {
-            window.ReminkoBoot.on('Idle', doInject);
+        if (
+            typeof window.ReminkoBoot !== 'undefined' &&
+            typeof window.ReminkoBoot.lateIdle === 'function'
+        ) {
+            window.ReminkoBoot.lateIdle(doInject, 3500);
             return;
         }
-        if (typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(function () { doInject(); }, { timeout: 2500 });
-        } else {
-            setTimeout(doInject, 1200);
-        }
+        setTimeout(function () {
+            if (typeof window.requestIdleCallback === 'function') {
+                window.requestIdleCallback(function () { doInject(); }, { timeout: 2500 });
+            } else {
+                doInject();
+            }
+        }, 3500);
     }
     if (document.readyState === 'complete') schedule();
     else window.addEventListener('load', schedule, { once: true });

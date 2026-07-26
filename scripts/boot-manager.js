@@ -77,6 +77,21 @@
         }
     }
 
+    /**
+     * Некритичная сторонняя работа после Idle и минимальной паузы.
+     * Нужна для аналитики/виджетов: они сохраняются, но не конкурируют
+     * с первыми секундами взаимодействия пользователя.
+     */
+    function lateIdle(fn, delayMs) {
+        if (typeof fn !== 'function') return;
+        var delay = Math.max(0, Number(delayMs) || 0);
+        on('Idle', function () {
+            setTimeout(function () {
+                scheduleIdle(fn, 2500);
+            }, delay);
+        });
+    }
+
     function armInteractive() {
         if (interactiveArmed) return;
         interactiveArmed = true;
@@ -140,6 +155,7 @@
 
     global.ReminkoBoot = {
         on: on,
+        lateIdle: lateIdle,
         start: start,
         stages: STAGES,
         isDone: function (stage) {

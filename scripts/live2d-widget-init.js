@@ -206,15 +206,21 @@
         function run() {
             startLive2d();
         }
-        // Функциональность та же — только старт после idle
-        if (typeof window.ReminkoBoot !== 'undefined' && typeof window.ReminkoBoot.on === 'function') {
-            window.ReminkoBoot.on('Idle', run);
+        // Функциональность та же; декоративный WebGL-виджет не конкурирует
+        // с первыми секундами взаимодействия и метриками загрузки.
+        if (
+            typeof window.ReminkoBoot !== 'undefined' &&
+            typeof window.ReminkoBoot.lateIdle === 'function'
+        ) {
+            window.ReminkoBoot.lateIdle(run, 5000);
             return;
         }
         if (typeof requestIdleCallback === 'function') {
-            requestIdleCallback(run, { timeout: 3500 });
+            setTimeout(function () {
+                requestIdleCallback(run, { timeout: 2500 });
+            }, 5000);
         } else {
-            setTimeout(run, 1);
+            setTimeout(run, 5000);
         }
     }
 

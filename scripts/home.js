@@ -246,6 +246,49 @@ function initHomeAppButtons() {
     initHomeSocialPanel();
 }
 
+let _homeHeroRowsRefreshPromise = null;
+let _homeHeroRowsRefreshPending = false;
+let _homeHeroRowsRefreshScheduled = false;
+let _homeHeroDataReady = Promise.resolve();
+
+function runHomeHeroRowsRefresh() {
+    if (_homeHeroRowsRefreshPromise) {
+        _homeHeroRowsRefreshPending = true;
+        return _homeHeroRowsRefreshPromise;
+    }
+
+    _homeHeroRowsRefreshPromise = Promise.allSettled([
+        loadHeroWatchHistory(),
+        loadHeroFavorites()
+    ]).finally(() => {
+        _homeHeroRowsRefreshPromise = null;
+        if (_homeHeroRowsRefreshPending) {
+            _homeHeroRowsRefreshPending = false;
+            scheduleHomeHeroRowsRefresh();
+        }
+    });
+    return _homeHeroRowsRefreshPromise;
+}
+
+/** Один DOM/network refresh на кадр; повторные auth/favorites события схлопываются. */
+function scheduleHomeHeroRowsRefresh() {
+    if (_homeHeroRowsRefreshScheduled) return;
+    _homeHeroRowsRefreshScheduled = true;
+    const run = () => {
+        Promise.resolve(_homeHeroDataReady)
+            .catch(() => undefined)
+            .then(() => {
+                _homeHeroRowsRefreshScheduled = false;
+                return runHomeHeroRowsRefresh();
+            });
+    };
+    if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(run);
+    } else {
+        setTimeout(run, 0);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     function initHome() {
         if (typeof animeDatabase === 'undefined' || !animeDatabase.all) {
@@ -262,23 +305,19 @@ document.addEventListener('DOMContentLoaded', () => {
         initHomeAppButtons();
 
         updateHeroStats();
-        loadHeroWatchHistory();
-        loadHeroFavorites();
 
         // Ленты сами решают порядок: сначала лёгкие анонсы, потом полный Kodik-каталог
         if (typeof initKodikHomeSections === 'function') {
-            void initKodikHomeSections().then(() => updateHeroStats());
-        }
-
-        // История/избранное — после idle, без повторной гонки за 17MB каталогом
-        const hydrateHeroRows = () => {
-            loadHeroWatchHistory();
-            loadHeroFavorites();
-        };
-        if (typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(hydrateHeroRows, { timeout: 3500 });
+            _homeHeroDataReady = initKodikHomeSections();
+            void _homeHeroDataReady.then(
+                () => {
+                    updateHeroStats();
+                    scheduleHomeHeroRowsRefresh();
+                },
+                () => scheduleHomeHeroRowsRefresh()
+            );
         } else {
-            setTimeout(hydrateHeroRows, 1200);
+            scheduleHomeHeroRowsRefresh();
         }
 
         if (
@@ -288,15 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ) {
             window.__homeRecentAuthHook = true;
             supabaseClient.auth.onAuthStateChange(() => {
-                loadHeroWatchHistory();
-                loadHeroFavorites();
-            });
-        }
-
-        if (!window.__homeFavoritesHook) {
-            window.__homeFavoritesHook = true;
-            window.addEventListener('reminko:favorites-loaded', () => {
-                if (typeof loadHeroFavorites === 'function') loadHeroFavorites();
+                scheduleHomeHeroRowsRefresh();
             });
         }
 
@@ -308,15 +339,15 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('reminko-kodik-catalog-loaded', () => {
     if (typeof updateHeroStats === 'function') updateHeroStats();
     if (typeof initKodikHomeSections === 'function') initKodikHomeSections();
-    if (typeof loadHeroWatchHistory === 'function') loadHeroWatchHistory();
+    scheduleHomeHeroRowsRefresh();
 });
 
 window.addEventListener('reminko-watch-history-updated', () => {
-    if (typeof loadHeroWatchHistory === 'function') loadHeroWatchHistory();
+    scheduleHomeHeroRowsRefresh();
 });
 
 window.addEventListener('reminko:favorites-loaded', () => {
-    if (typeof loadHeroFavorites === 'function') loadHeroFavorites();
+    scheduleHomeHeroRowsRefresh();
 });
 
 function formatHeroStatCount(n) {
@@ -1418,6 +1449,9 @@ async function loadHeroWatchHistory() {
 
     const showEmpty = (text) => {
         box.hidden = false;
+        const renderKey = `history-empty:${text}`;
+        if (box.dataset.homeRenderKey === renderKey) return;
+        box.dataset.homeRenderKey = renderKey;
         box.innerHTML =
             '<p class="home-hero-watch-label">Недавно смотрели</p>' +
             `<p class="home-hero-watch-empty">${text}</p>`;
@@ -1457,11 +1491,17 @@ async function loadHeroWatchHistory() {
         return;
     }
 
+    const renderKey =
+        'history:' + rows.map((row) => `${row.anime.id}:${row.episodeNumber}`).join(',');
+    if (box.dataset.homeRenderKey === renderKey) return;
+    box.dataset.homeRenderKey = renderKey;
+
     box.hidden = false;
     box.innerHTML =
         '<p class="home-hero-watch-label">Недавно смотрели</p>' +
         '<div class="home-hero-watch-row" tabindex="0" role="list" aria-label="Недавно смотрели"></div>';
     const rowEl = box.querySelector('.home-hero-watch-row');
+    const cardsFragment = document.createDocumentFragment();
 
     for (const row of rows) {
         const a = row.anime;
@@ -1552,8 +1592,9 @@ async function loadHeroWatchHistory() {
 
         card.appendChild(item);
         card.appendChild(removeBtn);
-        rowEl.appendChild(card);
+        cardsFragment.appendChild(card);
     }
+    rowEl.appendChild(cardsFragment);
 
     if (typeof reminkoEnhanceHorizontalDragScroll === 'function') {
         reminkoEnhanceHorizontalDragScroll(rowEl, { linkSelector: 'a.home-hero-watch-item' });
@@ -1630,6 +1671,9 @@ async function loadHeroFavorites() {
 
     const showEmpty = (text) => {
         box.hidden = false;
+        const renderKey = `favorites-empty:${text}`;
+        if (box.dataset.homeRenderKey === renderKey) return;
+        box.dataset.homeRenderKey = renderKey;
         box.innerHTML =
             '<p class="home-hero-favs-label">Избранное</p>' +
             `<p class="home-hero-favs-empty">${text}</p>`;
@@ -1673,12 +1717,17 @@ async function loadHeroFavorites() {
         return;
     }
 
+    const renderKey = 'favorites:' + rows.map((anime) => anime.id).join(',');
+    if (box.dataset.homeRenderKey === renderKey) return;
+    box.dataset.homeRenderKey = renderKey;
+
     box.hidden = false;
     box.innerHTML =
         '<p class="home-hero-favs-label">Избранное</p>' +
         '<div class="home-hero-favs-row" tabindex="0" role="list" aria-label="Избранные аниме"></div>' +
         '<a class="home-hero-favs-more" href="favorites.html">Все избранное →</a>';
     const rowEl = box.querySelector('.home-hero-favs-row');
+    const cardsFragment = document.createDocumentFragment();
 
     for (const a of rows) {
         const href = `anime/view.html?id=${encodeURIComponent(a.id)}`;
@@ -1721,7 +1770,7 @@ async function loadHeroFavorites() {
 
         card.appendChild(poster);
         card.appendChild(title);
-        rowEl.appendChild(card);
+        cardsFragment.appendChild(card);
 
         const malId = a.mal_id != null ? parseInt(a.mal_id, 10) : NaN;
         if (Number.isFinite(malId) && malId > 0 && typeof attachJikanPosterFallback === 'function') {
@@ -1741,6 +1790,7 @@ async function loadHeroFavorites() {
             })();
         }
     }
+    rowEl.appendChild(cardsFragment);
 
     if (typeof reminkoEnhanceHorizontalDragScroll === 'function') {
         reminkoEnhanceHorizontalDragScroll(rowEl, { linkSelector: 'a.home-hero-fav-card' });
