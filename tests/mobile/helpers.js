@@ -1,4 +1,6 @@
 const { expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 
 const PROJECT_REF = 'ipsawgtsicxwkkkipchp';
 const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -39,6 +41,11 @@ const session = {
     token_type: 'bearer',
     user
 };
+
+const supabaseBrowserBundle = fs.readFileSync(
+    path.join(path.dirname(require.resolve('@supabase/supabase-js')), 'umd', 'supabase.js'),
+    'utf8'
+);
 
 async function preparePage(page, theme = 'white') {
     const runtimeErrors = [];
@@ -87,6 +94,14 @@ async function preparePage(page, theme = 'white') {
     );
 
     await page.route(/^https?:\/\/(?!127\.0\.0\.1:4173)/, (route) => route.abort());
+
+    await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2**', (route) =>
+        route.fulfill({
+            status: 200,
+            contentType: 'application/javascript; charset=utf-8',
+            body: supabaseBrowserBundle
+        })
+    );
 
     await page.route(`https://${PROJECT_REF}.supabase.co/**`, async (route) => {
         const request = route.request();

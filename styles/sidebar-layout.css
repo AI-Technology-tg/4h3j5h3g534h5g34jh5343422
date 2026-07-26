@@ -734,7 +734,7 @@
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     .top-nav-container {
         flex-wrap: wrap;
         gap: 0.75rem;
@@ -759,8 +759,10 @@
         bottom: 0 !important;
         top: auto !important;
         width: 100% !important;
-        height: auto !important;
-        max-height: none;
+        height: calc(
+            var(--reminko-mobile-nav-h, 72px) + env(safe-area-inset-bottom, 0px)
+        ) !important;
+        max-height: none !important;
         z-index: 1300 !important;
         transition: none;
         overflow-x: auto !important;

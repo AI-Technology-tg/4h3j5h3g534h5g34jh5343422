@@ -618,34 +618,24 @@ class NavigationManager {
         const mainLayout = document.querySelector('.main-layout');
         
         if (!sidebarToggle || !sidebar || !mainLayout) return;
-        
-        const checkMobile = () => {
-            if (window.innerWidth <= 768) {
-                sidebarToggle.style.display = 'flex';
-            } else {
-                sidebarToggle.style.display = 'none';
-                sidebar.classList.remove('active');
-                mainLayout.classList.remove('sidebar-open');
-            }
+
+        // На ≤900px sidebar является нижним scroll-tabbar, drawer больше не нужен.
+        const syncLayout = () => {
+            const isMobile =
+                typeof window.reminkoIsMobileLayout === 'function'
+                    ? window.reminkoIsMobileLayout()
+                    : window.matchMedia?.('(max-width: 900px)').matches;
+            sidebarToggle.style.display = 'none';
+            sidebarToggle.hidden = true;
+            sidebar.classList.remove('active');
+            mainLayout.classList.remove('sidebar-open');
+            document.body.classList.toggle('reminko-mobile-layout', !!isMobile);
         };
-        
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        
-        sidebarToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('active');
-            mainLayout.classList.toggle('sidebar-open');
-        });
-        
-        mainLayout.addEventListener('click', (e) => {
-            if (window.innerWidth <= 768 && 
-                sidebar.classList.contains('active') && 
-                !sidebar.contains(e.target) && 
-                !sidebarToggle.contains(e.target)) {
-                sidebar.classList.remove('active');
-                mainLayout.classList.remove('sidebar-open');
-            }
-        });
+
+        syncLayout();
+        const media = window.matchMedia?.('(max-width: 900px)');
+        if (media?.addEventListener) media.addEventListener('change', syncLayout);
+        else window.addEventListener('resize', syncLayout, { passive: true });
     }
 
     /** Раньше добавлял нижний футер; ссылки перенесены в конец боковой панели (createSidebar). */

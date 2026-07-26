@@ -597,3 +597,62 @@ body.theme-dark .vip-soon-badge {
     background: rgba(88, 28, 135, 0.75);
     border-color: rgba(216, 180, 254, 0.28);
 }
+
+/* Mobile dark shell: без тяжёлого fixed-background и белых промежутков. */
+@media (max-width: 900px) {
+    html[data-rem-theme='dark'] body,
+    body.theme-dark {
+        background-attachment: scroll, scroll !important;
+        background-position: center top, center top !important;
+        color: #f8f5ff !important;
+    }
+
+    body.theme-dark .top-navbar {
+        background: rgba(8, 6, 17, 0.96) !important;
+        border-bottom-color: rgba(157, 77, 255, 0.38) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32) !important;
+    }
+
+    body.theme-dark .sidebar {
+        background: rgba(8, 6, 17, 0.97) !important;
+        border-top-color: rgba(255, 45, 85, 0.38) !important;
+        box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.38) !important;
+    }
+
+    body.theme-dark .sidebar-link {
+        color: #b7afcf !important;
+    }
+
+    body.theme-dark .sidebar-link.active {
+        color: #fff !important;
+        background: rgba(255, 45, 85, 0.15) !important;
+        border-color: rgba(255, 45, 85, 0.56) !important;
+    }
+
+    body.theme-dark .top-online-widget,
+    body.theme-dark .top-search-input,
+    body.theme-dark input,
+    body.theme-dark select,
+    body.theme-dark textarea {
+        color: #fff !important;
+        background-color: rgba(18, 8, 31, 0.9) !important;
+        border-color: rgba(157, 77, 255, 0.48) !important;
+    }
+
+    body.theme-dark .search-dropdown,
+    body.theme-dark .filter-dropdown,
+    body.theme-dark .filter-select-panel,
+    body.theme-dark .modal-content,
+    body.theme-dark .auth-modal {
+        color: #f8f5ff !important;
+        background: #12081f !important;
+        border-color: rgba(157, 77, 255, 0.48) !important;
+    }
+
+    body.theme-dark .search-dropdown a,
+    body.theme-dark .filter-option,
+    body.theme-dark .modal-content label,
+    body.theme-dark .auth-modal label {
+        color: #ddd6f5 !important;
+    }
+}

@@ -3161,3 +3161,520 @@ img.reminko-avatar-img {
 .reminko-dev-only__body code {
     font-size: 0.82em;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Canonical mobile shell v5
+   Один финальный контракт для всех экранов ≤900px. Этот блок намеренно
+   расположен последним и заменяет разрозненные mobile preview v1–v4.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+    html {
+        --reminko-mobile-page-x: clamp(0.68rem, 3.2vw, 1rem);
+        --reminko-mobile-nav-h: 72px;
+        --reminko-mobile-header-h: 104px;
+        --reminko-safe-top: env(safe-area-inset-top, 0px);
+        --reminko-safe-bottom: env(safe-area-inset-bottom, 0px);
+        --reminko-z-content: 1;
+        --reminko-z-header: 1100;
+        --reminko-z-tabbar: 1300;
+        --reminko-z-dropdown: 2200;
+        --reminko-z-modal: 4000;
+        --reminko-z-sheet: 10000;
+        width: 100%;
+        min-width: 0;
+        min-height: 100%;
+        overflow-x: clip;
+        scroll-padding-top: calc(var(--reminko-mobile-header-h) + 0.5rem);
+        scroll-padding-bottom: calc(var(--reminko-mobile-nav-h) + var(--reminko-safe-bottom));
+        scrollbar-width: auto !important;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar,
+    *::-webkit-scrollbar {
+        display: block !important;
+        width: 6px !important;
+        height: 6px !important;
+    }
+
+    body {
+        width: 100%;
+        min-width: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        margin: 0;
+        padding-bottom: calc(
+            var(--reminko-mobile-nav-h) + var(--reminko-safe-bottom) + 0.5rem
+        ) !important;
+        overflow-x: clip !important;
+        overscroll-behavior-x: none;
+    }
+
+    *,
+    *::before,
+    *::after {
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    img,
+    video,
+    canvas,
+    svg,
+    iframe {
+        max-width: 100%;
+    }
+
+    .main-layout {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+    }
+
+    .main-content-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding-bottom: 0.75rem !important;
+    }
+
+    .page-container,
+    .catalog-main,
+    .calendar-main,
+    .anime-detail-shell,
+    .profile-container,
+    .friends-page,
+    .messages-page,
+    .info-page {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin-inline: auto !important;
+        padding-inline: var(--reminko-mobile-page-x) !important;
+    }
+
+    /* Две строки: бренд/статус/actions и полноразмерный поиск. */
+    .top-navbar {
+        position: sticky !important;
+        inset: var(--reminko-safe-top) 0 auto !important;
+        z-index: var(--reminko-z-header) !important;
+        width: 100% !important;
+        min-height: var(--reminko-mobile-header-h);
+        padding: 0.42rem 0 0.5rem !important;
+        overflow: visible !important;
+    }
+
+    .top-nav-container {
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr) auto !important;
+        grid-template-rows: 44px 44px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 94px;
+        margin: 0 !important;
+        padding: 0 var(--reminko-mobile-page-x) !important;
+        gap: 0.38rem 0.5rem !important;
+        align-items: center !important;
+    }
+
+    .top-logo {
+        grid-column: 1;
+        grid-row: 1;
+        width: auto !important;
+        max-width: min(38vw, 132px) !important;
+        min-height: 44px;
+        gap: 0.4rem !important;
+        overflow: hidden;
+    }
+
+    .top-logo-img {
+        width: 32px !important;
+        height: 32px !important;
+        flex: 0 0 32px;
+    }
+
+    .top-logo-text {
+        max-width: 6rem !important;
+        overflow: hidden;
+        font-size: 0.9rem !important;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .top-online-widget {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: start;
+        width: auto !important;
+        max-width: 100%;
+        min-height: 36px;
+        margin: 0 !important;
+        padding: 0.35rem 0.55rem !important;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    .top-search-wrapper {
+        position: relative !important;
+        grid-column: 1 / -1 !important;
+        grid-row: 2 !important;
+        order: initial !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        justify-self: stretch !important;
+    }
+
+    .top-search-input-wrapper {
+        width: 100% !important;
+    }
+
+    .top-search-input {
+        width: 100% !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        padding: 0 2.6rem 0 2.55rem !important;
+        border-radius: 14px !important;
+        font-size: 16px !important;
+    }
+
+    .top-search-icon {
+        left: 0.9rem !important;
+        width: 18px !important;
+        height: 18px !important;
+    }
+
+    .search-dropdown {
+        position: absolute !important;
+        inset: calc(100% + 0.35rem) 0 auto !important;
+        z-index: var(--reminko-z-dropdown) !important;
+        width: 100% !important;
+        max-width: none !important;
+        max-height: min(58dvh, 480px) !important;
+        overflow: auto !important;
+        border-radius: 16px !important;
+    }
+
+    .top-random-anime-slot {
+        display: none !important;
+    }
+
+    .top-nav-actions {
+        display: flex !important;
+        grid-column: 3;
+        grid-row: 1;
+        width: auto !important;
+        max-width: min(44vw, 168px) !important;
+        min-height: 44px;
+        margin: 0 !important;
+        gap: 0.24rem !important;
+        justify-content: flex-end !important;
+        overflow: visible !important;
+    }
+
+    .top-notifications-btn,
+    #topProfileLink,
+    .btn-top-login,
+    .btn-top-register,
+    .btn-top-logout {
+        min-width: 44px !important;
+        min-height: 44px !important;
+        height: 44px !important;
+        flex-shrink: 0;
+    }
+
+    .btn-top-login,
+    .btn-top-register,
+    .btn-top-logout {
+        width: auto !important;
+        padding: 0 0.48rem !important;
+        border-radius: 10px !important;
+        font-size: 0.72rem !important;
+        line-height: 1.05 !important;
+        white-space: nowrap;
+    }
+
+    /* Тот же sidebar становится нативно прокручиваемым нижним tabbar. */
+    .sidebar {
+        position: fixed !important;
+        inset: auto 0 0 !important;
+        z-index: var(--reminko-z-tabbar) !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: calc(var(--reminko-mobile-nav-h) + var(--reminko-safe-bottom)) !important;
+        max-height: none !important;
+        padding: 0.28rem 0.42rem calc(0.28rem + var(--reminko-safe-bottom)) !important;
+        border: 0 !important;
+        border-top: 1px solid rgba(167, 139, 250, 0.28) !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        scroll-padding-inline: 0.42rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none !important;
+    }
+
+    .sidebar::-webkit-scrollbar,
+    .sidebar-nav::-webkit-scrollbar,
+    .home-horizontal-scroll::-webkit-scrollbar,
+    .reminko-mobile-scroll-x::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    .sidebar-nav {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: stretch !important;
+        width: max-content !important;
+        min-width: max-content !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0.34rem !important;
+    }
+
+    .sidebar-link {
+        position: relative;
+        flex: 0 0 auto !important;
+        min-width: 64px !important;
+        max-width: 78px !important;
+        min-height: 56px !important;
+        padding: 0.35rem 0.3rem !important;
+        border-radius: 13px !important;
+        gap: 0.16rem !important;
+        scroll-snap-align: center;
+        scroll-margin-inline: 0.45rem;
+        font-size: 0.56rem !important;
+        line-height: 1.08 !important;
+        touch-action: manipulation;
+    }
+
+    .sidebar-link svg {
+        width: 19px !important;
+        height: 19px !important;
+        flex: 0 0 19px;
+    }
+
+    .sidebar-link span {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .sidebar-divider,
+    .sidebar-analytics-footer {
+        display: none !important;
+    }
+
+    .sidebar-legal-wrap {
+        display: contents !important;
+    }
+
+    .sidebar-link-legal {
+        display: flex !important;
+    }
+
+    .vip-badge,
+    .contemplation-badge {
+        display: none !important;
+    }
+
+    .sidebar-toggle {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+
+    .catalog-filter-bar {
+        position: relative !important;
+        inset: auto !important;
+        z-index: auto !important;
+    }
+
+    .filter-dropdown,
+    .filter-select-panel {
+        bottom: calc(
+            var(--reminko-mobile-nav-h) + var(--reminko-safe-bottom) + 0.5rem
+        ) !important;
+        z-index: var(--reminko-z-modal) !important;
+        max-height: min(62dvh, 560px) !important;
+    }
+
+    .modal {
+        z-index: var(--reminko-z-modal) !important;
+        align-items: flex-end !important;
+        padding: max(0.75rem, var(--reminko-safe-top)) var(--reminko-mobile-page-x)
+            calc(0.75rem + var(--reminko-safe-bottom)) !important;
+        overflow-y: auto !important;
+    }
+
+    .modal-content,
+    .auth-modal {
+        width: 100% !important;
+        max-width: 560px !important;
+        max-height: min(88dvh, 760px) !important;
+        margin: auto auto 0 !important;
+        padding: 1rem !important;
+        overflow-y: auto !important;
+        border-radius: 20px 20px 16px 16px !important;
+    }
+
+    button,
+    .btn,
+    [role='button'],
+    input[type='button'],
+    input[type='submit'] {
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+
+    input:not([type='checkbox']):not([type='radio']):not([type='range']),
+    select,
+    textarea {
+        min-height: 44px;
+        max-width: 100%;
+        font-size: 16px !important;
+    }
+
+    input[type='checkbox'],
+    input[type='radio'] {
+        min-width: 20px;
+        min-height: 20px;
+    }
+
+    input[type='range'] {
+        min-height: 32px;
+    }
+
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    [role='button']:focus-visible,
+    [tabindex]:focus-visible {
+        outline: 3px solid #c4b5fd !important;
+        outline-offset: 3px !important;
+        box-shadow: 0 0 0 5px rgba(168, 85, 247, 0.2) !important;
+    }
+
+    .table-wrapper,
+    .table-responsive,
+    [class*='table-wrap'] {
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .unauthorized-content {
+        min-height: 50dvh;
+        padding: 1rem var(--reminko-mobile-page-x);
+    }
+
+    .unauthorized-title {
+        font-size: clamp(1.45rem, 7vw, 2rem);
+    }
+
+    .unauthorized-desc {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 360px) {
+    html {
+        --reminko-mobile-page-x: 0.62rem;
+    }
+
+    .top-nav-container {
+        gap: 0.32rem !important;
+    }
+
+    .top-logo {
+        max-width: 92px !important;
+    }
+
+    .top-logo-text,
+    .top-online-label {
+        display: none !important;
+    }
+
+    .top-online-widget {
+        padding-inline: 0.42rem !important;
+    }
+
+    .top-nav-actions {
+        max-width: 150px !important;
+    }
+
+    .btn-top-login,
+    .btn-top-register,
+    .btn-top-logout {
+        padding-inline: 0.32rem !important;
+        font-size: 0.68rem !important;
+    }
+
+    .sidebar-link {
+        min-width: 60px !important;
+        max-width: 70px !important;
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
+    html {
+        --reminko-mobile-header-h: 56px;
+        --reminko-mobile-nav-h: 62px;
+    }
+
+    .top-navbar {
+        min-height: var(--reminko-mobile-header-h);
+    }
+
+    .top-nav-container {
+        grid-template-columns: auto minmax(160px, 1fr) auto !important;
+        grid-template-rows: 46px !important;
+        min-height: 46px;
+    }
+
+    .top-online-widget {
+        display: none !important;
+    }
+
+    .top-search-wrapper {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+    }
+
+    .top-logo {
+        grid-column: 1;
+    }
+
+    .top-nav-actions {
+        grid-column: 3;
+    }
+
+    .sidebar-link {
+        min-height: 48px !important;
+    }
+}
+
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
