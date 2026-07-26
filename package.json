@@ -21,7 +21,10 @@
     "minify:js": "node scripts/build/minify-js.js",
     "minify:css": "node scripts/build/minify-css.js",
     "lint": "eslint scripts/*.js --max-warnings 999 || true",
-    "test": "echo 'Тесты не настроены'"
+    "test": "npm run test:mobile",
+    "test:mobile": "playwright test tests/mobile",
+    "test:mobile:report": "playwright show-report",
+    "test:mobile:headed": "playwright test tests/mobile --headed"
   },
   "keywords": [
     "anime",
@@ -36,10 +39,11 @@
     "@supabase/supabase-js": "^2.39.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
+    "clean-css": "^5.3.3",
     "eslint": "^8.57.0",
     "http-server": "^14.1.1",
-    "terser": "^5.24.0",
-    "clean-css": "^5.3.3"
+    "terser": "^5.24.0"
   },
   "engines": {
     "node": ">=14.0.0"

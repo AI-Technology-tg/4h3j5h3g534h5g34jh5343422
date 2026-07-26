@@ -3,6 +3,8 @@ config.local.js
 .env.*
 node_modules/
 dist/
+playwright-report/
+test-results/
 local/anime4k-test/node_modules/
 local/anime4k-test/vendor/
 local/anime4k-test/media/*.mp4
