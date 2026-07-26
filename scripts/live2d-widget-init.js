@@ -202,11 +202,27 @@
         else window.addEventListener('load', cb, { once: true });
     }
 
+    function startLive2dWhenIdle() {
+        function run() {
+            startLive2d();
+        }
+        // Функциональность та же — только старт после idle
+        if (typeof window.ReminkoBoot !== 'undefined' && typeof window.ReminkoBoot.on === 'function') {
+            window.ReminkoBoot.on('Idle', run);
+            return;
+        }
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(run, { timeout: 3500 });
+        } else {
+            setTimeout(run, 1);
+        }
+    }
+
     function schedule() {
         afterWindowLoad(function () {
             var el = document.getElementById('loadingScreen');
             if (!el) {
-                startLive2d();
+                startLive2dWhenIdle();
                 return;
             }
             var done = false;
@@ -217,7 +233,7 @@
                 done = true;
                 if (poll) clearInterval(poll);
                 window.removeEventListener('reminko:loading-screen-hidden', go);
-                startLive2d();
+                startLive2dWhenIdle();
             }
             window.addEventListener('reminko:loading-screen-hidden', go);
             poll = setInterval(go, 80);

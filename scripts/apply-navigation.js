@@ -124,6 +124,8 @@
     }
     if (!base) return;
     function doInject() {
+        if (window.__reminkoSupportChatScriptLoaded) return;
+        window.__reminkoSupportChatScriptLoaded = true;
         try {
             var s = document.createElement('script');
             s.src = base + 'support-minko-chat.js?v=20260723a';
@@ -133,8 +135,12 @@
             console.warn('[Support Minko] inject:', e);
         }
     }
-    // После первого paint / idle — меньше удар по скроллу на мобилке
+    // Idle через BootManager (fallback — прежний requestIdleCallback после load)
     function schedule() {
+        if (typeof window.ReminkoBoot !== 'undefined' && typeof window.ReminkoBoot.on === 'function') {
+            window.ReminkoBoot.on('Idle', doInject);
+            return;
+        }
         if (typeof window.requestIdleCallback === 'function') {
             window.requestIdleCallback(function () { doInject(); }, { timeout: 2500 });
         } else {
