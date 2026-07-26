@@ -51,6 +51,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20060636</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20009253</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -82,11 +87,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20041467</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20060636</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -2551,11 +2551,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20062811</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20550594</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -3277,6 +3272,11 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20001974</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20062811</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -17836,6 +17836,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://re-minko-anime.com/anime/view.html?id=20061107</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20002933</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -20002,11 +20007,6 @@
   </url>
   <url>
     <loc>https://re-minko-anime.com/anime/view.html?id=20002602</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://re-minko-anime.com/anime/view.html?id=20061107</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
