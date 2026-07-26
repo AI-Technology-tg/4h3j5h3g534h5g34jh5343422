@@ -354,6 +354,57 @@ body.support-minko-open {
     }
 }
 
+@media (max-width: 900px) {
+    .support-minko-overlay {
+        z-index: var(--reminko-z-sheet, 10000);
+        align-items: flex-end;
+        padding:
+            max(0.5rem, env(safe-area-inset-top, 0px))
+            var(--reminko-mobile-page-x, 0.75rem)
+            max(0.5rem, env(safe-area-inset-bottom, 0px));
+    }
+
+    .support-minko-panel,
+    .support-minko-panel.is-expanded {
+        width: 100%;
+        max-width: 560px;
+        height: min(calc(var(--reminko-vvh, 100dvh) - 1rem), 760px);
+        max-height: calc(var(--reminko-vvh, 100dvh) - 1rem);
+        border-radius: 20px 20px 14px 14px;
+    }
+
+    .support-minko-head {
+        min-height: 64px;
+        padding: 0.65rem 0.75rem;
+    }
+
+    .support-minko-icon-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    .support-minko-input-row {
+        gap: 0.4rem;
+        padding: 0.55rem 0.65rem 0.45rem;
+    }
+
+    .support-minko-input {
+        min-height: 46px;
+        padding: 0.65rem 0.75rem;
+        font-size: 16px;
+    }
+
+    .support-minko-send {
+        min-width: 64px;
+        min-height: 46px;
+    }
+
+    .support-minko-chip {
+        min-height: 44px;
+        text-align: left;
+    }
+}
+
 @media (min-width: 520px) {
     .support-minko-overlay {
         align-items: center;

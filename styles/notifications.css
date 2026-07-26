@@ -556,19 +556,60 @@ body.notifications-sheet-open {
 
 .notification-toast-close:hover { background: rgba(255,255,255,0.08); color: #aaa; }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     #notifications-container {
         max-width: 100%;
-        padding: 0.5rem;
+        top: var(--reminko-vv-offset-top, 0px);
+        padding:
+            calc(0.35rem + env(safe-area-inset-top, 0px))
+            var(--reminko-mobile-page-x, 0.75rem)
+            0.5rem;
     }
     .notification { border-radius: 14px; }
     .notifications-panel--sheet {
         max-width: 100%;
-        max-height: min(82vh, 620px);
+        top: var(--reminko-vv-offset-top, 0px);
+        max-height: min(
+            calc(var(--reminko-vvh, 100dvh) - var(--reminko-vv-offset-top, 0px)),
+            680px
+        );
+        padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    .notifications-panel-close,
+    .notification-close,
+    .notification-toast-close,
+    .notifications-clear-all-btn,
+    .notification-dm-reply-pill,
+    .notification-reply-send {
+        min-width: 44px;
+        min-height: 44px;
+        opacity: 1;
+    }
+
+    .notification-content {
+        padding: 0.8rem 0.75rem;
+        padding-right: 2.8rem;
+    }
+
+    .notification-dm .notification-reply-area,
+    .notification-reply-area,
+    .notification-dm-hint-wrap {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .notification-reply-input {
+        min-height: 44px;
+        font-size: 16px;
+    }
+
+    .notifications-footer {
+        display: flex;
     }
 }
 
-@media (min-width: 900px) {
+@media (min-width: 901px) {
     .notifications-panel--sheet {
         border-radius: 20px;
         bottom: 24px;

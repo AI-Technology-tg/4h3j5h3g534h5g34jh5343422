@@ -3172,6 +3172,7 @@ img.reminko-avatar-img {
         --reminko-mobile-page-x: clamp(0.68rem, 3.2vw, 1rem);
         --reminko-mobile-nav-h: 72px;
         --reminko-mobile-header-h: 104px;
+        --reminko-vvh: 100dvh;
         --reminko-safe-top: env(safe-area-inset-top, 0px);
         --reminko-safe-bottom: env(safe-area-inset-bottom, 0px);
         --reminko-z-content: 1;
@@ -3522,11 +3523,16 @@ img.reminko-avatar-img {
     .auth-modal {
         width: 100% !important;
         max-width: 560px !important;
-        max-height: min(88dvh, 760px) !important;
+        max-height: min(calc(var(--reminko-vvh) - 1.5rem), 760px) !important;
         margin: auto auto 0 !important;
         padding: 1rem !important;
         overflow-y: auto !important;
         border-radius: 20px 20px 16px 16px !important;
+    }
+
+    body.reminko-keyboard-open .sidebar {
+        transform: translateY(110%) !important;
+        pointer-events: none !important;
     }
 
     button,

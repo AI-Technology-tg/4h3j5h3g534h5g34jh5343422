@@ -45,6 +45,56 @@ function reminkoIsMobileLayout() {
 }
 window.reminkoIsMobileLayout = reminkoIsMobileLayout;
 
+/**
+ * Реальная высота visual viewport: обновляется при browser bars и экранной
+ * клавиатуре. CSS использует --reminko-vvh вместо статичного 100vh.
+ */
+(function reminkoInitVisualViewportVars() {
+    if (typeof window === 'undefined' || !document.documentElement) return;
+    let frame = 0;
+    const sync = () => {
+        if (frame) cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+            frame = 0;
+            const viewport = window.visualViewport;
+            const height = Math.max(1, Math.round(viewport?.height || window.innerHeight || 1));
+            const offsetTop = Math.max(0, Math.round(viewport?.offsetTop || 0));
+            const keyboardOpen =
+                reminkoIsMobileLayout() &&
+                !!viewport &&
+                height < Math.max(320, Math.round(window.innerHeight * 0.78));
+            document.documentElement.style.setProperty('--reminko-vvh', `${height}px`);
+            document.documentElement.style.setProperty(
+                '--reminko-vv-offset-top',
+                `${offsetTop}px`
+            );
+            document.body?.classList.toggle('reminko-keyboard-open', keyboardOpen);
+        });
+    };
+
+    sync();
+    window.addEventListener('resize', sync, { passive: true });
+    window.addEventListener('orientationchange', sync, { passive: true });
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', sync, { passive: true });
+        window.visualViewport.addEventListener('scroll', sync, { passive: true });
+    }
+})();
+
+/** Capability-policy для тяжёлого декоративного UI. */
+function reminkoShouldReduceHeavyDecor() {
+    const connection =
+        navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const veryLowMemory =
+        Number.isFinite(Number(navigator.deviceMemory)) && Number(navigator.deviceMemory) <= 2;
+    const veryLowCpu =
+        Number.isFinite(Number(navigator.hardwareConcurrency)) &&
+        Number(navigator.hardwareConcurrency) <= 2;
+    return !!(connection?.saveData || reducedMotion || veryLowMemory || veryLowCpu);
+}
+window.reminkoShouldReduceHeavyDecor = reminkoShouldReduceHeavyDecor;
+
 /** Jikan API: повтор при 429 и временных 502/503/504 (общий для всего сайта). */
 const REMINKO_JIKAN_RETRY_STATUSES = new Set([429, 502, 503, 504]);
 const REMINKO_JIKAN_MAX_ATTEMPTS = 3;

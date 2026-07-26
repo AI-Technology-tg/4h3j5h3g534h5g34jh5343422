@@ -33,27 +33,30 @@
     transition: opacity 0.4s ease !important;
 }
 
-/* Только тестовая мобильная версия: Rem крупнее и прижата к правому нижнему краю. */
+/* Мобильная версия: компактный декор над tabbar, без перехвата касаний. */
 @media (max-width: 900px) {
     #live2d-widget.live2d-widget-container {
         position: fixed !important;
-        right: -96px !important;
-        bottom: -186px !important;
+        right: -42px !important;
+        bottom: calc(var(--reminko-mobile-nav-h, 72px) + env(safe-area-inset-bottom, 0px) - 54px) !important;
         left: auto !important;
         top: auto !important;
-        z-index: 1400 !important;
-        max-width: none !important;
-        max-height: none !important;
-        overflow: visible !important;
+        z-index: 1080 !important;
+        width: 180px !important;
+        max-width: 44vw !important;
+        max-height: 300px !important;
+        overflow: hidden !important;
         pointer-events: none !important;
-        transform: translate3d(0, 0, 0) scale(1) !important;
+        transform: translate3d(0, 0, 0) scale(0.82) !important;
         transform-origin: right bottom !important;
+        opacity: 0.24 !important;
     }
 
     #live2d-widget.live2d-widget-container #live2dcanvas,
     #live2d-widget.live2d-widget-container canvas {
-        max-width: none !important;
-        max-height: none !important;
+        width: 180px !important;
+        max-width: 100% !important;
+        max-height: 300px !important;
         image-rendering: auto !important;
     }
 
@@ -64,7 +67,14 @@
 
 @media (max-width: 420px) {
     #live2d-widget.live2d-widget-container {
-        right: -106px !important;
-        bottom: -186px !important;
+        right: -54px !important;
+        opacity: 0.2 !important;
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape),
+    (max-width: 900px) and (prefers-reduced-motion: reduce) {
+    #live2d-widget.live2d-widget-container {
+        display: none !important;
     }
 }

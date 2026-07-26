@@ -78,18 +78,8 @@
 
 (function injectLive2dWidgetEverywhere() {
     if (typeof window === 'undefined' || window.__reminkoLive2dInjected) return;
-    // Live2D тяжёлый для скролла на телефонах — только desktop (>900px)
-    var isMobile = false;
-    try {
-        if (typeof window.reminkoIsMobileLayout === 'function') {
-            isMobile = !!window.reminkoIsMobileLayout();
-        } else if (window.matchMedia) {
-            isMobile = window.matchMedia('(max-width: 900px)').matches;
-        }
-    } catch (_) {
-        isMobile = false;
-    }
-    if (isMobile) return;
+    // Сам виджет выбирает компактный mobile-конфиг и не грузится при
+    // saveData/reduced-motion/очень слабом устройстве.
     window.__reminkoLive2dInjected = true;
     try {
         var cur = document.currentScript;
@@ -100,7 +90,7 @@
         if (!cur || !cur.src) return;
         var base = cur.src.replace(/[^/]+$/, '');
         var s = document.createElement('script');
-        s.src = base + 'live2d-widget-init.js?v=live2d-stage2';
+        s.src = base + 'live2d-widget-init.js?v=20260726mobile1';
         s.async = true;
         (document.head || document.documentElement).appendChild(s);
     } catch (e) {
@@ -128,7 +118,7 @@
         window.__reminkoSupportChatScriptLoaded = true;
         try {
             var s = document.createElement('script');
-            s.src = base + 'support-minko-chat.js?v=20260726stage2';
+            s.src = base + 'support-minko-chat.js?v=20260726mobile1';
             s.async = true;
             (document.body || document.documentElement).appendChild(s);
         } catch (e) {

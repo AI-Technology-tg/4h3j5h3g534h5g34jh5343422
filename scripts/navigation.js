@@ -106,6 +106,7 @@ class NavigationManager {
                         <img
                             class="top-random-anime-btn"
                             id="topRandomAnimeBtn"
+                            data-random-anime
                             src="${this.basePath}Fons/slu4ainoe.webp"
                             alt="Случайное аниме"
                             width="88"
@@ -240,6 +241,45 @@ class NavigationManager {
                         </svg>
                         <span>Сообщения</span>
                         <span class="friends-badge hidden" id="dmBadge">0</span>
+                    </a>
+                    <a href="${this.basePath}favorites.html" class="sidebar-link ${activeClass('favorites')}" data-page="favorites">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"></path>
+                        </svg>
+                        <span>Избранное</span>
+                    </a>
+                    <a href="${this.basePath}favorites-manga.html" class="sidebar-link ${activeClass('favorites-manga')}" data-page="favorites-manga">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            <path d="M12 7.2c1.4-1.5 4-0.5 4 1.5 0 1.8-2.1 3.3-4 4.8-1.9-1.5-4-3-4-4.8 0-2 2.6-3 4-1.5z"></path>
+                        </svg>
+                        <span>Манга избранное</span>
+                    </a>
+                    <a href="${this.basePath}history.html" class="sidebar-link ${activeClass('history')}" data-page="history">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
+                            <path d="M3 3v5h5"></path>
+                            <path d="M12 7v5l3 2"></path>
+                        </svg>
+                        <span>История</span>
+                    </a>
+                    <a href="${this.basePath}profile.html" class="sidebar-link ${activeClass('profile')}" data-page="profile">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <span>Профиль</span>
+                    </a>
+                    <a href="#" class="sidebar-link sidebar-link-random" data-page="random" data-random-anime>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M16 3h5v5"></path>
+                            <path d="M4 20 21 3"></path>
+                            <path d="M21 16v5h-5"></path>
+                            <path d="m15 15 6 6"></path>
+                            <path d="M4 4 9 9"></path>
+                        </svg>
+                        <span>Случайное</span>
                     </a>
                     <a href="${this.basePath}info.html" class="sidebar-link ${activeClass('info')}" data-page="info">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -552,8 +592,8 @@ class NavigationManager {
 
     /** Случайное аниме — кнопка со значком в шапке рядом с поиском */
     initTopRandomAnime() {
-        const btn = document.getElementById('topRandomAnimeBtn');
-        if (!btn) return;
+        const buttons = Array.from(document.querySelectorAll('[data-random-anime]'));
+        if (!buttons.length) return;
         const filterRandomPool = (list) => {
             if (!Array.isArray(list) || !list.length) return [];
             const adultOk =
@@ -594,12 +634,14 @@ class NavigationManager {
                 window.location.href = `${this.basePath}anime/view.html?id=${randomAnime.id}`;
             }
         };
-        btn.addEventListener('click', goRandom);
-        btn.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                goRandom(e);
-            }
+        buttons.forEach((btn) => {
+            btn.addEventListener('click', goRandom);
+            btn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    goRandom(e);
+                }
+            });
         });
     }
 
@@ -630,6 +672,16 @@ class NavigationManager {
             sidebar.classList.remove('active');
             mainLayout.classList.remove('sidebar-open');
             document.body.classList.toggle('reminko-mobile-layout', !!isMobile);
+            if (isMobile) {
+                const activeLink = sidebar.querySelector('.sidebar-link.active');
+                requestAnimationFrame(() => {
+                    activeLink?.scrollIntoView({
+                        block: 'nearest',
+                        inline: 'center',
+                        behavior: 'auto'
+                    });
+                });
+            }
         };
 
         syncLayout();

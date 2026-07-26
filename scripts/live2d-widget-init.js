@@ -12,15 +12,18 @@
         opacity: 0.62
     };
 
-    var REM_MOBILE_PREVIEW = {
-        scale: 1.22,
-        display: { width: 348, height: 696, vOffset: 0 },
-        opacity: 0.18
+    var REM_MOBILE = {
+        scale: 1.05,
+        display: { width: 180, height: 360, vOffset: -54 },
+        opacity: 0.28
     };
 
-    function isMobilePreview() {
+    function isMobileLayout() {
         try {
             return !!(
+                (typeof window.reminkoIsMobileLayout === 'function' &&
+                    window.reminkoIsMobileLayout()) ||
+                window.matchMedia('(max-width: 900px)').matches ||
                 window.__reminkoMobilePreviewAllowed ||
                 document.documentElement.classList.contains('reminko-mobile-preview')
             );
@@ -39,7 +42,7 @@
         if (!cur || !cur.src) return;
         var href;
         try {
-            href = new URL('../styles/live2d-widget.css?v=mobile-v4-8', cur.src).href;
+            href = new URL('../styles/live2d-widget.css?v=20260726mobile1', cur.src).href;
         } catch (e) {
             return;
         }
@@ -59,7 +62,7 @@
             'https://cdn.jsdelivr.net/npm/live2d-widget@3.1.4/lib/L2Dwidget.min.js';
         sc.charset = 'utf-8';
         sc.onload = function () {
-            var remConfig = isMobilePreview() ? REM_MOBILE_PREVIEW : REM;
+            var remConfig = isMobileLayout() ? REM_MOBILE : REM;
             var targetOpacity = remConfig.opacity != null ? remConfig.opacity : 0.75;
             var display = {
                 position: 'right',
@@ -91,7 +94,7 @@
                 display: display,
                 mobile: {
                     show: true,
-                    scale: isMobilePreview() ? 1 : 0.5,
+                    scale: isMobileLayout() ? 0.82 : 0.5,
                     motion: true
                 },
                 react: {
@@ -116,7 +119,7 @@
         if (!loadingOverlayGone()) return;
         var el = document.getElementById('live2d-widget');
         if (!el || !el.style) return;
-        var remConfig = isMobilePreview() ? REM_MOBILE_PREVIEW : REM;
+        var remConfig = isMobileLayout() ? REM_MOBILE : REM;
         var targetOpacity = remConfig.opacity != null ? remConfig.opacity : 0.75;
         el.style.setProperty('visibility', 'visible', 'important');
         el.style.setProperty('opacity', String(targetOpacity), 'important');
@@ -226,6 +229,18 @@
 
     function schedule() {
         afterWindowLoad(function () {
+            var reduceDecor =
+                typeof window.reminkoShouldReduceHeavyDecor === 'function'
+                    ? window.reminkoShouldReduceHeavyDecor()
+                    : !!(
+                          navigator.connection &&
+                          navigator.connection.saveData
+                      ) ||
+                      !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+            if (reduceDecor) {
+                window.__reminkoLive2dSkippedForCapability = true;
+                return;
+            }
             var el = document.getElementById('loadingScreen');
             if (!el) {
                 startLive2dWhenIdle();

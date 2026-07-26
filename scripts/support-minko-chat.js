@@ -230,9 +230,11 @@
         if (document.getElementById('support-minko-chat-styles')) return;
         const cur = document.querySelector('script[src*="support-minko-chat.js"]');
         if (!cur || !cur.src) return;
-        const href = cur.src
-            .replace(/[?#].*$/, '')
-            .replace(/\/scripts\/support-minko-chat\.js$/i, '/styles/support-minko-chat.css');
+        const href =
+            cur.src
+                .replace(/[?#].*$/, '')
+                .replace(/\/scripts\/support-minko-chat\.js$/i, '/styles/support-minko-chat.css') +
+            '?v=20260726mobile1';
         const link = document.createElement('link');
         link.id = 'support-minko-chat-styles';
         link.rel = 'stylesheet';
