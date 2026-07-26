@@ -3,7 +3,8 @@
  * GET /.netlify/functions/shikimori-proxy?path=/animes/123
  * GET /.netlify/functions/shikimori-proxy?path=/calendar
  */
-const SHIKI_ORIGIN = 'https://shikimori.one';
+// .one теперь редиректит через DDoS Guard и зависает в Netlify Functions.
+const SHIKI_ORIGIN = 'https://shikimori.io';
 const SHIKI_UA = 'Re-Minko/1.0 (https://re-minko-anime.com; +contact@re-minko-anime.com)';
 const { corsHeaders: buildCorsHeaders } = require('./_cors');
 
