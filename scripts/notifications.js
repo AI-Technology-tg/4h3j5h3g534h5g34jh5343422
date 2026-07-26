@@ -956,14 +956,28 @@ window.clearAllToastNotifications = () => {
     if (window.notificationService) window.notificationService.clearAllToasts();
 };
 
-// Инициализация при загрузке
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        window.notificationService.init();
-    });
-} else {
-    window.notificationService.init();
-}
+// Инициализация: после FirstPaint → Interactive (не блокирует первый рендер).
+// Realtime/loadNotifications логика внутри init() без изменений.
+(function scheduleNotificationServiceInit() {
+    const run = () => {
+        if (!window.notificationService || typeof window.notificationService.init !== 'function') return;
+        if (window.notificationService.__reminkoBootInitStarted) return;
+        window.notificationService.__reminkoBootInitStarted = true;
+        void window.notificationService.init();
+    };
+
+    if (typeof window.ReminkoBoot?.on === 'function') {
+        window.ReminkoBoot.on('Interactive', run);
+        return;
+    }
+
+    // Fallback без BootManager (страницы без boot-manager.js)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run);
+    } else {
+        run();
+    }
+})();
 
 /** Minko AI — пробуждение после глубокого сна: тост со звуком, колокольчик, push браузера */
 (function reminkoMinkoWakeNotifyModule() {

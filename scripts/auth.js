@@ -523,10 +523,34 @@ window.reminkoValidateServerAuthOrSignOut = reminkoValidateServerAuthOrSignOut;
 let currentUserCache = null;
 let currentUserCacheTime = 0;
 const USER_CACHE_DURATION = 30000; // 30 секунд
+/** Один in-flight Promise: параллельные getCurrentUser() ждут первый запрос */
+let currentUserInflight = null;
 
 // Получить текущего пользователя
 async function getCurrentUser(forceRefresh = false) {
     // Проверяем кэш (если не принудительное обновление)
+    if (!forceRefresh && currentUserCache && (Date.now() - currentUserCacheTime) < USER_CACHE_DURATION) {
+        return currentUserCache;
+    }
+
+    // Дедуп параллельных запросов (логика ответа не меняется)
+    if (!forceRefresh && currentUserInflight) {
+        return currentUserInflight;
+    }
+
+    const exec = getCurrentUserUncached(forceRefresh);
+    if (!forceRefresh) {
+        currentUserInflight = exec;
+        exec.finally(() => {
+            if (currentUserInflight === exec) currentUserInflight = null;
+        });
+    }
+    return exec;
+}
+
+/** Внутренняя реализация загрузки пользователя (без sharing Promise). */
+async function getCurrentUserUncached(forceRefresh = false) {
+    // Повторная проверка кэша: другой вызов мог заполнить его, пока мы ждали очередь
     if (!forceRefresh && currentUserCache && (Date.now() - currentUserCacheTime) < USER_CACHE_DURATION) {
         return currentUserCache;
     }
@@ -753,6 +777,7 @@ async function getCurrentUser(forceRefresh = false) {
 function clearUserCache() {
     currentUserCache = null;
     currentUserCacheTime = 0;
+    currentUserInflight = null;
 }
 
 // Экспортируем для использования в других модулях

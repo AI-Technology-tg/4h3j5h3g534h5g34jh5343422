@@ -11,6 +11,7 @@
     const VISITOR_KEY = 'reminko_visitor_id_v1';
     const DEDUP_MS = 8000;
     let lastSent = 0;
+    let scheduled = false;
 
     function visitorId() {
         try {
@@ -55,22 +56,32 @@
     }
 
     function schedule() {
+        if (scheduled) return;
+        scheduled = true;
+
+        const run = () => {
+            void trackPageView();
+        };
+
+        if (typeof window.ReminkoBoot?.on === 'function') {
+            // Idle: не конкурирует с FirstPaint / Interactive
+            window.ReminkoBoot.on('Idle', run);
+            return;
+        }
+
+        // Fallback без BootManager
         if (document.readyState === 'complete') {
-            setTimeout(trackPageView, 1200);
+            setTimeout(run, 1200);
         } else {
             window.addEventListener(
                 'load',
                 () => {
-                    setTimeout(trackPageView, 1200);
+                    setTimeout(run, 1200);
                 },
                 { once: true }
             );
         }
     }
-
-    window.addEventListener('reminko:navigation-applied', () => {
-        setTimeout(trackPageView, 1500);
-    });
 
     schedule();
 })();

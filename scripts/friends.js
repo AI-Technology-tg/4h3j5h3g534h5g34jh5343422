@@ -530,10 +530,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Проверяем сразу
-    setTimeout(checkAuthAndStartTracking, 1000);
+    // Polling / last_online — Idle (не на Critical/FirstPaint)
+    const scheduleTrackingBoot = () => {
+        if (typeof window.ReminkoBoot?.on === 'function') {
+            window.ReminkoBoot.on('Idle', checkAuthAndStartTracking);
+        } else {
+            setTimeout(checkAuthAndStartTracking, 1000);
+        }
+    };
+    scheduleTrackingBoot();
 
-    // Также слушаем событие входа
+    // Также слушаем событие входа (без задержки — UX входа важен)
     window.addEventListener('userLoggedIn', (e) => {
         if (e.detail && e.detail.id) {
             window.friendsService.startOnlineStatusTracking(e.detail.id);
