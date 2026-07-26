@@ -37,12 +37,21 @@ const USER_ROUTES = [
 const PRIMARY_TOUCH_ROUTES = [
     '/',
     '/catalog/anime.html',
+    '/catalog/calendar.html',
+    '/catalog/manga.html',
     '/anime/view.html?id=1',
     '/manga/reader.html?id=1',
     '/profile.html',
+    '/friends.html',
     '/messages.html',
+    '/favorites.html',
+    '/favorites-manga.html',
+    '/history.html',
     '/minko-ai.html',
-    '/watch-together.html'
+    '/watch-together.html',
+    '/info.html',
+    '/reset-password.html',
+    '/Mini%20Game%20Minko/index.html'
 ];
 
 for (const theme of ['white', 'dark']) {
@@ -96,7 +105,7 @@ test.describe('mobile interaction contract', () => {
                     contentType: 'application/json'
                 });
             }
-            expect(small, 'Основные touch targets должны быть минимум 40×40px').toEqual([]);
+            expect(small, 'Основные touch targets должны быть минимум 44×44px').toEqual([]);
         });
     }
 
@@ -124,5 +133,21 @@ test.describe('mobile interaction contract', () => {
                 `В mobile nav отсутствует ${expectedHref}`
             ).toBeTruthy();
         }
+
+        const scrollState = await page.locator('.sidebar').evaluate((sidebar) => {
+            const last = sidebar.querySelector('.sidebar-link:last-of-type');
+            last?.scrollIntoView({ inline: 'end', block: 'nearest' });
+            return new Promise((resolve) =>
+                requestAnimationFrame(() =>
+                    resolve({
+                        clientWidth: sidebar.clientWidth,
+                        scrollWidth: sidebar.scrollWidth,
+                        scrollLeft: sidebar.scrollLeft
+                    })
+                )
+            );
+        });
+        expect(scrollState.scrollWidth).toBeGreaterThan(scrollState.clientWidth);
+        expect(scrollState.scrollLeft).toBeGreaterThan(0);
     });
 });

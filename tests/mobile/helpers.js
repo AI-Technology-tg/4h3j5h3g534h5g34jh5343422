@@ -47,9 +47,25 @@ const supabaseBrowserBundle = fs.readFileSync(
     'utf8'
 );
 
-async function preparePage(page, theme = 'white') {
+async function preparePage(page, theme = 'white', options = {}) {
     const runtimeErrors = [];
     const consoleErrors = [];
+    const activeProfile = {
+        ...profile,
+        is_site_creator: Boolean(options.creator)
+    };
+    const activeUser = {
+        ...user,
+        email: options.creator ? 'creator@reminko.com' : user.email,
+        user_metadata: {
+            ...user.user_metadata,
+            is_site_creator: Boolean(options.creator)
+        }
+    };
+    const activeSession = {
+        ...session,
+        user: activeUser
+    };
 
     page.on('pageerror', (error) => runtimeErrors.push(error.message));
     page.on('console', (message) => {
@@ -73,8 +89,8 @@ async function preparePage(page, theme = 'white') {
         },
         {
             authKey: `sb-${PROJECT_REF}-auth-token`,
-            authSession: session,
-            currentUser: profile,
+            authSession: activeSession,
+            currentUser: activeProfile,
             selectedTheme: theme
         }
     );
@@ -119,7 +135,7 @@ async function preparePage(page, theme = 'white') {
             return;
         }
         if (/\/auth\/v1\/user(?:\?|$)/.test(url)) {
-            await route.fulfill({ status: 200, headers, body: JSON.stringify(user) });
+            await route.fulfill({ status: 200, headers, body: JSON.stringify(activeUser) });
             return;
         }
         if (/\/rest\/v1\/profiles(?:\?|$)/.test(url)) {
@@ -129,12 +145,32 @@ async function preparePage(page, theme = 'white') {
             await route.fulfill({
                 status: 200,
                 headers: { ...headers, 'content-range': '0-0/1' },
-                body: JSON.stringify(wantsObject ? profile : [profile])
+                body: JSON.stringify(wantsObject ? activeProfile : [activeProfile])
             });
             return;
         }
         if (/\/rest\/v1\/rpc\/site_visit_online_count/.test(url)) {
             await route.fulfill({ status: 200, headers, body: '0' });
+            return;
+        }
+        if (/\/rest\/v1\/rpc\/is_site_creator_user_id/.test(url)) {
+            await route.fulfill({
+                status: 200,
+                headers,
+                body: options.creator ? 'true' : 'false'
+            });
+            return;
+        }
+        if (/\/rest\/v1\/rpc\/get_user_email/.test(url)) {
+            await route.fulfill({
+                status: 200,
+                headers,
+                body: JSON.stringify(activeUser.email)
+            });
+            return;
+        }
+        if (/\/rest\/v1\/rpc\//.test(url)) {
+            await route.fulfill({ status: 200, headers, body: '[]' });
             return;
         }
 
@@ -204,6 +240,24 @@ async function readLayout(page) {
             if (!['fixed', 'sticky'].includes(style.position)) return;
             const rect = el.getBoundingClientRect();
             if (rect.right > viewportWidth + 2 || rect.left < -2) {
+                if (style.position === 'sticky') {
+                    let parent = el.parentElement;
+                    let insideHorizontalScroller = false;
+                    while (parent && parent !== document.body) {
+                        const parentStyle = getComputedStyle(parent);
+                        if (
+                            ['auto', 'scroll', 'hidden', 'clip'].includes(
+                                parentStyle.overflowX
+                            ) &&
+                            parent.scrollWidth > parent.clientWidth + 1
+                        ) {
+                            insideHorizontalScroller = true;
+                            break;
+                        }
+                        parent = parent.parentElement;
+                    }
+                    if (insideHorizontalScroller) return;
+                }
                 escapedFixed.push({
                     selector:
                         el.id
@@ -242,6 +296,17 @@ async function readSmallPrimaryTargets(page) {
             '.filter-chip',
             '.filter-option',
             '.msg-v2-back',
+            '.profile-tab-btn',
+            '.friends-v2-tab',
+            '.calendar-tab',
+            '.info-tab',
+            '.gw-btn',
+            '.filter-panel-close',
+            '.pagination button',
+            '.pagination a',
+            '.mobile-game-key',
+            '.mobile-game-action',
+            '.mobile-game-utility-btn',
             'button[type="submit"]'
         ].join(',');
         const result = [];
@@ -256,7 +321,7 @@ async function readSmallPrimaryTargets(page) {
             ) {
                 return;
             }
-            if (rect.width < 40 || rect.height < 40) {
+            if (rect.width < 43.5 || rect.height < 43.5) {
                 result.push({
                     text: (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 40),
                     className: String(el.className || ''),

@@ -34,8 +34,8 @@ test.describe('P0 mobile screens', () => {
         expect(result.sidebarDisplay).toBe('none');
         expect(result.mainDisplay).not.toBe('none');
         expect(result.backDisplay).not.toBe('none');
-        expect(result.backWidth).toBeGreaterThanOrEqual(40);
-        expect(result.backHeight).toBeGreaterThanOrEqual(40);
+        expect(result.backWidth).toBeGreaterThanOrEqual(44);
+        expect(result.backHeight).toBeGreaterThanOrEqual(44);
     });
 
     test('manga controls stay below header and expose 44px actions', async ({ page }, testInfo) => {
@@ -60,8 +60,8 @@ test.describe('P0 mobile screens', () => {
         expect(geometry.controlsTop).toBeGreaterThanOrEqual(geometry.headerBottom - 2);
         expect(geometry.buttons.length).toBeGreaterThan(0);
         for (const button of geometry.buttons) {
-            expect(button.width).toBeGreaterThanOrEqual(40);
-            expect(button.height).toBeGreaterThanOrEqual(40);
+            expect(button.width).toBeGreaterThanOrEqual(44);
+            expect(button.height).toBeGreaterThanOrEqual(44);
         }
     });
 
@@ -124,7 +124,7 @@ test.describe('P0 mobile screens', () => {
         });
 
         expect(geometry.overlayHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1);
-        expect(geometry.buttonWidth).toBeGreaterThanOrEqual(40);
-        expect(geometry.buttonHeight).toBeGreaterThanOrEqual(40);
+        expect(geometry.buttonWidth).toBeGreaterThanOrEqual(44);
+        expect(geometry.buttonHeight).toBeGreaterThanOrEqual(44);
     });
 });
