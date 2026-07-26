@@ -2067,3 +2067,38 @@ body.theme-dark .minko-watch-chip {
         -webkit-overflow-scrolling: touch;
     }
 }
+
+@media (max-width: 900px) {
+    html:has(body.minko-ai-page),
+    body.minko-ai-page {
+        height: var(--reminko-vvh, 100dvh);
+        max-height: var(--reminko-vvh, 100dvh);
+    }
+
+    body.minko-ai-page.reminko-keyboard-open .main-layout {
+        margin-bottom: 0;
+    }
+
+    body.minko-ai-page .minko-chat-composer {
+        position: sticky;
+        bottom: 0;
+    }
+
+    body.minko-ai-page .minko-deep-sleep-overlay .minko-deep-sleep-card,
+    body.minko-ai-page .minko-game-overlay .minko-deep-sleep-card {
+        max-height: min(calc(var(--reminko-vvh, 100dvh) - 1.5rem), 640px);
+    }
+
+    body.theme-white.minko-ai-page .main-content-wrapper.minko-ai-main,
+    body.theme-white.minko-ai-page .minko-ai-main,
+    body.theme-white.minko-ai-page .minko-ai-wrap,
+    body.theme-white.minko-ai-page .minko-chat-app,
+    body.theme-white.minko-ai-page .minko-chat-body {
+        background: #151020;
+    }
+
+    body.theme-white.minko-ai-page .minko-ai-foot,
+    body.theme-white.minko-ai-page .minko-chat-composer {
+        background: rgba(21, 16, 32, 0.98);
+    }
+}

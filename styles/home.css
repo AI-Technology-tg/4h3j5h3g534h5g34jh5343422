@@ -1858,3 +1858,147 @@ html.home-carousel-auto-off .home-section--kodik .home-horizontal-scroll {
         flex: 0 0 130px;
     }
 }
+
+/* Canonical mobile home layout. */
+@media (max-width: 900px) {
+    .home-hero {
+        width: 100%;
+        padding: clamp(1rem, 4.5vw, 1.6rem);
+        border-radius: 18px;
+    }
+
+    .home-hero-content,
+    .home-hero-continue-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.85rem;
+    }
+
+    .home-hero-title {
+        font-size: clamp(1.5rem, 7vw, 2.2rem);
+        line-height: 1.08;
+    }
+
+    .home-hero-lead,
+    .home-hero-subtitle {
+        font-size: clamp(0.9rem, 3.8vw, 1rem);
+        line-height: 1.5;
+    }
+
+    .home-hero-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+        gap: 0.45rem;
+    }
+
+    .hero-stat {
+        min-width: 0;
+        padding: 0.6rem 0.35rem;
+        text-align: center;
+    }
+
+    .home-hero-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+    }
+
+    .hero-btn,
+    .home-social-panel__go,
+    .home-social-panel__app-btn {
+        min-height: 44px;
+    }
+
+    .home-hero-watch-remove {
+        top: -10px;
+        right: -10px;
+        width: 44px;
+        height: 44px;
+        opacity: 1;
+    }
+
+    .home-horizontal-scroll,
+    .anime-similar-scroll {
+        scroll-snap-type: x proximity;
+        overscroll-behavior-x: contain;
+    }
+
+    .home-horizontal-scroll > *,
+    .anime-similar-scroll > * {
+        scroll-snap-align: start;
+    }
+
+    .home-social-panel {
+        align-items: flex-end;
+        padding:
+            max(0.75rem, env(safe-area-inset-top, 0px))
+            var(--reminko-mobile-page-x, 0.75rem)
+            max(0.75rem, env(safe-area-inset-bottom, 0px));
+    }
+
+    .home-social-panel__card {
+        width: 100%;
+        max-width: 560px;
+        max-height: calc(var(--reminko-vvh, 100dvh) - 1.5rem);
+        padding: 1rem;
+        overflow-y: auto;
+        border-radius: 20px 20px 14px 14px;
+    }
+
+    .home-social-panel__close {
+        width: 44px;
+        height: 44px;
+    }
+
+    .home-giveaway-banner {
+        margin-bottom: 1rem;
+        border-radius: 16px;
+    }
+
+    .home-giveaway-banner__inner {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.65rem;
+        padding: 0.85rem;
+    }
+
+    .home-giveaway-banner__badge,
+    .home-giveaway-banner__copy,
+    .home-giveaway-banner__cta,
+    .home-giveaway-banner__prize {
+        grid-column: 1;
+        justify-self: stretch;
+    }
+
+    .home-giveaway-banner__cta {
+        min-height: 44px;
+        text-align: center;
+    }
+
+    .home-giveaway-banner__prize {
+        justify-content: space-between;
+    }
+
+    .home-beta-banner {
+        margin-bottom: 1rem;
+        padding: 0.85rem;
+    }
+
+    .quick-links-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .home-footer {
+        margin-inline: calc(-1 * var(--reminko-mobile-page-x, 0.75rem));
+        padding-bottom: 1rem;
+    }
+}
+
+@media (max-width: 380px) {
+    .home-hero-stats {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .home-hero-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

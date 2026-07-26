@@ -9747,6 +9747,73 @@
         });
     }
 
+    /** Полноценное сенсорное управление без изменения игровой механики. */
+    function initTouchControls() {
+        if (document.getElementById('mobileGameControls')) return;
+
+        const controls = document.createElement('nav');
+        controls.id = 'mobileGameControls';
+        controls.className = 'mobile-game-controls';
+        controls.setAttribute('aria-label', 'Сенсорное управление игрой');
+        controls.innerHTML = `
+            <div class="mobile-game-dpad" aria-label="Перемещение">
+                <button class="mobile-game-key mobile-game-key--up" type="button" data-code="KeyW" aria-label="Вверх">▲</button>
+                <button class="mobile-game-key mobile-game-key--left" type="button" data-code="KeyA" aria-label="Влево">◀</button>
+                <button class="mobile-game-key mobile-game-key--down" type="button" data-code="KeyS" aria-label="Вниз">▼</button>
+                <button class="mobile-game-key mobile-game-key--right" type="button" data-code="KeyD" aria-label="Вправо">▶</button>
+            </div>
+            <button class="mobile-game-action" type="button" data-code="Space" aria-label="Продолжить или подтвердить">Действие</button>
+            <div class="mobile-game-utility">
+                <button class="mobile-game-utility-btn mobile-game-utility-btn--leave" type="button" data-action="leave" aria-label="Покинуть коридор">🚪</button>
+            </div>
+        `;
+        document.body.appendChild(controls);
+
+        const releaseCode = (code) => {
+            window.dispatchEvent(new KeyboardEvent('keyup', {
+                code,
+                key: code === 'Space' ? ' ' : code.slice(-1).toLowerCase(),
+                bubbles: true
+            }));
+        };
+
+        controls.querySelectorAll('[data-code]').forEach((button) => {
+            const code = button.dataset.code;
+            const press = (event) => {
+                event.preventDefault();
+                try {
+                    button.setPointerCapture(event.pointerId);
+                } catch (_) {}
+                window.dispatchEvent(new KeyboardEvent('keydown', {
+                    code,
+                    key: code === 'Space' ? ' ' : code.slice(-1).toLowerCase(),
+                    bubbles: true
+                }));
+
+                if (code !== 'Space') {
+                    const matchingKey = Array.from(
+                        document.querySelectorAll('.controls-panel .kbd-pad-row kbd')
+                    ).find((kbd) => kbd.textContent.trim().toUpperCase() === code.slice(-1));
+                    matchingKey?.click();
+                }
+            };
+            const release = (event) => {
+                event.preventDefault();
+                releaseCode(code);
+            };
+            button.addEventListener('pointerdown', press);
+            button.addEventListener('pointerup', release);
+            button.addEventListener('pointercancel', release);
+            button.addEventListener('lostpointercapture', () => releaseCode(code));
+        });
+
+        controls.querySelector('[data-action="leave"]')?.addEventListener('click', () => {
+            document.getElementById('leaveBtn')?.click();
+        });
+    }
+
+    initTouchControls();
+
     // ══════════════════════════════════════════════════════
     // ░░░ 19. АВТОМАСШТАБИРОВАНИЕ ПОД РАЗМЕР ОКНА ░░░
     // ══════════════════════════════════════════════════════
@@ -9759,17 +9826,21 @@
     function fitGameToViewport() {
         if (!scaleStage) return;
 
-        const padX = 20;
-        const padY = 20;
+        const mobileLayout = window.matchMedia('(max-width: 900px)').matches;
+        const padX = mobileLayout ? 16 : 20;
+        const padY = mobileLayout ? 132 : 20;
         const availW = Math.max(320, window.innerWidth  - padX);
-        const availH = Math.max(280, window.innerHeight - padY);
+        const viewportHeight = window.visualViewport?.height || window.innerHeight;
+        const availH = Math.max(180, viewportHeight - padY);
 
-        const sW = availW / STAGE_W;
+        const sW = availW / (mobileLayout ? 720 : STAGE_W);
         const sH = availH / STAGE_H;
         let scale = Math.min(sW, sH);
 
-        // Кламп: от 0.4× до 1.4×
-        scale = Math.min(1.4, Math.max(0.4, scale));
+        // На телефоне панель клавиатуры заменена крупным сенсорным контроллером.
+        const minScale = mobileLayout ? 0.28 : 0.4;
+        const maxScale = mobileLayout ? 1 : 1.4;
+        scale = Math.min(maxScale, Math.max(minScale, scale));
 
         scaleStage.style.transform = `scale(${scale})`;
     }
@@ -9782,6 +9853,7 @@
 
     window.addEventListener('resize', scheduleFit);
     window.addEventListener('orientationchange', fitGameToViewport);
+    window.visualViewport?.addEventListener('resize', scheduleFit);
     window.addEventListener('load', fitGameToViewport);
 
     fitGameToViewport();

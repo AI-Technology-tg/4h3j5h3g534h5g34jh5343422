@@ -33,7 +33,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="Fons/vavo/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="Fons/vavo/favicon-16x16.png">
     <link rel="manifest" href="Fons/vavo/site.webmanifest">
-    <link rel="stylesheet" href="styles/main.css?v=20260726mobile1">
+    <link rel="stylesheet" href="styles/main.css?v=20260726mobile2">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -186,6 +186,61 @@
         @media (max-width: 600px) {
             .panel { padding: 28px 18px; }
             h1 { font-size: 22px; }
+        }
+
+        @media (max-width: 900px) {
+            body {
+                min-height: 100dvh;
+                height: auto;
+                overflow-x: hidden;
+                overflow-y: auto;
+                padding:
+                    max(12px, env(safe-area-inset-top, 0px))
+                    max(12px, env(safe-area-inset-right, 0px))
+                    max(12px, env(safe-area-inset-bottom, 0px))
+                    max(12px, env(safe-area-inset-left, 0px));
+            }
+
+            .panel {
+                max-width: 100%;
+                max-height: calc(100dvh - 24px);
+                overflow-y: auto;
+                padding: clamp(20px, 6vw, 28px) clamp(16px, 5vw, 22px);
+                border-radius: 16px;
+            }
+        }
+
+        @media (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
+            .panel {
+                max-height: calc(100dvh - 16px);
+                padding: 16px;
+            }
+
+            .icon-wrap {
+                width: 64px;
+                height: 64px;
+                margin-bottom: 10px;
+            }
+
+            .icon-main {
+                width: 48px;
+                height: 48px;
+            }
+
+            h1,
+            .subtitle,
+            .info-card {
+                margin-bottom: 10px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            body::before,
+            .panel,
+            .icon-glow,
+            .spinner {
+                animation: none !important;
+            }
         }
     </style>
 </head>

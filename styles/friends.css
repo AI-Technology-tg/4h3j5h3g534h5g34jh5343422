@@ -516,8 +516,100 @@
     padding: 0.65rem 1.5rem;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 901px) {
     .friends-page-v2 {
         max-width: 560px;
+    }
+}
+
+@media (max-width: 900px) {
+    .friends-page-v2 {
+        width: 100%;
+        max-width: 100%;
+        padding: 0.75rem var(--reminko-mobile-page-x, 0.75rem) 1.5rem;
+    }
+
+    .friends-v2-header {
+        flex-wrap: wrap;
+        margin-bottom: 0.85rem;
+    }
+
+    .friends-v2-search,
+    .friends-v2-find-toggle {
+        min-height: 44px;
+        font-size: 16px;
+    }
+
+    .friends-v2-search-results {
+        z-index: var(--reminko-z-dropdown, 2200);
+        max-height: min(
+            48dvh,
+            calc(
+                var(--reminko-vvh, 100dvh) - var(--reminko-mobile-header-h, 104px) -
+                    var(--reminko-mobile-nav-h, 72px) - 8rem
+            )
+        );
+    }
+
+    .friends-v2-search-row {
+        min-height: 56px;
+    }
+
+    .friends-v2-tabs {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+    }
+
+    .friends-v2-tabs::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .friends-v2-tab {
+        flex: 0 0 auto;
+        min-width: 104px;
+        min-height: 44px;
+        scroll-snap-align: start;
+    }
+
+    .friends-v2-row {
+        min-width: 0;
+        padding: 0.75rem;
+        gap: 0.6rem;
+    }
+
+    .friends-v2-request-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .friends-v2-icon-btn,
+    .friends-v2-btn-primary,
+    .friends-v2-btn-outline,
+    .friends-v2-subtab {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .friends-v2-glow-card:hover {
+        transform: none;
+    }
+}
+
+@media (max-width: 380px) {
+    .friends-v2-row {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .friends-v2-row-main {
+        flex: 1 1 calc(100% - 64px);
+    }
+
+    .friends-v2-request-actions {
+        width: 100%;
     }
 }

@@ -3684,3 +3684,46 @@ img.reminko-avatar-img {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Page-level mobile polish shared by user routes. */
+@media (max-width: 900px) {
+    .main-content-wrapper.info-page {
+        padding-inline: 0 !important;
+    }
+
+    .main-content-wrapper.info-page > .page-container {
+        padding-inline: var(--reminko-mobile-page-x) !important;
+    }
+
+    .friends-page-v2 {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        padding-inline: var(--reminko-mobile-page-x);
+    }
+
+    .page-header,
+    .section-header,
+    .profile-section-header {
+        flex-wrap: wrap;
+        gap: 0.65rem;
+    }
+
+    .page-header > *,
+    .section-header > *,
+    .profile-section-header > * {
+        min-width: 0;
+    }
+
+    .close,
+    .modal-close,
+    [class$='-close'],
+    [class*='-close '] {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+    }
+}

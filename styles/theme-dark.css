@@ -655,4 +655,90 @@ body.theme-dark .vip-soon-badge {
     body.theme-dark .auth-modal label {
         color: #ddd6f5 !important;
     }
+
+    body.theme-dark .catalog-mobile-filters,
+    body.theme-dark .filter-dropdown-inner,
+    body.theme-dark .catalog-filter-bar,
+    body.theme-dark .catalog-sort-select {
+        background: #12081f !important;
+        border-color: rgba(157, 77, 255, 0.42) !important;
+        color: #f8f5ff !important;
+    }
+
+    body.theme-dark .catalog-mobile-filters__backdrop {
+        background: rgba(0, 0, 0, 0.74) !important;
+    }
+
+    body.theme-dark .profile-container,
+    body.theme-dark .profile-top,
+    body.theme-dark .profile-section,
+    body.theme-dark .profile-tabs,
+    body.theme-dark .friends-page-v2,
+    body.theme-dark .friends-v2-glow-card,
+    body.theme-dark .friends-v2-row,
+    body.theme-dark .friends-v2-tabs {
+        color: #e9e2f8 !important;
+        background-color: rgba(18, 8, 31, 0.88) !important;
+        border-color: rgba(157, 77, 255, 0.36) !important;
+    }
+
+    body.theme-dark .profile-tab-btn,
+    body.theme-dark .friends-v2-tab,
+    body.theme-dark .friends-v2-subtab {
+        color: #cfc5e4 !important;
+        border-color: rgba(157, 77, 255, 0.3) !important;
+    }
+
+    body.theme-dark .profile-tab-btn.active,
+    body.theme-dark .friends-v2-tab.active,
+    body.theme-dark .friends-v2-subtab.active {
+        color: #fff !important;
+        background: rgba(255, 45, 85, 0.16) !important;
+        border-color: rgba(255, 45, 85, 0.5) !important;
+    }
+
+    body.theme-dark .info-hero,
+    body.theme-dark .info-card,
+    body.theme-dark .info-block,
+    body.theme-dark .info-tabs,
+    body.theme-dark .home-social-panel,
+    body.theme-dark .home-giveaway-banner,
+    body.theme-dark .history-list,
+    body.theme-dark .favorites-grid {
+        color: #eee8fb !important;
+        background-color: rgba(18, 8, 31, 0.92) !important;
+        border-color: rgba(157, 77, 255, 0.36) !important;
+    }
+
+    body.theme-dark .info-tab {
+        color: #cfc5e4 !important;
+    }
+
+    body.theme-dark .info-tab.active {
+        color: #fff !important;
+        background: rgba(255, 45, 85, 0.18) !important;
+    }
+
+    body.theme-dark .home-social-panel__close,
+    body.theme-dark .home-hero-watch-remove,
+    body.theme-dark .modal-close,
+    body.theme-dark .close {
+        color: #fff !important;
+        background-color: rgba(8, 6, 17, 0.88) !important;
+        border-color: rgba(157, 77, 255, 0.42) !important;
+    }
+
+    body.theme-dark .calendar-main,
+    body.theme-dark .calendar-day,
+    body.theme-dark .calendar-item {
+        background-color: rgba(18, 8, 31, 0.8) !important;
+    }
+
+    body.theme-dark .empty-state,
+    body.theme-dark .catalog-empty,
+    body.theme-dark .friends-v2-empty {
+        color: #cfc5e4 !important;
+        background: rgba(18, 8, 31, 0.72) !important;
+        border-color: rgba(157, 77, 255, 0.3) !important;
+    }
 }

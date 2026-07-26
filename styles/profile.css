@@ -1348,3 +1348,111 @@ body.profile-page .favorites-tiles-scroll.reminko-mobile-scroll-x {
         gap: 2px;
     }
 }
+
+/* Canonical mobile profile layout. */
+@media (max-width: 900px) {
+    .profile-container {
+        width: 100%;
+        max-width: 100%;
+        padding: 0.75rem var(--reminko-mobile-page-x, 0.75rem) 1.5rem !important;
+        overflow-x: clip;
+    }
+
+    .profile-top {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.85rem;
+        text-align: center;
+    }
+
+    .profile-content {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.85rem;
+    }
+
+    .profile-actions-row {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .profile-tabs {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+    }
+
+    .profile-tabs::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .profile-tab-btn {
+        flex: 0 0 auto;
+        min-height: 44px;
+        scroll-snap-align: start;
+    }
+
+    .profile-section {
+        width: 100%;
+        min-width: 0;
+        padding: clamp(0.85rem, 3.8vw, 1.15rem);
+        border-radius: 16px;
+    }
+
+    .btn-sm,
+    .profile-actions-row .btn,
+    .settings-label select {
+        min-height: 44px !important;
+    }
+
+    body.profile-page .main-content-wrapper {
+        overflow-x: clip;
+    }
+
+    .profile-head-main,
+    .profile-email {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .favorites-tiles-row {
+        min-width: max-content;
+    }
+
+    .avatar-grid {
+        grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+    }
+
+    .profile-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+        gap: 0.45rem;
+    }
+
+    .profile-stat {
+        min-width: 0;
+        text-align: center;
+    }
+}
+
+@media (max-width: 360px) {
+    .profile-stats {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 430px) {
+    .profile-top {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .profile-head-main {
+        width: 100%;
+    }
+}
