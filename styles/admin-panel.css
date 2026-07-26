@@ -2886,3 +2886,272 @@
         max-width: 92%;
     }
 }
+
+/* Canonical admin/creator mobile workspace. Desktop starts at 901px. */
+@media (max-width: 900px) {
+    .admin-container {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        margin: 0;
+        padding: 0.75rem var(--reminko-mobile-page-x, 0.75rem) 1.5rem;
+        overflow-x: clip;
+    }
+
+    .admin-header {
+        margin-bottom: 1rem;
+        text-align: left;
+    }
+
+    .admin-header h1 {
+        font-size: clamp(1.55rem, 7vw, 2.1rem);
+        line-height: 1.15;
+    }
+
+    .admin-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .admin-tabs {
+        position: sticky;
+        top: var(--reminko-mobile-header-h, 104px);
+        z-index: var(--reminko-z-sticky, 1200);
+        width: calc(100% + (2 * var(--reminko-mobile-page-x, 0.75rem)));
+        margin: 0 calc(-1 * var(--reminko-mobile-page-x, 0.75rem)) 1rem;
+        padding: 0 var(--reminko-mobile-page-x, 0.75rem);
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        background: rgba(8, 6, 17, 0.96);
+        border-bottom-color: rgba(168, 85, 247, 0.35);
+    }
+
+    .admin-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .admin-tab {
+        flex: 0 0 auto;
+        min-height: 48px;
+        padding: 0.7rem 0.9rem;
+        scroll-snap-align: start;
+    }
+
+    .admin-section,
+    .stat-card {
+        min-width: 0;
+        padding: clamp(0.85rem, 3.8vw, 1.25rem);
+        margin-bottom: 0.9rem;
+        border-radius: 14px;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    .admin-section h2 {
+        margin-bottom: 1rem;
+        font-size: clamp(1.1rem, 5vw, 1.35rem);
+        overflow-wrap: anywhere;
+    }
+
+    .admin-stats,
+    .quick-stats-grid,
+    .visitor-analytics-grid,
+    .users-cards-grid,
+    .admin-settings-grid,
+    .moderation-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+        gap: 0.75rem;
+    }
+
+    .filters-row,
+    .va-compact__toolbar,
+    .anime4k-admin__header-actions,
+    .notification-types,
+    .modal-footer {
+        width: 100%;
+        align-items: stretch;
+        gap: 0.55rem;
+    }
+
+    .filter-input,
+    .filter-select,
+    .admin-input,
+    .anime4k-admin input,
+    .anime4k-admin select,
+    .anime4k-admin textarea,
+    .minko-logs-search {
+        width: 100%;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        min-height: 44px;
+        font-size: 16px;
+    }
+
+    .admin-btn,
+    .admin-tab,
+    .mod-tab-btn,
+    .users-view-btn,
+    .users-card-btn,
+    .anime4k-admin button,
+    .minko-logs-user,
+    .modal-close {
+        min-width: 44px;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+
+    .users-card-head,
+    .users-card-actions,
+    .anime4k-admin__editor-top,
+    .anime4k-admin__editor-actions,
+    .anime4k-admin__upload-row {
+        flex-wrap: wrap;
+    }
+
+    .users-card-meta {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .users-table-container,
+    .va-compact__table-wrap,
+    .visitor-analytics-table-wrap,
+    .admin-table-wrap,
+    .anime4k-admin__list-panel {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .users-table {
+        display: block;
+        width: max-content;
+        min-width: 100%;
+        max-width: none;
+        overflow-x: auto;
+    }
+
+    .users-table th,
+    .users-table td {
+        min-width: 8.5rem;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .users-table th:first-child,
+    .users-table td:first-child {
+        min-width: 3rem;
+    }
+
+    .anime4k-admin__layout,
+    .anime4k-admin__editor-grid,
+    .va-compact__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .anime4k-admin__list-panel {
+        max-height: min(52dvh, 520px);
+    }
+
+    .anime4k-admin__editor {
+        min-height: 0;
+        padding: 0.85rem;
+    }
+
+    .minko-logs-modal {
+        padding: max(0.5rem, env(safe-area-inset-top, 0px))
+            max(0.5rem, env(safe-area-inset-right, 0px))
+            max(0.5rem, env(safe-area-inset-bottom, 0px))
+            max(0.5rem, env(safe-area-inset-left, 0px));
+    }
+
+    .minko-logs-modal .minko-logs-shell {
+        width: 100%;
+        max-width: 100%;
+        max-height: calc(var(--reminko-vvh, 100dvh) - 1rem);
+        border-radius: 14px;
+    }
+
+    .minko-logs-body {
+        grid-template-rows: minmax(150px, 32%) minmax(0, 1fr);
+    }
+
+    .minko-logs-chat-head,
+    .minko-logs-header,
+    .minko-logs-thread {
+        padding: 0.75rem;
+    }
+}
+
+@media (max-width: 430px) {
+    .admin-stats,
+    .quick-stats-grid,
+    .visitor-analytics-grid,
+    .users-cards-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .anime4k-admin__search-row,
+    .anime4k-admin__quick-add-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .anime4k-admin__search-item {
+        grid-template-columns: 44px minmax(0, 1fr);
+    }
+
+    .anime4k-admin__search-actions {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .modal-footer,
+    .notification-types {
+        flex-direction: column;
+    }
+
+    .modal-footer > *,
+    .notification-types > * {
+        width: 100%;
+    }
+}
+
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) {
+    .admin-container *,
+    .admin-container *::before,
+    .admin-container *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+body.theme-dark .admin-section,
+body.theme-dark .stat-card,
+body.theme-dark .quick-stat-item,
+body.theme-dark .users-card,
+body.theme-dark .visitor-analytics-card,
+body.theme-dark .anime4k-admin__list-panel,
+body.theme-dark .anime4k-admin__editor {
+    color: #eee8fb !important;
+    background-color: rgba(18, 8, 31, 0.92) !important;
+    border-color: rgba(157, 77, 255, 0.36) !important;
+}
+
+body.theme-dark .admin-tabs {
+    background-color: rgba(8, 6, 17, 0.96) !important;
+    border-color: rgba(157, 77, 255, 0.36) !important;
+}
+
+body.theme-dark .admin-tab,
+body.theme-dark .admin-inline-hint {
+    color: #cfc5e4 !important;
+}
+
+body.theme-dark .admin-tab.active {
+    color: #fff !important;
+    background: rgba(255, 45, 85, 0.14) !important;
+    border-color: #ff2d55 !important;
+}

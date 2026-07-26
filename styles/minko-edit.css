@@ -262,3 +262,89 @@
         margin: 0 auto;
     }
 }
+
+@media (max-width: 900px) {
+    .minko-edit-page {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        padding: 0.75rem var(--reminko-mobile-page-x, 0.75rem) 1.5rem;
+    }
+
+    .minko-edit-hero,
+    .minko-edit-creator {
+        min-width: 0;
+        padding: clamp(1rem, 4vw, 1.35rem);
+        border-radius: 16px;
+    }
+
+    .minko-edit-lead,
+    .minko-edit-card p,
+    .minko-edit-creator-head p,
+    .minko-edit-creator-card li {
+        overflow-wrap: anywhere;
+    }
+
+    .minko-edit-cards,
+    .minko-edit-creator-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.75rem;
+    }
+
+    .minko-edit-creator-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .minko-edit-phone-mock {
+        width: min(100%, 360px);
+        max-width: 360px;
+        margin-inline: auto;
+    }
+
+    .minko-edit-video-actions button {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 430px) {
+    .minko-edit-hero {
+        padding-inline: 0.9rem;
+    }
+
+    .minko-edit-logo {
+        width: 64px;
+        height: 64px;
+    }
+
+    .minko-edit-creator,
+    .minko-edit-card,
+    .minko-edit-creator-card {
+        padding: 0.85rem;
+    }
+}
+
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) {
+    .minko-edit-page *,
+    .minko-edit-page *::before,
+    .minko-edit-page *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+body.theme-dark .minko-edit-hero,
+body.theme-dark .minko-edit-card,
+body.theme-dark .minko-edit-creator,
+body.theme-dark .minko-edit-creator-card {
+    color: #eee8fb;
+    background-color: rgba(18, 8, 31, 0.92);
+    border-color: rgba(157, 77, 255, 0.36);
+}
+
+body.theme-dark .minko-edit-lead,
+body.theme-dark .minko-edit-card p,
+body.theme-dark .minko-edit-creator-head p {
+    color: #cfc5e4;
+}
