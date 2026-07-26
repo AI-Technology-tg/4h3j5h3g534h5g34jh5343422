@@ -309,9 +309,9 @@
 .a4k-player__shell.a4k-player__shell--fullscreen {
     display: flex;
     flex-direction: column;
-    width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
+    width: 100%;
+    height: var(--reminko-vvh, 100dvh);
+    max-height: var(--reminko-vvh, 100dvh);
     background: #000;
     border-radius: 0;
     border: none;
@@ -479,10 +479,51 @@ body.reminko-anime4k-ultra .sidebar-layout::after {
     background: #000;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
+    .a4k-player {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 12px;
+    }
+
+    .a4k-player__head {
+        min-height: 48px;
+        padding: 0.45rem var(--reminko-mobile-page-x, 0.75rem);
+    }
+
+    .a4k-player__brand-sub {
+        display: none;
+    }
+
+    .a4k-player__controls {
+        padding: 0.45rem var(--reminko-mobile-page-x, 0.75rem)
+            max(0.55rem, env(safe-area-inset-bottom, 0px));
+    }
+
     .a4k-player__bar,
     .anime4k-player__bar {
         gap: 0.35rem;
+    }
+
+    .a4k-player__btn,
+    .anime4k-player__btn,
+    .anime4k-compare-panel__close {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .a4k-player__ultra,
+    .anime4k-player__btn--ultra {
+        min-height: 44px;
+        height: 44px;
+    }
+
+    .a4k-player__seek,
+    .anime4k-player__seek {
+        min-height: 28px;
+        margin-bottom: 0.3rem;
     }
 
     .a4k-player__vol-wrap .a4k-player__volume {
@@ -491,5 +532,25 @@ body.reminko-anime4k-ultra .sidebar-layout::after {
 
     .anime4k-compare-panel__grid {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
+    .a4k-player__shell:fullscreen .a4k-player__head,
+    .a4k-player__shell:-webkit-full-screen .a4k-player__head,
+    .a4k-player__shell.a4k-player__shell--fullscreen .a4k-player__head {
+        display: none;
+    }
+
+    .a4k-player__shell:fullscreen .a4k-player__controls,
+    .a4k-player__shell:-webkit-full-screen .a4k-player__controls,
+    .a4k-player__shell.a4k-player__shell--fullscreen .a4k-player__controls {
+        padding-block: 0.25rem;
+    }
+
+    .a4k-player__time,
+    .anime4k-player__time {
+        min-width: 4.6rem;
+        font-size: 0.68rem;
     }
 }

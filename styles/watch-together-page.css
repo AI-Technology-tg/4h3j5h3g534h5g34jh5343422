@@ -42,8 +42,8 @@ body.page-watch-together::before {
 .page-watch-together .main-content-wrapper.wt2-page {
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 72px);
-    max-height: calc(100vh - 72px);
+    min-height: calc(100dvh - 72px);
+    max-height: calc(100dvh - 72px);
 }
 
 .page-watch-together #wtApp {
@@ -1494,7 +1494,7 @@ body.page-watch-together .toast {
     min-height: calc(100% - 80px);
 }
 
-@media (max-width: 960px) {
+@media (max-width: 900px) {
     .wt-main-grid {
         grid-template-columns: 1fr;
     }
@@ -2096,4 +2096,187 @@ body.page-watch-together .toast {
 .wt-invite-friend-btn:disabled {
     opacity: 0.45 !important;
     cursor: not-allowed !important;
+}
+
+/* Единый mobile-контракт Watch Together. */
+@media (max-width: 900px) {
+    html.h-full,
+    html.h-full body.page-watch-together {
+        height: auto;
+        min-height: 100dvh;
+    }
+
+    .page-watch-together .main-content-wrapper.wt2-page {
+        width: 100%;
+        min-height: max(
+            320px,
+            calc(
+                var(--reminko-vvh, 100dvh) - var(--reminko-mobile-header-h, 104px) -
+                    var(--reminko-mobile-nav-h, 72px) - var(--reminko-safe-top, 0px) -
+                    var(--reminko-safe-bottom, 0px) - 4px
+            )
+        );
+        max-height: calc(
+            var(--reminko-vvh, 100dvh) - var(--reminko-mobile-header-h, 104px) -
+                var(--reminko-mobile-nav-h, 72px) - var(--reminko-safe-top, 0px) -
+                var(--reminko-safe-bottom, 0px) - 4px
+        );
+        padding: 0 !important;
+        overflow: hidden;
+    }
+
+    .page-watch-together #wtApp,
+    .page-watch-together #wtRoomShell,
+    .wt-together-app {
+        min-width: 0;
+        min-height: 0;
+        max-height: 100%;
+    }
+
+    .wt-room-header {
+        padding: 0.65rem var(--reminko-mobile-page-x, 0.75rem);
+    }
+
+    .wt-room-title-gradient {
+        font-size: clamp(1rem, 5vw, 1.25rem);
+    }
+
+    .wt-room-body-scroll {
+        min-height: 0;
+        overscroll-behavior: contain;
+    }
+
+    .wt-main-grid {
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+        min-width: 0;
+        min-height: 0;
+        gap: 0.75rem;
+        padding: 0.75rem var(--reminko-mobile-page-x, 0.75rem);
+    }
+
+    .wt-main-grid > *,
+    .wt-player-fs-root,
+    .wt-kodik-player-shell,
+    .anime-kodik-frame-wrap {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .wt-player-live.wt-player-frozen {
+        min-height: min(220px, 48vw);
+        max-height: min(56vw, calc(var(--reminko-vvh, 100dvh) * 0.48));
+    }
+
+    .btn-icon,
+    .wt-icon-btn,
+    .wt-modal-close,
+    .wt-join-dismiss,
+    .wt-host-action-btn,
+    .wt-fs-chat-collapse,
+    .wt-anime-scroll-arrow,
+    .wt-invite-friend-btn {
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+
+    .page-watch-together .wt-chat-form-bar .btn-primary,
+    .page-watch-together .wt-fs-chat-send.btn-primary {
+        min-width: 48px;
+        min-height: 44px;
+    }
+
+    .wt-input,
+    .page-watch-together .wt-fs-chat-input {
+        min-height: 44px;
+        font-size: 16px;
+    }
+
+    .wt-chat-form-bar {
+        position: sticky;
+        bottom: 0;
+        z-index: 30;
+        padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    }
+
+    body.reminko-keyboard-open .wt-chat-form-bar {
+        bottom: 0;
+    }
+
+    body.page-watch-together .toast {
+        right: var(--reminko-mobile-page-x, 0.75rem);
+        bottom: calc(
+            var(--reminko-mobile-nav-h, 72px) + var(--reminko-safe-bottom, 0px) +
+                0.75rem
+        );
+        left: var(--reminko-mobile-page-x, 0.75rem);
+        z-index: var(--reminko-z-dropdown, 2200);
+        width: auto;
+        max-width: none;
+        padding: 0.75rem 1rem;
+        transform: translateY(90px);
+    }
+
+    body.page-watch-together .toast.show,
+    body.page-watch-together .toast.visible {
+        transform: translateY(0);
+    }
+
+    .wt-join-modal,
+    .wt-anime-modal,
+    body.page-watch-together .modal {
+        z-index: var(--reminko-z-modal, 4000);
+        padding:
+            max(0.75rem, env(safe-area-inset-top, 0px))
+            var(--reminko-mobile-page-x, 0.75rem)
+            max(0.75rem, env(safe-area-inset-bottom, 0px));
+    }
+
+    .wt-join-modal .wt-join-content,
+    .wt-anime-modal .wt-anime-modal-content,
+    body.page-watch-together .modal-content {
+        width: 100%;
+        max-width: 100%;
+        max-height: calc(var(--reminko-vvh, 100dvh) - 1.5rem);
+        padding: 1rem;
+        border-radius: 18px;
+        overflow-y: auto;
+    }
+
+    .wt-anime-modal .wt-anime-modal-content {
+        height: min(calc(var(--reminko-vvh, 100dvh) - 1.5rem), 720px);
+        min-height: 0;
+    }
+
+    .wt-fs-chat-glass {
+        top: max(52px, calc(env(safe-area-inset-top, 0px) + 44px));
+        max-height: min(
+            calc(var(--reminko-vvh, 100dvh) - 112px),
+            calc(100% - 68px)
+        );
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
+    .page-watch-together .main-content-wrapper.wt2-page {
+        min-height: calc(
+            var(--reminko-vvh, 100dvh) - var(--reminko-mobile-header-h, 56px) -
+                var(--reminko-mobile-nav-h, 62px)
+        );
+        max-height: calc(
+            var(--reminko-vvh, 100dvh) - var(--reminko-mobile-header-h, 56px) -
+                var(--reminko-mobile-nav-h, 62px)
+        );
+    }
+
+    .wt-main-grid {
+        grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
+        gap: 0.6rem;
+        padding-block: 0.5rem;
+    }
+
+    .wt-fs-chat-glass {
+        top: 50px;
+        max-height: calc(var(--reminko-vvh, 100dvh) - 62px);
+    }
 }

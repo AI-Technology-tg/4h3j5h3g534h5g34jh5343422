@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="styles/sidebar-layout.css?v=20260726mobile1">
     <link rel="stylesheet" href="styles/loading.css">
     <link rel="stylesheet" href="styles/notifications.css?v=20260726mobile1">
-    <link rel="stylesheet" href="styles/messages.css?v=20260724h">
+    <link rel="stylesheet" href="styles/messages.css?v=20260726mobile1">
 </head>
 <body>
     <div class="loading-screen" id="loadingScreen">
@@ -1445,6 +1445,16 @@
         function setMobileChatOpen(open) {
             const sidebar = document.getElementById('msgV2Sidebar');
             const main = document.getElementById('msgV2Main');
+            if (!sidebar || !main) return;
+            const isMobile =
+                typeof window.reminkoIsMobileLayout === 'function'
+                    ? window.reminkoIsMobileLayout()
+                    : window.matchMedia('(max-width: 900px)').matches;
+            if (!isMobile) {
+                sidebar.classList.remove('is-hidden-mobile');
+                main.classList.remove('is-open-mobile');
+                return;
+            }
             if (open) {
                 sidebar.classList.add('is-hidden-mobile');
                 main.classList.add('is-open-mobile');
@@ -1453,6 +1463,10 @@
                 main.classList.remove('is-open-mobile');
             }
         }
+
+        window.matchMedia('(max-width: 900px)').addEventListener?.('change', (event) => {
+            if (!event.matches) setMobileChatOpen(false);
+        });
 
         function setEmptyMainVisible(show) {
             const el = document.getElementById('msgV2EmptyState');
