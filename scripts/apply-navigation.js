@@ -62,11 +62,7 @@
         }
         if (!cur || !cur.src) return;
         var base = cur.src.replace(/[^/]+$/, '');
-        var av =
-            (typeof window.reminkoAssetVersion === 'function' && window.reminkoAssetVersion()) ||
-            window.REMINKO_ASSET_VERSION ||
-            (window.APP_CONFIG && window.APP_CONFIG.assetVersion) ||
-            'rem-theme-4';
+        var av = '20260726mobile3';
         var s = document.createElement('script');
         s.src = base + 'theme-transform-boot.js?v=' + encodeURIComponent(av);
         s.async = false;

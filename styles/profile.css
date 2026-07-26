@@ -1419,6 +1419,17 @@ body.profile-page .favorites-tiles-scroll.reminko-mobile-scroll-x {
         overflow-wrap: anywhere;
     }
 
+    .watch-history-item,
+    .watch-history-info {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .watch-history-title {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
     .favorites-tiles-row {
         min-width: max-content;
     }

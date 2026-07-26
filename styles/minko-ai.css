@@ -2072,6 +2072,7 @@ body.theme-dark .minko-watch-chip {
     html:has(body.minko-ai-page),
     body.minko-ai-page {
         height: var(--reminko-vvh, 100dvh);
+        min-height: var(--reminko-vvh, 100dvh);
         max-height: var(--reminko-vvh, 100dvh);
     }
 

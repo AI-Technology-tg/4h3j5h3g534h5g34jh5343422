@@ -703,11 +703,28 @@ body.theme-dark .vip-soon-badge {
     body.theme-dark .info-tabs,
     body.theme-dark .home-social-panel,
     body.theme-dark .home-giveaway-banner,
-    body.theme-dark .history-list,
-    body.theme-dark .favorites-grid {
+    body.theme-dark .watch-history-list,
+    body.theme-dark .watch-history-item {
         color: #eee8fb !important;
         background-color: rgba(18, 8, 31, 0.92) !important;
         border-color: rgba(157, 77, 255, 0.36) !important;
+    }
+
+    body.theme-dark .catalog-4k-banner,
+    body.theme-dark .anime-inline-4k__notice {
+        color: #eee8fb !important;
+        background: linear-gradient(
+            135deg,
+            rgba(88, 28, 135, 0.42),
+            rgba(18, 8, 31, 0.94)
+        ) !important;
+        border-color: rgba(167, 139, 250, 0.42) !important;
+    }
+
+    body.theme-dark .catalog-4k-banner__text,
+    body.theme-dark .anime-inline-4k__notice-lead,
+    body.theme-dark .anime-inline-4k__notice-warn {
+        color: #ddd6f5 !important;
     }
 
     body.theme-dark .info-tab {

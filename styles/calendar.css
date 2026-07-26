@@ -231,6 +231,12 @@
         align-items: stretch;
     }
 
+    .calendar-meta {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
     .calendar-tabs {
         width: 100%;
         justify-content: space-between;

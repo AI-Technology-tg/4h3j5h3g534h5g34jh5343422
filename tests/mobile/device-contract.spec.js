@@ -77,8 +77,11 @@ test.describe('mobile device contract', () => {
                 return {
                     position: style.position,
                     bottom: style.bottom,
+                    top: style.top,
                     width: Math.round(rect.width),
-                    height: Math.round(rect.height)
+                    height: Math.round(rect.height),
+                    viewportWidth: window.innerWidth,
+                    viewportHeight: window.innerHeight
                 };
             });
 
@@ -90,6 +93,10 @@ test.describe('mobile device contract', () => {
         expect(mobile.position).toBe('fixed');
         expect(mobile.bottom).not.toBe('auto');
         expect(mobile.width).toBe(900);
+        expect(mobile.height).toBeLessThan(mobile.viewportHeight);
+        expect(desktop.position).toBe('sticky');
+        expect(desktop.bottom).toBe('auto');
+        expect(desktop.top).not.toBe('auto');
         expect(desktop.width).toBeLessThan(901);
         expect(desktop.height).toBeGreaterThan(mobile.height);
     });
@@ -111,12 +118,80 @@ test.describe('mobile device contract', () => {
             const inputRect = input?.getBoundingClientRect();
             return {
                 composerBottom: Math.round(composerRect?.bottom || 0),
-                inputHeight: Math.round(inputRect?.height || 0)
+                inputHeight: Math.round(inputRect?.height || 0),
+                bodyHeight: Math.round(document.body.getBoundingClientRect().height),
+                viewportHeight: window.innerHeight
             };
         });
 
-        expect(geometry.composerBottom).toBeLessThanOrEqual(421);
+        expect(geometry.composerBottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
+        expect(geometry.bodyHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1);
         expect(geometry.inputHeight).toBeGreaterThanOrEqual(44);
+    });
+
+    test('standalone-страницы не резервируют место под отсутствующий tabbar', async ({
+        page
+    }, testInfo) => {
+        test.skip(testInfo.project.name !== 'mobile-320', 'Один standalone smoke');
+        await preparePage(page, 'white');
+
+        for (const route of [
+            '/reset-password.html',
+            '/payment-success.html',
+            '/cancel-success.html'
+        ]) {
+            await openRoute(page, route, 'white');
+            const geometry = await page.evaluate(() => ({
+                hasTabbar: Boolean(document.querySelector('.sidebar')),
+                paddingBottom: parseFloat(getComputedStyle(document.body).paddingBottom) || 0
+            }));
+            expect(geometry.hasTabbar, `${route}: tabbar отсутствует`).toBeFalsy();
+            expect(geometry.paddingBottom, `${route}: нет лишнего резерва tabbar`).toBeLessThan(40);
+        }
+    });
+
+    test('длинный mobile-контент и ползунки сохраняют контракт', async ({
+        page
+    }, testInfo) => {
+        test.skip(testInfo.project.name !== 'mobile-320', 'Один content stress');
+        await preparePage(page, 'white');
+
+        await openRoute(page, '/catalog/anime.html', 'white');
+        const ranges = await page
+            .locator('.filter-year-slider, .anime-fb-range')
+            .evaluateAll((items) =>
+                items
+                    .filter((item) => {
+                        const rect = item.getBoundingClientRect();
+                        return getComputedStyle(item).display !== 'none' && rect.width > 0;
+                    })
+                    .map((item) => Math.round(item.getBoundingClientRect().height))
+            );
+        expect(ranges.length).toBeGreaterThan(0);
+        expect(ranges.every((height) => height >= 44)).toBeTruthy();
+
+        await openRoute(page, '/history.html', 'white');
+        await page.evaluate(() => {
+            const list = document.querySelector('.watch-history-list');
+            if (!list) return;
+            list.innerHTML = `
+                <article class="watch-history-item">
+                    <div class="watch-history-poster"></div>
+                    <div class="watch-history-info">
+                        <div class="watch-history-title">${'ОченьДлинноеНазваниеБезПробелов'.repeat(12)}</div>
+                    </div>
+                </article>
+            `;
+        });
+        let layout = await readLayout(page);
+        expect(layout.rootOverflow).toBeLessThanOrEqual(1);
+
+        await openRoute(page, '/catalog/calendar.html', 'white');
+        await page.locator('.calendar-meta').evaluate((meta) => {
+            meta.textContent = 'ДлиннаяСтрокаКалендаряБезПробелов'.repeat(12);
+        });
+        layout = await readLayout(page);
+        expect(layout.rootOverflow).toBeLessThanOrEqual(1);
     });
 
     test('reduced motion отключает декоративные анимации', async ({ page }, testInfo) => {

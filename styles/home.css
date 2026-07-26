@@ -1909,6 +1909,12 @@ html.home-carousel-auto-off .home-section--kodik .home-horizontal-scroll {
         min-height: 44px;
     }
 
+    .home-carousel-anim-toggle {
+        min-height: 44px;
+        padding-block: 0.35rem;
+        touch-action: manipulation;
+    }
+
     .home-hero-watch-remove {
         top: -10px;
         right: -10px;

@@ -3213,6 +3213,12 @@ img.reminko-avatar-img {
         overscroll-behavior-x: none;
     }
 
+    body.reset-password-page,
+    body.payment-result-page,
+    body.cancel-result-page {
+        padding-bottom: max(0.75rem, var(--reminko-safe-bottom)) !important;
+    }
+
     *,
     *::before,
     *::after {

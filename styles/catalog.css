@@ -1868,11 +1868,36 @@
         min-height: 20px;
     }
 
+    .filter-year-slider,
+    .catalog-filter-bar--anime .anime-fb-range {
+        height: 44px !important;
+        touch-action: pan-y;
+    }
+
+    .filter-year-slider::-webkit-slider-thumb,
+    .catalog-filter-bar--anime .anime-fb-range::-webkit-slider-thumb {
+        width: 26px !important;
+        height: 26px !important;
+        margin-top: -11.5px !important;
+    }
+
+    .filter-year-slider::-moz-range-thumb,
+    .catalog-filter-bar--anime .anime-fb-range::-moz-range-thumb {
+        width: 26px !important;
+        height: 26px !important;
+    }
+
     #filterGenrePanel .filter-panel-close {
         width: 44px !important;
         height: 44px !important;
         min-width: 44px !important;
         min-height: 44px !important;
+    }
+
+    #filterGenrePanel .filter-mobile-panel-head {
+        top: 0 !important;
+        margin: 0 0 0.58rem !important;
+        border-radius: 14px 14px 0 0;
     }
 
     .catalog-filter-bar--anime #filterGenrePanel.filter-select-panel,

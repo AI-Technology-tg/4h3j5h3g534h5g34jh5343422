@@ -90,23 +90,25 @@ for (const theme of ['white', 'dark']) {
 }
 
 test.describe('mobile interaction contract', () => {
-    for (const route of PRIMARY_TOUCH_ROUTES) {
-        test(`${route} имеет достаточные hit areas`, async ({ page }, testInfo) => {
-            test.skip(
-                !/mobile|iphone|tablet|boundary/.test(testInfo.project.name),
-                'Проверка только для ≤900px'
-            );
-            await preparePage(page, 'white');
-            await openRoute(page, route, 'white');
-            const small = await readSmallPrimaryTargets(page);
-            if (small.length) {
-                await testInfo.attach('small-targets', {
-                    body: Buffer.from(JSON.stringify(small, null, 2)),
-                    contentType: 'application/json'
-                });
-            }
-            expect(small, 'Основные touch targets должны быть минимум 44×44px').toEqual([]);
-        });
+    for (const theme of ['white', 'dark']) {
+        for (const route of PRIMARY_TOUCH_ROUTES) {
+            test(`${theme}: ${route} имеет достаточные hit areas`, async ({ page }, testInfo) => {
+                test.skip(
+                    !/mobile|iphone|tablet|boundary/.test(testInfo.project.name),
+                    'Проверка только для ≤900px'
+                );
+                await preparePage(page, theme);
+                await openRoute(page, route, theme);
+                const small = await readSmallPrimaryTargets(page);
+                if (small.length) {
+                    await testInfo.attach('small-targets', {
+                        body: Buffer.from(JSON.stringify(small, null, 2)),
+                        contentType: 'application/json'
+                    });
+                }
+                expect(small, 'Основные touch targets должны быть минимум 44×44px').toEqual([]);
+            });
+        }
     }
 
     test('нижнее меню содержит ключевые desktop-функции', async ({ page }, testInfo) => {
