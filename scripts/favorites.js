@@ -349,7 +349,7 @@
                     if (typeof openAnimePage === 'function') openAnimePage(anime.id);
                     else window.location.href = 'anime/view.html?id=' + anime.id;
                 };
-                card.innerHTML = `<div class="anime-info"><h3 class="anime-title">${String(anime.title || '').replace(/</g, '&lt;')}</h3></div>`;
+                card.innerHTML = `<div class="anime-info"><h3 class="anime-title">${reminkoEscapeHtml(anime.title || '')}</h3></div>`;
                 grid.appendChild(card);
             }
         }

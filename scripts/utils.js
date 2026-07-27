@@ -26,10 +26,18 @@ function reminkoResolveAssetUrl(url) {
     if (url == null || url === '') return reminkoEncodeAssetPath('/Fons/1 b.jpg');
     const s = String(url).trim();
     if (/^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(s)) return s;
-    if (/^https:\/\//i.test(s)) return s;
+    if (/^https:\/\//i.test(s)) {
+        try {
+            const parsed = new URL(s);
+            return parsed.protocol === 'https:' ? parsed.href : reminkoEncodeAssetPath('/Fons/1 b.jpg');
+        } catch (_) {
+            return reminkoEncodeAssetPath('/Fons/1 b.jpg');
+        }
+    }
     if (/^blob:/i.test(s)) {
         try {
-            if (new URL(s).origin === window.location.origin) return s;
+            const parsed = new URL(s);
+            if (parsed.origin === window.location.origin) return parsed.href;
         } catch (_) {
             return reminkoEncodeAssetPath('/Fons/1 b.jpg');
         }
@@ -43,14 +51,40 @@ function reminkoResolveAssetUrl(url) {
 window.reminkoResolveAssetUrl = reminkoResolveAssetUrl;
 
 function reminkoSafeImageUrl(url, fallback) {
-    const fallbackUrl = fallback == null ? '' : String(fallback);
+    const fallbackUrl =
+        fallback == null || String(fallback).trim() === '' ? '' : reminkoResolveAssetUrl(fallback);
     if (url == null || String(url).trim() === '') return fallbackUrl;
     const resolved = reminkoResolveAssetUrl(url);
     const defaultAvatar = reminkoEncodeAssetPath('/Fons/1 b.jpg');
-    if (resolved === defaultAvatar && String(url).trim() !== 'Fons/1 b.jpg') return fallbackUrl;
+    const raw = String(url).trim().replace(/^\/+/, '');
+    const isExplicitDefault = raw === 'Fons/1 b.jpg' || raw === 'Fons/1%20b.jpg';
+    if (resolved === defaultAvatar && !isExplicitDefault) return fallbackUrl;
     return resolved;
 }
 window.reminkoSafeImageUrl = reminkoSafeImageUrl;
+
+function reminkoEscapeHtml(value) {
+    return String(value == null ? '' : value).replace(
+        /[&<>"']/g,
+        (character) =>
+            ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[character]
+    );
+}
+window.reminkoEscapeHtml = reminkoEscapeHtml;
+
+function reminkoSafeCssUrl(url, fallback) {
+    return reminkoSafeImageUrl(url, fallback).replace(
+        /['"\\\n\r\f]/g,
+        (character) => encodeURIComponent(character)
+    );
+}
+window.reminkoSafeCssUrl = reminkoSafeCssUrl;
 
 /** Узкий экран или мобильная вёрстка (≤900px). */
 function reminkoIsMobileLayout() {
@@ -581,7 +615,7 @@ function createAnimeCard(anime, clickHandler) {
     
     const gradient = generateGradient(anime.id);
     const posterUrl = stats.posterUrl || anime.posterUrl || null;
-    const posterSafe = posterUrl ? String(posterUrl).replace(/'/g, "\\'") : '';
+    const posterSafe = posterUrl ? reminkoSafeCssUrl(posterUrl) : '';
     const effectiveStatus =
         typeof reminkoEffectiveAnimeStatus === 'function'
             ? reminkoEffectiveAnimeStatus(anime)
@@ -606,30 +640,30 @@ function createAnimeCard(anime, clickHandler) {
             : effectiveStatus === 'Онгоинг' && anime.type !== 'Фильм';
 
     card.innerHTML = `
-        <a class="anime-card-seo-link" href="${seoHref}" tabindex="-1" aria-hidden="true">${stats.title}</a>
-        <div class="anime-poster" style="${posterStyle}">
+        <a class="anime-card-seo-link" href="${reminkoEscapeHtml(seoHref)}" tabindex="-1" aria-hidden="true">${reminkoEscapeHtml(stats.title)}</a>
+        <div class="anime-poster" style="${reminkoEscapeHtml(posterStyle)}">
             <div class="anime-poster-hover" aria-hidden="true">
                 <button type="button" class="anime-poster-go-btn">Перейти</button>
             </div>
-            <div class="anime-year">${stats.year}</div>
-            ${effectiveStatus ? `<div class="anime-status">${effectiveStatus}</div>` : ''}
+            <div class="anime-year">${reminkoEscapeHtml(stats.year)}</div>
+            ${effectiveStatus ? `<div class="anime-status">${reminkoEscapeHtml(effectiveStatus)}</div>` : ''}
             ${needsCountdown ? '<div class="anime-poster-countdown" data-countdown-slot aria-live="polite" hidden></div>' : ''}
         </div>
         <div class="anime-info">
-            <h3 class="anime-title">${stats.title}</h3>
+            <h3 class="anime-title">${reminkoEscapeHtml(stats.title)}</h3>
             <div class="anime-meta">
                 <div class="anime-rating">
-                    ⭐ ${stats.rating || anime.rating || 0}
+                    ⭐ ${reminkoEscapeHtml(stats.rating || anime.rating || 0)}
                     ${stats.ratingCount ? `<span class="rating-count">(${formatNumber(stats.ratingCount)})</span>` : ''}
                 </div>
-                ${stats.episodes ? `<div class="anime-episodes">${stats.episodes}</div>` : ''}
-                ${stats.duration ? `<div class="anime-episodes">${stats.duration}</div>` : ''}
+                ${stats.episodes ? `<div class="anime-episodes">${reminkoEscapeHtml(stats.episodes)}</div>` : ''}
+                ${stats.duration ? `<div class="anime-episodes">${reminkoEscapeHtml(stats.duration)}</div>` : ''}
             </div>
             <div class="anime-stats">
                 ${stats.views ? `<span class="stat-item">👁 ${formatNumber(stats.views)}</span>` : ''}
                 ${stats.favoritesCount ? `<span class="stat-item">❤️ ${formatNumber(stats.favoritesCount)}</span>` : ''}
             </div>
-            ${genresText ? `<div class="anime-genres" data-genres-slot>${genresText}</div>` : `<div class="anime-genres" data-genres-slot hidden></div>`}
+            ${genresText ? `<div class="anime-genres" data-genres-slot>${reminkoEscapeHtml(genresText)}</div>` : `<div class="anime-genres" data-genres-slot hidden></div>`}
         </div>
     `;
 
@@ -876,15 +910,16 @@ async function loadAnimePosterAsync(card, title, fallbackGradient) {
                 ? isWeakPosterSource(posterUrl)
                 : !posterUrl;
         
-        if (posterUrl && !posterUrl.startsWith('data:image/svg+xml') && !weak) {
-            if (currentUrl && posterUrl === currentUrl) {
+        const safePosterUrl = reminkoSafeImageUrl(posterUrl, '');
+        if (safePosterUrl && !safePosterUrl.startsWith('data:image/svg+xml') && !weak) {
+            if (currentUrl && safePosterUrl === currentUrl) {
                 posterElement.classList.add('poster-loaded');
                 return;
             }
             const img = new Image();
             
             img.onload = () => {
-                posterElement.style.backgroundImage = `url('${posterUrl}')`;
+                posterElement.style.backgroundImage = `url('${reminkoSafeCssUrl(safePosterUrl)}')`;
                 posterElement.style.backgroundSize = 'cover';
                 posterElement.style.backgroundPosition = 'center';
                 posterElement.classList.add('poster-loaded');
@@ -894,7 +929,7 @@ async function loadAnimePosterAsync(card, title, fallbackGradient) {
                 posterElement.classList.add('poster-error');
             };
             
-            img.src = posterUrl;
+            img.src = safePosterUrl;
         } else if (!posterElement.style.backgroundImage) {
             posterElement.classList.add('poster-placeholder');
         }
@@ -1136,8 +1171,7 @@ function reminkoProfileAvatarImageUrl(p) {
     if (reminkoIsSiteCreatorProfile(p)) return reminkoCreatorAvatarUrl();
     const a = p.avatar && String(p.avatar).trim();
     if (!a) return null;
-    if (/^https?:\/\//i.test(a) || a.startsWith('data:') || a.startsWith('blob:')) return a;
-    return reminkoResolveAssetUrl(a);
+    return reminkoSafeImageUrl(a, null);
 }
 
 /**

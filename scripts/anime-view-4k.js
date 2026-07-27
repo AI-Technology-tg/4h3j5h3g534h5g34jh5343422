@@ -32,8 +32,17 @@ async function renderAnime4kDetail(anime) {
     if (!container || !anime) return;
 
     const j = anime._jikanRaw || {};
-    const previousUrl = sessionStorage.getItem('previousUrl') || '../catalog/anime-4k.html';
-    const posterUrl = anime.posterUrl || '';
+    let previousUrl = '../catalog/anime-4k.html';
+    try {
+        const stored = new URL(sessionStorage.getItem('previousUrl') || '', window.location.href);
+        if (stored.origin === window.location.origin && !/anime\/view(?:-4k)?\.html/i.test(stored.pathname)) {
+            previousUrl = `${stored.pathname}${stored.search}${stored.hash}`;
+        }
+    } catch (_) {
+        /* use catalog fallback */
+    }
+    const posterUrl = reminkoSafeImageUrl(anime.posterUrl, '');
+    const posterCssUrl = posterUrl ? reminkoSafeCssUrl(posterUrl) : '';
     const titleRu = anime.title || '—';
     const titleEn = anime.titleAlt || j.title_english || j.title || '';
     const titleJp = j.title_japanese || '';
@@ -55,7 +64,7 @@ async function renderAnime4kDetail(anime) {
     applyAnime4kViewSeo(anime);
 
     container.innerHTML = `
-        <a href="${previousUrl}" class="back-button">
+        <a href="${escape4kHtml(previousUrl)}" class="back-button">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
@@ -64,7 +73,7 @@ async function renderAnime4kDetail(anime) {
         <div class="anime-detail anime-detail-shell anime-detail-shell--4k">
             <div class="anime4k-view-badge">≈4K каталог</div>
             <div class="anime-detail-main">
-                <div class="anime-detail-poster" style="${posterUrl ? `background-image:url('${posterUrl.replace(/'/g, '%27')}');background-size:cover;background-position:center;` : 'background:linear-gradient(135deg,#6c5ce7,#a29bfe);'}">
+                <div class="anime-detail-poster" style="${posterCssUrl ? `background-image:url('${posterCssUrl}');background-size:cover;background-position:center;` : 'background:linear-gradient(135deg,#6c5ce7,#a29bfe);'}">
                     ${anime.status ? `<div class="anime-status anime-status--poster-pill">${escape4kHtml(anime.status)}</div>` : ''}
                 </div>
                 <div class="anime-detail-info">

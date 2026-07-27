@@ -923,9 +923,10 @@ function createJikanCard(anime) {
         anime.images?.jpg?.large_image_url ||
         anime.images?.jpg?.image_url ||
         '';
-    const imgSrc =
-        imgUrl ||
-        'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    const imgSrc = reminkoSafeImageUrl(
+        imgUrl,
+        'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    );
     const score = anime.score ? anime.score.toFixed(1) : '—';
     const titleEn = anime.title_english || anime.title || anime.title_japanese || '—';
     const cachedShiki =
@@ -959,18 +960,18 @@ function createJikanCard(anime) {
     const loadingAttr = imgUrl ? 'eager' : 'lazy';
     card.innerHTML = `
         <div class="jikan-card-poster">
-            <img src="${imgSrc}" alt="" decoding="async" loading="${loadingAttr}" referrerpolicy="no-referrer" data-jikan-poster="1">
+            <img src="${reminkoEscapeHtml(imgSrc)}" alt="" decoding="async" loading="${loadingAttr}" referrerpolicy="no-referrer" data-jikan-poster="1">
             <div class="jikan-card-poster-hover" aria-hidden="true">
                 <button type="button" class="jikan-card-go-btn">Перейти</button>
             </div>
-            ${score !== '—' ? `<div class="jikan-card-score">${score}</div>` : ''}
-            ${status ? `<div class="jikan-card-status">${status}</div>` : ''}
+            ${score !== '—' ? `<div class="jikan-card-score">${reminkoEscapeHtml(score)}</div>` : ''}
+            ${status ? `<div class="jikan-card-status">${reminkoEscapeHtml(status)}</div>` : ''}
         </div>
         <div class="jikan-card-info">
             <div class="jikan-card-title"></div>
             <div class="jikan-card-meta">
-                ${epLine ? `<span class="jikan-card-ep">${epLine}</span>` : ''}
-                ${genres ? `<span>${genres}</span>` : ''}
+                ${epLine ? `<span class="jikan-card-ep">${reminkoEscapeHtml(epLine)}</span>` : ''}
+                ${genres ? `<span>${reminkoEscapeHtml(genres)}</span>` : ''}
             </div>
         </div>
     `;
@@ -1829,18 +1830,18 @@ function loadTopRated() {
         const a = typeof initAnimeStats === 'function' ? initAnimeStats(anime) : anime;
 
         card.innerHTML = `
-            <div class="anime-poster" style="background: ${gradient};">
-                <div class="anime-year">${a.year || ''}</div>
-                ${a.status ? `<div class="anime-status">${a.status}</div>` : ''}
+            <div class="anime-poster" style="background: ${reminkoEscapeHtml(gradient)};">
+                <div class="anime-year">${reminkoEscapeHtml(a.year || '')}</div>
+                ${a.status ? `<div class="anime-status">${reminkoEscapeHtml(a.status)}</div>` : ''}
             </div>
             <div class="anime-info">
-                <h3 class="anime-title">${a.title}</h3>
+                <h3 class="anime-title">${reminkoEscapeHtml(a.title)}</h3>
                 <div class="anime-meta">
-                    <div class="anime-rating">${a.rating || 0}</div>
-                    ${a.episodes ? `<div class="anime-episodes">${a.episodes} эп.</div>` : ''}
+                    <div class="anime-rating">${reminkoEscapeHtml(a.rating || 0)}</div>
+                    ${a.episodes ? `<div class="anime-episodes">${reminkoEscapeHtml(a.episodes)} эп.</div>` : ''}
                 </div>
-                ${a.studio ? `<div class="anime-studio">${a.studio}</div>` : ''}
-                ${a.genres ? `<div class="anime-genres">${a.genres.slice(0, 2).join(', ')}</div>` : ''}
+                ${a.studio ? `<div class="anime-studio">${reminkoEscapeHtml(a.studio)}</div>` : ''}
+                ${a.genres ? `<div class="anime-genres">${reminkoEscapeHtml(a.genres.slice(0, 2).join(', '))}</div>` : ''}
             </div>
         `;
 
@@ -1917,7 +1918,25 @@ async function loadFriendsWatching() {
             const card = createAnimeCard(info.anime);
             const badge = document.createElement('div');
             badge.style.cssText = 'font-size:0.72rem;color:#22c55e;display:flex;align-items:center;gap:0.3rem;margin-bottom:0.3rem;';
-            badge.innerHTML = `<img class="reminko-avatar-img" src="${info.friend.avatar || 'Fons/seitFon.jpg'}" alt="" width="18" height="18" style="width:18px;height:18px;border-radius:50%;object-fit:cover;object-position:center;flex-shrink:0;" decoding="async"> ${info.friend.username || ''} смотрит`;
+            const avatar = document.createElement('img');
+            avatar.className = 'reminko-avatar-img';
+            avatar.src = reminkoSafeImageUrl(info.friend.avatar, 'Fons/seitFon.jpg');
+            avatar.alt = '';
+            avatar.width = 18;
+            avatar.height = 18;
+            avatar.decoding = 'async';
+            avatar.style.cssText =
+                'width:18px;height:18px;border-radius:50%;object-fit:cover;object-position:center;flex-shrink:0;';
+            avatar.addEventListener(
+                'error',
+                () => {
+                    avatar.src = reminkoSafeImageUrl('Fons/seitFon.jpg', '');
+                },
+                { once: true }
+            );
+            const label = document.createElement('span');
+            label.textContent = `${info.friend.username || ''} смотрит`;
+            badge.append(avatar, label);
             const infoEl = card.querySelector('.anime-info');
             if (infoEl) infoEl.prepend(badge);
             grid.appendChild(card);

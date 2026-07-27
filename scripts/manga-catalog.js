@@ -4,6 +4,12 @@ let currentPage = 1;
 const itemsPerPage = 24;
 let allResults = [];
 
+function mangaCatalogFindInputByValue(panelId, value) {
+    return [...document.querySelectorAll(`#${panelId} input`)].find(
+        (input) => input.value === String(value)
+    );
+}
+
 // Обновление текста кнопки фильтра
 function updateFilterButtonText(btnId, values) {
     const btn = document.getElementById(btnId);
@@ -19,7 +25,15 @@ function updateFilterButtonText(btnId, values) {
         valueEl.textContent = displayText;
     } else {
         const svg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-        btn.innerHTML = (values.length === 0 ? (btnId.includes('Genre') ? 'Выберите жанр' : btnId.includes('Type') ? 'Выберите тип' : 'Выберите статус') : displayText) + ' ' + svg;
+        const label =
+            values.length === 0
+                ? btnId.includes('Genre')
+                    ? 'Выберите жанр'
+                    : btnId.includes('Type')
+                      ? 'Выберите тип'
+                      : 'Выберите статус'
+                : displayText;
+        btn.innerHTML = `${reminkoEscapeHtml(label)} ${svg}`;
     }
 }
 
@@ -76,7 +90,7 @@ function loadFilters() {
     // Жанры (чекбоксы)
     if (params.genre && Array.isArray(params.genre)) {
         params.genre.forEach(genre => {
-            const checkbox = document.querySelector(`#filterGenrePanel input[value="${genre}"]`);
+            const checkbox = mangaCatalogFindInputByValue('filterGenrePanel', genre);
             if (checkbox) checkbox.checked = true;
         });
         updateFilterButtonText('filterGenreBtn', params.genre);
@@ -85,12 +99,12 @@ function loadFilters() {
     // Типы (чекбоксы)
     if (params.type && Array.isArray(params.type)) {
         params.type.forEach(type => {
-            const checkbox = document.querySelector(`#filterTypePanel input[value="${type}"]`);
+            const checkbox = mangaCatalogFindInputByValue('filterTypePanel', type);
             if (checkbox) checkbox.checked = true;
         });
         updateFilterButtonText('filterTypeBtn', params.type);
     } else if (params.type) {
-        const checkbox = document.querySelector(`#filterTypePanel input[value="${params.type}"]`);
+        const checkbox = mangaCatalogFindInputByValue('filterTypePanel', params.type);
         if (checkbox) checkbox.checked = true;
         updateFilterButtonText('filterTypeBtn', [params.type]);
     }
@@ -98,12 +112,12 @@ function loadFilters() {
     // Статусы (чекбоксы)
     if (params.status && Array.isArray(params.status)) {
         params.status.forEach(status => {
-            const checkbox = document.querySelector(`#filterStatusPanel input[value="${status}"]`);
+            const checkbox = mangaCatalogFindInputByValue('filterStatusPanel', status);
             if (checkbox) checkbox.checked = true;
         });
         updateFilterButtonText('filterStatusBtn', params.status);
     } else if (params.status) {
-        const checkbox = document.querySelector(`#filterStatusPanel input[value="${params.status}"]`);
+        const checkbox = mangaCatalogFindInputByValue('filterStatusPanel', params.status);
         if (checkbox) checkbox.checked = true;
         updateFilterButtonText('filterStatusBtn', [params.status]);
     }
@@ -247,25 +261,26 @@ function createMangaCard(manga) {
         typeof ReManga !== 'undefined' && ReManga.normalizeCover
             ? ReManga.normalizeCover(manga)
             : manga.cover || manga.poster || null;
-    const posterStyle = coverSrc
-        ? `background-image: url('${coverSrc.replace(/'/g, '%27')}'); background-size: cover; background-position: center;`
+    const safeCover = coverSrc ? reminkoSafeCssUrl(coverSrc) : '';
+    const posterStyle = safeCover
+        ? `background-image: url('${safeCover}'); background-size: cover; background-position: center;`
         : `background: ${gradient};`;
     const metaLine = [manga.type, manga.year].filter(Boolean).join(' · ');
     
     card.innerHTML = `
-        <div class="anime-poster" style="${posterStyle}">
-            <div class="anime-year">${manga.year}</div>
-            ${manga.status ? `<div class="anime-status">${manga.status}</div>` : ''}
+        <div class="anime-poster" style="${reminkoEscapeHtml(posterStyle)}">
+            <div class="anime-year">${reminkoEscapeHtml(manga.year)}</div>
+            ${manga.status ? `<div class="anime-status">${reminkoEscapeHtml(manga.status)}</div>` : ''}
         </div>
         <div class="anime-info">
-            <h3 class="anime-title">${manga.title}</h3>
-            ${metaLine ? `<div class="anime-studio" style="opacity:0.85;font-size:0.85rem">${metaLine}</div>` : ''}
+            <h3 class="anime-title">${reminkoEscapeHtml(manga.title)}</h3>
+            ${metaLine ? `<div class="anime-studio" style="opacity:0.85;font-size:0.85rem">${reminkoEscapeHtml(metaLine)}</div>` : ''}
             <div class="anime-meta">
-                <div class="anime-rating">⭐ ${manga.rating || 0}</div>
-                ${manga.totalChapters ? `<div class="anime-episodes">Глав: ${manga.totalChapters}</div>` : ''}
+                <div class="anime-rating">⭐ ${reminkoEscapeHtml(manga.rating || 0)}</div>
+                ${manga.totalChapters ? `<div class="anime-episodes">Глав: ${reminkoEscapeHtml(manga.totalChapters)}</div>` : ''}
             </div>
-            ${manga.author ? `<div class="anime-studio">Автор: ${manga.author}</div>` : ''}
-            ${manga.genres ? `<div class="anime-genres">${manga.genres.slice(0, 2).join(', ')}</div>` : ''}
+            ${manga.author ? `<div class="anime-studio">Автор: ${reminkoEscapeHtml(manga.author)}</div>` : ''}
+            ${manga.genres ? `<div class="anime-genres">${reminkoEscapeHtml(manga.genres.slice(0, 2).join(', '))}</div>` : ''}
         </div>
     `;
     
@@ -274,7 +289,7 @@ function createMangaCard(manga) {
             ? reminkoContentViewUrl('manga', manga.id)
             : `../manga/view.html?id=${encodeURIComponent(String(manga.id))}`;
     card.innerHTML =
-        `<a class="anime-card-seo-link" href="${seoHref}" tabindex="-1" aria-hidden="true">${manga.title}</a>` +
+        `<a class="anime-card-seo-link" href="${reminkoEscapeHtml(seoHref)}" tabindex="-1" aria-hidden="true">${reminkoEscapeHtml(manga.title)}</a>` +
         card.innerHTML;
     card.onclick = () => openMangaPage(manga.id);
     
@@ -536,12 +551,16 @@ function loadGenres() {
     
     const container = panel.querySelector('.filter-dropdown-inner, .filter-genres-grid') || panel;
     const genres = getAllMangaGenres();
-    container.innerHTML = genres.map(genre => `
+    container.innerHTML = genres.map(genre => {
+        const safeGenre = reminkoEscapeHtml(genre);
+        const safeId = String(genre).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100);
+        return `
         <label class="filter-option filter-checkbox-item">
-            <input type="checkbox" value="${genre}" id="genre_${genre.replace(/\s+/g, '_')}">
-            <span>${genre}</span>
+            <input type="checkbox" value="${safeGenre}" id="genre_${safeId}">
+            <span>${safeGenre}</span>
         </label>
-    `).join('');
+    `;
+    }).join('');
     
     // После загрузки жанров применяем фильтры из URL и инициализируем события
     loadFilters();

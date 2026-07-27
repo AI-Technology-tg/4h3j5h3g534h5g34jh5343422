@@ -6,6 +6,12 @@ let allResults = [];
 const CATALOG_ALLOWED_SORTS = new Set(['rating-desc', 'year-desc']);
 const CATALOG_DEFAULT_SORT = 'year-desc';
 
+function catalogFindInputByValue(panelId, value) {
+    return [...document.querySelectorAll(`#${panelId} input`)].find(
+        (input) => input.value === String(value)
+    );
+}
+
 function normalizeCatalogSort(sortValue) {
     const v = String(sortValue || '').trim();
     return CATALOG_ALLOWED_SORTS.has(v) ? v : CATALOG_DEFAULT_SORT;
@@ -93,7 +99,9 @@ async function ensureKodikCatalogForPage() {
 
 function applyCatalogCountdownToCard(anime, shiki) {
     if (!anime || anime.id == null) return;
-    const card = document.querySelector(`#catalogResults .anime-card[data-id="${anime.id}"]`);
+    const card = [...document.querySelectorAll('#catalogResults .anime-card[data-id]')].find(
+        (item) => item.dataset.id === String(anime.id)
+    );
     if (!card) return;
     const slot = card.querySelector('[data-countdown-slot]');
     if (!slot) return;
@@ -203,20 +211,20 @@ function _createCalendarAnnouncedCard(row) {
     card.style.cursor = 'pointer';
     const mal = parseInt(row.mal_id, 10);
     const title = (row.title_ru && String(row.title_ru).trim()) || `MAL #${mal}`;
-    const imgUrl = _malPosterUrlCatalog(mal);
+    const imgUrl = reminkoSafeImageUrl(_malPosterUrlCatalog(mal), '');
     const dateStr =
         typeof reminkoFormatReleaseDateShort === 'function'
             ? reminkoFormatReleaseDateShort(row.next_at)
             : '';
     card.innerHTML = `
         <div class="jikan-card-poster">
-            <img src="${imgUrl}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+            <img src="${reminkoEscapeHtml(imgUrl)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">
             <div class="jikan-card-status">Анонс</div>
         </div>
         <div class="jikan-card-info">
             <div class="jikan-card-title"></div>
             <div class="jikan-card-meta">
-                <span>1-я серия${dateStr ? ` · ${dateStr}` : ''}</span>
+                <span>1-я серия${dateStr ? ` · ${reminkoEscapeHtml(dateStr)}` : ''}</span>
             </div>
         </div>
     `;
@@ -362,11 +370,13 @@ function _createJikanCatalogCard(anime) {
     card.className = 'jikan-card';
     card.style.cursor = 'pointer';
 
-    const imgUrl =
+    const imgUrl = reminkoSafeImageUrl(
         (typeof jikanPosterFromAnime === 'function' ? jikanPosterFromAnime(anime) : '') ||
         anime.images?.jpg?.large_image_url ||
         anime.images?.jpg?.image_url ||
-        '';
+        '',
+        ''
+    );
     const score = anime.score ? anime.score.toFixed(1) : '—';
     const title =
         (anime.title_english && String(anime.title_english).trim()) ||
@@ -384,15 +394,15 @@ function _createJikanCatalogCard(anime) {
 
     card.innerHTML = `
         <div class="jikan-card-poster">
-            <img src="${imgUrl}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-jikan-poster="1">
-            ${score !== '—' ? `<div class="jikan-card-score">${score}</div>` : ''}
-            ${status ? `<div class="jikan-card-status">${status}</div>` : ''}
+            <img src="${reminkoEscapeHtml(imgUrl)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-jikan-poster="1">
+            ${score !== '—' ? `<div class="jikan-card-score">${reminkoEscapeHtml(score)}</div>` : ''}
+            ${status ? `<div class="jikan-card-status">${reminkoEscapeHtml(status)}</div>` : ''}
         </div>
         <div class="jikan-card-info">
-            <div class="jikan-card-title" title="${title}">${title}</div>
+            <div class="jikan-card-title" title="${reminkoEscapeHtml(title)}">${reminkoEscapeHtml(title)}</div>
             <div class="jikan-card-meta">
-                ${episodes ? `<span>${episodes}</span>` : ''}
-                ${genres ? `<span>${genres}</span>` : ''}
+                ${episodes ? `<span>${reminkoEscapeHtml(episodes)}</span>` : ''}
+                ${genres ? `<span>${reminkoEscapeHtml(genres)}</span>` : ''}
             </div>
         </div>
     `;
@@ -440,7 +450,7 @@ function loadFilters() {
     // Жанры (чекбоксы)
     if (params.genre && Array.isArray(params.genre)) {
         params.genre.forEach(genre => {
-            const checkbox = document.querySelector(`#filterGenrePanel input[value="${genre}"]`);
+            const checkbox = catalogFindInputByValue('filterGenrePanel', genre);
             if (checkbox) checkbox.checked = true;
         });
         updateFilterButtonText('filterGenreBtn', params.genre);
@@ -449,12 +459,12 @@ function loadFilters() {
     // Типы (чекбоксы)
     if (params.type && Array.isArray(params.type)) {
         params.type.forEach(type => {
-            const checkbox = document.querySelector(`#filterTypePanel input[value="${type}"]`);
+            const checkbox = catalogFindInputByValue('filterTypePanel', type);
             if (checkbox) checkbox.checked = true;
         });
         updateFilterButtonText('filterTypeBtn', params.type);
     } else if (params.type) {
-        const checkbox = document.querySelector(`#filterTypePanel input[value="${params.type}"]`);
+        const checkbox = catalogFindInputByValue('filterTypePanel', params.type);
         if (checkbox) checkbox.checked = true;
         updateFilterButtonText('filterTypeBtn', [params.type]);
     }
@@ -462,12 +472,12 @@ function loadFilters() {
     // Статусы (чекбоксы)
     if (params.status && Array.isArray(params.status)) {
         params.status.forEach(status => {
-            const checkbox = document.querySelector(`#filterStatusPanel input[value="${status}"]`);
+            const checkbox = catalogFindInputByValue('filterStatusPanel', status);
             if (checkbox) checkbox.checked = true;
         });
         updateFilterButtonText('filterStatusBtn', params.status);
     } else if (params.status) {
-        const checkbox = document.querySelector(`#filterStatusPanel input[value="${params.status}"]`);
+        const checkbox = catalogFindInputByValue('filterStatusPanel', params.status);
         if (checkbox) checkbox.checked = true;
         updateFilterButtonText('filterStatusBtn', [params.status]);
     }
@@ -508,7 +518,15 @@ function updateFilterButtonText(btnId, values) {
         valueEl.textContent = displayText;
     } else {
         const svg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-        btn.innerHTML = (values.length === 0 ? (btnId.includes('Genre') ? 'Выберите жанр' : btnId.includes('Type') ? 'Выберите тип' : 'Выберите статус') : displayText) + ' ' + svg;
+        const label =
+            values.length === 0
+                ? btnId.includes('Genre')
+                    ? 'Выберите жанр'
+                    : btnId.includes('Type')
+                      ? 'Выберите тип'
+                      : 'Выберите статус'
+                : displayText;
+        btn.innerHTML = `${reminkoEscapeHtml(label)} ${svg}`;
     }
 }
 
@@ -662,7 +680,9 @@ function applyCatalogShikiToCard(anime, sh) {
     if (typeof patchJikanVirtualShiki === 'function') patchJikanVirtualShiki(anime.mal_id, sh);
     if (typeof patchSiteCatalogJikanShiki === 'function') patchSiteCatalogJikanShiki(anime.mal_id, sh);
     const id = String(anime.id);
-    const card = document.querySelector(`#catalogResults .anime-card[data-id="${id}"]`);
+    const card = [...document.querySelectorAll('#catalogResults .anime-card[data-id]')].find(
+        (item) => item.dataset.id === String(id)
+    );
     if (!card) return;
     const h = card.querySelector('.anime-title');
     if (sh && sh.russian && h && anime.isJikanVirtual) {
@@ -1127,10 +1147,11 @@ function loadGenres() {
     const normalHtml = genres
         .map((genre) => {
             const v = escGenreAttr(genre);
+            const id = `genre_${String(genre).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100)}`;
             return `
         <label class="filter-option filter-checkbox-item">
-            <input type="checkbox" value="${v}" id="genre_${genre.replace(/\s+/g, '_')}">
-            <span>${genre}</span>
+            <input type="checkbox" value="${v}" id="${id}">
+            <span>${reminkoEscapeHtml(genre)}</span>
         </label>`;
         })
         .join('');
@@ -1138,18 +1159,18 @@ function loadGenres() {
     const adultHtml = adultLabels
         .map((genre) => {
             const v = escGenreAttr(genre);
-            const id = `genre_${genre.replace(/\s+/g, '_')}`;
+            const id = `genre_${String(genre).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100)}`;
             if (unlocked) {
                 return `
         <label class="filter-option filter-checkbox-item genre-adult-row" data-adult-genre="1">
             <input type="checkbox" value="${v}" id="${id}">
-            <span>${genre}</span>
+            <span>${reminkoEscapeHtml(genre)}</span>
         </label>`;
             }
             return `
         <label class="filter-option filter-checkbox-item genre-adult-row genre-adult-locked" data-adult-genre="1">
             <input type="checkbox" value="${v}" id="${id}" disabled aria-disabled="true">
-            <span>${genre}</span>
+            <span>${reminkoEscapeHtml(genre)}</span>
             <span class="genre-adult-lock" title="Включите отображение жанров 18+ в настройках профиля">🔒</span>
         </label>`;
         })

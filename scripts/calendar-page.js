@@ -186,7 +186,7 @@
             hour: '2-digit',
             minute: '2-digit'
         });
-        const poster = pickInitialPoster(row, catalogAnime);
+        const poster = reminkoSafeImageUrl(pickInitialPoster(row, catalogAnime), '');
         const inCatalog = !!catalogAnime;
 
         const item = document.createElement('article');
@@ -194,7 +194,7 @@
         item.innerHTML = `
             <div class="calendar-item__media">
                 <div class="calendar-item__poster">
-                    <img src="${String(poster).replace(/"/g, '&quot;')}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-mal-id="${mal}" data-row-mal="${mal}">
+                    <img src="${reminkoEscapeHtml(poster)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-mal-id="${mal}" data-row-mal="${mal}">
                 </div>
                 <span class="calendar-item__time">${timeStr}</span>
             </div>
@@ -204,7 +204,7 @@
                     ${inCatalog ? '<span class="calendar-item__badge calendar-item__badge--kodik">Kodik</span>' : ''}
                 </div>
                 <h3 class="calendar-item__title"></h3>
-                <div class="calendar-item__countdown" data-countdown-iso="${String(iso).replace(/"/g, '&quot;')}"></div>
+                <div class="calendar-item__countdown" data-countdown-iso="${reminkoEscapeHtml(iso)}"></div>
             </div>
         `;
         const titleEl = item.querySelector('.calendar-item__title');

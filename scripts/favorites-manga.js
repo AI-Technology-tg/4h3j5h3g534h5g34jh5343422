@@ -47,28 +47,29 @@ function renderFavoritesManga(mangaFavorites) {
         return manga;
     }).filter(m => m !== null);
     
-    container.innerHTML = `
-        <div class="anime-grid">
-            ${favoritesManga.map(manga => {
-                const gradient = generateGradient(manga.id);
-                return `
-                    <div class="anime-card" onclick="openMangaPage(${manga.id})">
-                        <div class="anime-poster" style="background: ${gradient};">
-                            <div class="anime-year">${manga.year}</div>
-                            ${manga.status ? `<div class="anime-status">${manga.status}</div>` : ''}
-                        </div>
-                        <div class="anime-info">
-                            <h3 class="anime-title">${manga.title}</h3>
-                            <div class="anime-meta">
-                                <div class="anime-rating">⭐ ${manga.rating || 0}</div>
-                                ${manga.totalChapters ? `<div class="anime-episodes">Глав: ${manga.totalChapters}</div>` : ''}
-                            </div>
-                            ${manga.author ? `<div class="anime-studio">Автор: ${manga.author}</div>` : ''}
-                            ${manga.genres ? `<div class="anime-genres">${manga.genres.slice(0, 2).join(', ')}</div>` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
+    const grid = document.createElement('div');
+    grid.className = 'anime-grid';
+    favoritesManga.forEach((manga) => {
+        const card = document.createElement('div');
+        card.className = 'anime-card';
+        const gradient = generateGradient(manga.id);
+        card.innerHTML = `
+            <div class="anime-poster" style="background: ${reminkoEscapeHtml(gradient)};">
+                <div class="anime-year">${reminkoEscapeHtml(manga.year)}</div>
+                ${manga.status ? `<div class="anime-status">${reminkoEscapeHtml(manga.status)}</div>` : ''}
+            </div>
+            <div class="anime-info">
+                <h3 class="anime-title">${reminkoEscapeHtml(manga.title)}</h3>
+                <div class="anime-meta">
+                    <div class="anime-rating">⭐ ${reminkoEscapeHtml(manga.rating || 0)}</div>
+                    ${manga.totalChapters ? `<div class="anime-episodes">Глав: ${reminkoEscapeHtml(manga.totalChapters)}</div>` : ''}
+                </div>
+                ${manga.author ? `<div class="anime-studio">Автор: ${reminkoEscapeHtml(manga.author)}</div>` : ''}
+                ${manga.genres ? `<div class="anime-genres">${reminkoEscapeHtml(manga.genres.slice(0, 2).join(', '))}</div>` : ''}
+            </div>
+        `;
+        card.addEventListener('click', () => openMangaPage(manga.id));
+        grid.appendChild(card);
+    });
+    container.replaceChildren(grid);
 }

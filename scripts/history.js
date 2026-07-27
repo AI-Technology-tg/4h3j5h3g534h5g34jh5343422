@@ -69,7 +69,8 @@ function renderAnimeHistory(history) {
         .sort((a, b) => new Date(b.watchedAt) - new Date(a.watchedAt)); // Сортируем по дате (новые сверху)
     
     container.innerHTML = historyEntries.map(entry => {
-        const gradient = generateGradient(entry.anime.id);
+        const animeId = parseInt(entry.anime.id, 10) || 0;
+        const gradient = generateGradient(animeId);
         const watchedDate = new Date(entry.watchedAt).toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'short',
@@ -78,12 +79,12 @@ function renderAnimeHistory(history) {
             minute: '2-digit'
         });
         return `
-            <div class="watch-history-item" onclick="openAnimePage(${entry.anime.id})">
-                <div class="watch-history-poster" style="background: ${gradient};"></div>
+            <div class="watch-history-item" onclick="openAnimePage(${animeId})">
+                <div class="watch-history-poster" style="background: ${reminkoEscapeHtml(gradient)};"></div>
                 <div class="watch-history-info">
-                    <div class="watch-history-title">${entry.anime.title}</div>
-                    <div class="watch-history-episode">Серия ${entry.episodeNumber}</div>
-                    <div class="watch-history-date">${watchedDate}</div>
+                    <div class="watch-history-title">${reminkoEscapeHtml(entry.anime.title)}</div>
+                    <div class="watch-history-episode">Серия ${reminkoEscapeHtml(entry.episodeNumber)}</div>
+                    <div class="watch-history-date">${reminkoEscapeHtml(watchedDate)}</div>
                 </div>
             </div>
         `;
@@ -127,7 +128,8 @@ function renderMangaHistory(history) {
         .sort((a, b) => new Date(b.watchedAt) - new Date(a.watchedAt)); // Сортируем по дате (новые сверху)
     
     container.innerHTML = historyEntries.map(entry => {
-        const gradient = generateGradient(entry.manga.id);
+        const mangaId = parseInt(entry.manga.id, 10) || 0;
+        const gradient = generateGradient(mangaId);
         const watchedDate = new Date(entry.watchedAt).toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'short',
@@ -136,12 +138,12 @@ function renderMangaHistory(history) {
             minute: '2-digit'
         });
         return `
-            <div class="watch-history-item" onclick="openMangaPage(${entry.manga.id})">
-                <div class="watch-history-poster" style="background: ${gradient};"></div>
+            <div class="watch-history-item" onclick="openMangaPage(${mangaId})">
+                <div class="watch-history-poster" style="background: ${reminkoEscapeHtml(gradient)};"></div>
                 <div class="watch-history-info">
-                    <div class="watch-history-title">${entry.manga.title}</div>
-                    <div class="watch-history-episode">Глава ${entry.chapterNumber}</div>
-                    <div class="watch-history-date">${watchedDate}</div>
+                    <div class="watch-history-title">${reminkoEscapeHtml(entry.manga.title)}</div>
+                    <div class="watch-history-episode">Глава ${reminkoEscapeHtml(entry.chapterNumber)}</div>
+                    <div class="watch-history-date">${reminkoEscapeHtml(watchedDate)}</div>
                 </div>
             </div>
         `;

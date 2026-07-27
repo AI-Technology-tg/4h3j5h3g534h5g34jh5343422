@@ -371,7 +371,7 @@ function showReaderError(msg) {
         container.innerHTML = `
             <div class="manga-reader-error">
                 <div class="error-icon">📖</div>
-                <h3>${msg}</h3>
+                <h3>${reminkoEscapeHtml(msg)}</h3>
                 <p>Попробуйте другую мангу или проверьте соединение.</p>
                 <button class="btn btn-primary" onclick="goBack()">Назад</button>
             </div>

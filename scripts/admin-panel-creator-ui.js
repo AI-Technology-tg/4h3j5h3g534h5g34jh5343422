@@ -358,8 +358,12 @@ function anime4kAdminRenderSearchResults(rows) {
             metaBits.push(`MAL ${mal}`);
             metaBits.push(`id ${siteId}`);
             const meta = adminPanelEscapeHtml(metaBits.join(' · '));
-            const poster = row.poster
-                ? `<img class="anime4k-admin__search-poster" src="${adminPanelEscapeHtml(row.poster)}" alt="" loading="lazy">`
+            const safePoster =
+                typeof reminkoSafeImageUrl === 'function'
+                    ? reminkoSafeImageUrl(row.poster, '')
+                    : '';
+            const poster = safePoster
+                ? `<img class="anime4k-admin__search-poster" src="${adminPanelEscapeHtml(safePoster)}" alt="" loading="lazy">`
                 : `<div class="anime4k-admin__search-poster anime4k-admin__search-poster--ph">?</div>`;
             return `<li class="anime4k-admin__search-item">
                 ${poster}
@@ -932,8 +936,12 @@ async function loadAnime4kAdminPanel(selectMal) {
             const poster = anime4kRowPosterUrl(row);
             const hasVideo = !!(row.video_url && String(row.video_url).trim());
             const published = row.published !== false;
-            const posterHtml = poster
-                ? `<img class="anime4k-admin__list-item-poster" src="${adminPanelEscapeHtml(poster)}" alt="" loading="lazy">`
+            const safePoster =
+                typeof reminkoSafeImageUrl === 'function'
+                    ? reminkoSafeImageUrl(poster, '')
+                    : '';
+            const posterHtml = safePoster
+                ? `<img class="anime4k-admin__list-item-poster" src="${adminPanelEscapeHtml(safePoster)}" alt="" loading="lazy">`
                 : `<div class="anime4k-admin__list-item-poster anime4k-admin__list-item-poster--ph">4K</div>`;
             return `<button type="button" class="anime4k-admin__list-item" data-mal="${mal}">
                 ${posterHtml}

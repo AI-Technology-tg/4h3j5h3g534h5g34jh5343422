@@ -7,7 +7,13 @@ function resolveAnimeBackHref() {
         if (stored && String(stored).trim()) {
             const s = String(stored).trim();
             // Не уводим «назад» на саму страницу аниме
-            if (!/anime\/view(?:-4k)?\.html/i.test(s)) return s;
+            const url = new URL(s, window.location.href);
+            if (
+                url.origin === window.location.origin &&
+                !/anime\/view(?:-4k)?\.html/i.test(url.pathname)
+            ) {
+                return `${url.pathname}${url.search}${url.hash}`;
+            }
         }
     } catch (_) {
         /* ignore */
@@ -1135,7 +1141,8 @@ function getPosterForSimilarCard(a) {
 function renderFranchiseSeasonCard(a, currentId, currentMal) {
     const href = `view.html?id=${encodeURIComponent(String(a.id))}`;
     const bg = getPosterForSimilarCard(a);
-    const st = bg ? `style="background-image:url('${escapeHtmlText(bg)}')"` : '';
+    const safeBg = bg ? reminkoSafeCssUrl(bg) : '';
+    const st = safeBg ? `style="background-image:url('${safeBg}')"` : '';
     const mal = parseInt(a.mal_id, 10);
     const curMal = parseInt(currentMal, 10);
     const isCur =
@@ -1303,8 +1310,9 @@ function hydrateJikanFranchiseAndSimilar(jikanData, virtualAnime, mergedCard) {
                 .map((a) => {
                     const href = `view.html?id=${encodeURIComponent(String(a.id))}`;
                     const bg = getPosterForSimilarCard(a);
-                    const st = bg
-                        ? `style="background-image:url('${escapeHtmlText(bg)}')"`
+                    const safeBg = bg ? reminkoSafeCssUrl(bg) : '';
+                    const st = safeBg
+                        ? `style="background-image:url('${safeBg}')"`
                         : '';
                     return `<a class="anime-similar-card" href="${href}" title="${escapeHtmlText(a.title)}">
                         <div class="anime-similar-card__poster" ${st}></div>
@@ -1366,7 +1374,8 @@ function hydrateCatalogSimilarSection(anime) {
         .map((a) => {
             const href = `view.html?id=${encodeURIComponent(String(a.id))}`;
             const bg = getPosterForSimilarCard(a);
-            const st = bg ? `style="background-image:url('${escapeHtmlText(bg)}')"` : '';
+            const safeBg = bg ? reminkoSafeCssUrl(bg) : '';
+            const st = safeBg ? `style="background-image:url('${safeBg}')"` : '';
             return `<a class="anime-similar-card" href="${href}" title="${escapeHtmlText(a.title)}">
                 <div class="anime-similar-card__poster" ${st}></div>
                 <div class="anime-similar-card__title">${escapeHtmlText(a.title)}</div>
@@ -1460,7 +1469,8 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
         synopsis = jikanSynopsis || 'Описание появится позже.';
     }
 
-    const posterUrl = resolveJikanDetailPosterUrl(data, shiki);
+    const posterUrl = reminkoSafeImageUrl(resolveJikanDetailPosterUrl(data, shiki), '');
+    const posterCssUrl = posterUrl ? reminkoSafeCssUrl(posterUrl) : '';
     const titleEn = data.title_english || data.title || '';
     const titleJp = data.title_japanese || '';
     let epLine = '';
@@ -1535,7 +1545,7 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
     applyAnimeViewSeo(virtualAnime, { title: titleRu, id: virtualAnime.id, poster: posterUrl, description: data.synopsis });
 
     container.innerHTML = `
-        <a href="${previousUrl}" class="back-button">
+        <a href="${escapeHtmlText(previousUrl)}" class="back-button">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
@@ -1543,25 +1553,25 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
         </a>
         <div class="anime-detail anime-detail-shell">
         <div class="anime-detail-main">
-            <div class="anime-detail-poster" style="${posterUrl ? `background-image:url('${posterUrl}');background-size:cover;background-position:center;` : 'background:linear-gradient(135deg,#6c5ce7,#a29bfe);'}">
-                ${status ? `<div class="anime-status anime-status--poster-pill" title="">${status}</div>` : ''}
+            <div class="anime-detail-poster" style="${posterCssUrl ? `background-image:url('${posterCssUrl}');background-size:cover;background-position:center;` : 'background:linear-gradient(135deg,#6c5ce7,#a29bfe);'}">
+                ${status ? `<div class="anime-status anime-status--poster-pill" title="">${escapeHtmlText(status)}</div>` : ''}
             </div>
             <div class="anime-detail-info">
                 <h1 class="anime-detail-title">${escapeHtmlText(titleRu)}</h1>
                 ${titleEn && titleEn !== titleRu ? `<div class="anime-detail-alt-title" style="opacity:0.85">${escapeHtmlText(titleEn)}</div>` : ''}
                 ${titleJp ? `<div class="anime-detail-alt-title">${escapeHtmlText(titleJp)}</div>` : ''}
                 <div class="anime-detail-meta">
-                    ${type ? `<span class="meta-item">📺 ${type}</span>` : ''}
-                    ${epLine ? `<span class="meta-item">🎬 ${epLine}</span>` : ''}
-                    ${duration ? `<span class="meta-item">⏱ ${duration}</span>` : ''}
-                    ${year ? `<span class="meta-item">📅 ${season ? season + ' ' : ''}${year}</span>` : ''}
-                    ${source ? `<span class="meta-item">📖 ${source}</span>` : ''}
+                    ${type ? `<span class="meta-item">📺 ${escapeHtmlText(type)}</span>` : ''}
+                    ${epLine ? `<span class="meta-item">🎬 ${escapeHtmlText(epLine)}</span>` : ''}
+                    ${duration ? `<span class="meta-item">⏱ ${escapeHtmlText(duration)}</span>` : ''}
+                    ${year ? `<span class="meta-item">📅 ${escapeHtmlText(season ? `${season} ${year}` : year)}</span>` : ''}
+                    ${source ? `<span class="meta-item">📖 ${escapeHtmlText(source)}</span>` : ''}
                 </div>
                 <div class="anime-detail-statrow" role="list" aria-label="Кратко о тайтле">
                     <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Оценка</span><span class="anime-stat-pill__v">★ ${jikanScore}</span></div>
                     <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Эпизоды</span><span class="anime-stat-pill__v">${escapeHtmlText(epLine || '—')}</span></div>
                 </div>
-                <div class="anime-detail-studio">${studios}</div>
+                <div class="anime-detail-studio">${escapeHtmlText(studios)}</div>
                 ${genres.length > 0 ? `<div class="anime-detail-genres">${genres.map((g) => `<span class="genre-tag">${escapeHtmlText(g)}</span>`).join('')}</div>` : ''}
                 <p class="anime-detail-description">${escapeHtmlText(synopsis)}</p>
                 ${isAnnounced ? '' : animeNextEpisodeCountdownBarHtml()}
@@ -1684,12 +1694,15 @@ async function renderAnimeDetail(anime) {
     const searchTitle = anime.titleAlt || anime.title;
     const looksRussianText = (s) => /[а-яёА-ЯЁ]/.test(String(s || ''));
     
-    const initialPoster =
+    const initialPoster = reminkoSafeImageUrl(
         anime.posterUrl ||
         (anime.poster && String(anime.poster).trim()) ||
-        null;
+        null,
+        ''
+    );
+    const initialPosterCss = initialPoster ? reminkoSafeCssUrl(initialPoster) : '';
     const posterStyle = initialPoster
-        ? `background-image: url('${initialPoster}'); background-size: cover; background-position: center;`
+        ? `background-image: url('${initialPosterCss}'); background-size: cover; background-position: center;`
         : `background: ${gradient};`;
     
     // Загружаем данные параллельно в фоне и обновляем страницу после загрузки
@@ -1703,10 +1716,11 @@ async function renderAnimeDetail(anime) {
                         getPosterFast(searchTitle, 'anime'),
                         new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
                     ]);
-                    if (url && !url.startsWith('data:image')) {
+                    const safeUrl = reminkoSafeImageUrl(url, '');
+                    if (safeUrl && !safeUrl.startsWith('data:image')) {
                         const posterElement = container.querySelector('.anime-detail-poster');
                         if (posterElement) {
-                            posterElement.style.backgroundImage = `url('${url}')`;
+                            posterElement.style.backgroundImage = `url('${reminkoSafeCssUrl(safeUrl)}')`;
                             posterElement.style.backgroundSize = 'cover';
                             posterElement.style.backgroundPosition = 'center';
                         }
@@ -1728,8 +1742,11 @@ async function renderAnimeDetail(anime) {
                         // Обновляем постер, если он еще не загружен
                         if (jikanData.poster) {
                             const posterElement = container.querySelector('.anime-detail-poster');
+                            const safePoster = reminkoSafeImageUrl(jikanData.poster, '');
                             if (posterElement && !posterElement.style.backgroundImage) {
-                                posterElement.style.backgroundImage = `url('${jikanData.poster}')`;
+                                posterElement.style.backgroundImage = safePoster
+                                    ? `url('${reminkoSafeCssUrl(safePoster)}')`
+                                    : '';
                                 posterElement.style.backgroundSize = 'cover';
                                 posterElement.style.backgroundPosition = 'center';
                             }
@@ -1747,8 +1764,8 @@ async function renderAnimeDetail(anime) {
                         if (jikanData.genres && jikanData.genres.length > 0) {
                             const genresElement = container.querySelector('.anime-detail-genres');
                             if (genresElement) {
-                                genresElement.innerHTML = jikanData.genres.map(genre => 
-                                    `<span class="genre-tag" onclick="window.location.href='../catalog/anime.html?genre=${encodeURIComponent(genre)}'">${genre}</span>`
+                                genresElement.innerHTML = jikanData.genres.map(genre =>
+                                    `<a class="genre-tag" href="../catalog/anime.html?genre=${encodeURIComponent(String(genre))}">${escapeHtmlText(genre)}</a>`
                                 ).join('');
                             }
                         }
@@ -1801,7 +1818,7 @@ async function renderAnimeDetail(anime) {
     applyAnimeViewSeo(anime, { description });
 
     container.innerHTML = `
-        <a href="${previousUrl}" class="back-button">
+        <a href="${escapeHtmlText(previousUrl)}" class="back-button">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
@@ -1810,13 +1827,13 @@ async function renderAnimeDetail(anime) {
         
         <div class="anime-detail anime-detail-shell">
             <div class="anime-detail-header">
-                <div class="anime-detail-poster" style="${posterStyle}"></div>
+                <div class="anime-detail-poster" style="${escapeHtmlText(posterStyle)}"></div>
                 <div class="anime-detail-info">
-                    <h1 class="anime-detail-title">${anime.title}</h1>
+                    <h1 class="anime-detail-title">${escapeHtmlText(anime.title)}</h1>
                     <div class="anime-detail-meta">
-                        <div class="anime-detail-year">${jikanYear || anime.year}</div>
-                        <div class="anime-detail-status">${anime.status}</div>
-                        <div class="anime-detail-type">${anime.type}</div>
+                        <div class="anime-detail-year">${escapeHtmlText(jikanYear || anime.year)}</div>
+                        <div class="anime-detail-status">${escapeHtmlText(anime.status)}</div>
+                        <div class="anime-detail-type">${escapeHtmlText(anime.type)}</div>
                     </div>
                     <div class="anime-detail-statrow" role="list" aria-label="Кратко о тайтле">
                         <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Оценка</span><span class="anime-stat-pill__v">★ ${ratingVal}</span></div>
@@ -1827,8 +1844,8 @@ async function renderAnimeDetail(anime) {
                         }</span></div>
                         <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Год</span><span class="anime-stat-pill__v">${jikanYear || anime.year || '—'}</span></div>
                     </div>
-                    ${jikanStudios.length > 0 ? `<div class="anime-detail-studio">Студия: ${jikanStudios.join(', ')}</div>` : (anime.studio ? `<div class="anime-detail-studio">Студия: ${anime.studio}</div>` : '')}
-                    ${anime.duration ? `<div class="anime-detail-studio">Длительность: ${anime.duration}</div>` : ''}
+                    ${jikanStudios.length > 0 ? `<div class="anime-detail-studio">Студия: ${escapeHtmlText(jikanStudios.join(', '))}</div>` : (anime.studio ? `<div class="anime-detail-studio">Студия: ${escapeHtmlText(anime.studio)}</div>` : '')}
+                    ${anime.duration ? `<div class="anime-detail-studio">Длительность: ${escapeHtmlText(anime.duration)}</div>` : ''}
                     
                     <div class="anime-detail-description">
                         ${description ? escapeHtmlText(description) : 'Описание отсутствует.'}
@@ -1836,7 +1853,7 @@ async function renderAnimeDetail(anime) {
                     
                     <div class="anime-detail-genres">
                         ${(jikanGenres.length > 0 ? jikanGenres : anime.genres).map(genre => `
-                            <span class="genre-tag" onclick="window.location.href='../catalog/anime.html?genre=${encodeURIComponent(genre)}'">${genre}</span>
+                            <a class="genre-tag" href="../catalog/anime.html?genre=${encodeURIComponent(String(genre))}">${escapeHtmlText(genre)}</a>
                         `).join('')}
                     </div>
 

@@ -1244,7 +1244,7 @@
                 : null;
         const iso = resolveCardCountdownIso(anime, cached);
         if (!iso) return '';
-        return `<div class="jikan-card-countdown" data-countdown-iso="${String(iso).replace(/"/g, '&quot;')}" aria-live="polite"></div>`;
+        return `<div class="jikan-card-countdown" data-countdown-iso="${global.reminkoEscapeHtml(iso)}" aria-live="polite"></div>`;
     }
 
     function navigateKodikCard(anime) {
@@ -1297,7 +1297,7 @@
         const resolvedUrl = resolveKodikHomePosterUrl(anime);
         // Не ставим src на все карточки сразу — иначе shikimori.io зависает пачкой
         const deferPoster = !!(opts && opts.deferPoster && resolvedUrl);
-        const imgUrl = deferPoster ? '' : resolvedUrl;
+        const imgUrl = deferPoster ? '' : global.reminkoSafeImageUrl(resolvedUrl, '');
         if (deferPoster) card.dataset.posterPendingUrl = resolvedUrl;
         // URL в localStorage — следующий визит без поиска постера
         if (imgUrl && anime.mal_id != null && typeof global.writeMalPosterCache === 'function') {
@@ -1311,22 +1311,24 @@
         const ep = epLine(anime);
         const countdown = cardCountdownHtml(anime);
         const loadingAttr = imgUrl ? 'eager' : 'lazy';
+        const placeholder =
+            'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
         card.innerHTML = `
         <div class="jikan-card-poster">
-            <img src="${imgUrl || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}" alt="" decoding="async" loading="${loadingAttr}" referrerpolicy="no-referrer" data-poster-fallback="1">
+            <img src="${global.reminkoEscapeHtml(imgUrl || placeholder)}" alt="" decoding="async" loading="${loadingAttr}" referrerpolicy="no-referrer" data-poster-fallback="1">
             <div class="jikan-card-poster-hover" aria-hidden="true">
                 <button type="button" class="jikan-card-go-btn">Перейти</button>
             </div>
-            ${score !== '—' ? `<div class="jikan-card-score">${score}</div>` : ''}
-            ${status ? `<div class="jikan-card-status">${status}</div>` : ''}
+            ${score !== '—' ? `<div class="jikan-card-score">${global.reminkoEscapeHtml(score)}</div>` : ''}
+            ${status ? `<div class="jikan-card-status">${global.reminkoEscapeHtml(status)}</div>` : ''}
             ${countdown}
         </div>
         <div class="jikan-card-info">
             <div class="jikan-card-title"></div>
             <div class="jikan-card-meta">
-                ${ep ? `<span class="jikan-card-ep">${ep}</span>` : ''}
-                ${genres ? `<span>${genres}</span>` : ''}
+                ${ep ? `<span class="jikan-card-ep">${global.reminkoEscapeHtml(ep)}</span>` : ''}
+                ${genres ? `<span>${global.reminkoEscapeHtml(genres)}</span>` : ''}
             </div>
         </div>
     `;

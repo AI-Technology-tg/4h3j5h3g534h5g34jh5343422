@@ -1,5 +1,15 @@
 // Страница просмотра манги — ReManga (русский перевод)
 
+function mangaSafeInternalUrl(value, fallback) {
+    try {
+        const url = new URL(String(value || ''), window.location.href);
+        if (url.origin !== window.location.origin) return fallback;
+        return `${url.pathname}${url.search}${url.hash}`;
+    } catch (_) {
+        return fallback;
+    }
+}
+
 function applyMangaViewSeo(manga, extra) {
     if (typeof reminkoUpdatePageSeo !== 'function' || !manga) return;
     const title = extra?.title || manga.title || 'Манга';
@@ -77,7 +87,7 @@ function showMangaNotFound(msg) {
     document.getElementById('mangaContent').innerHTML = `
         <div class="page-placeholder">
             <h1>Манга не найдена</h1>
-            <p>${msg}</p>
+            <p>${reminkoEscapeHtml(msg)}</p>
             <a href="../catalog/manga.html" class="btn btn-primary">Вернуться в каталог</a>
         </div>
     `;
@@ -88,7 +98,10 @@ async function renderMangaDetail(manga) {
     const gradient =
         typeof generateGradient === 'function' ? generateGradient(manga.id) : 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
     const container = document.getElementById('mangaContent');
-    const previousUrl = sessionStorage.getItem('previousUrl') || '../catalog/manga.html';
+    const previousUrl = mangaSafeInternalUrl(
+        sessionStorage.getItem('previousUrl'),
+        '../catalog/manga.html'
+    );
 
     const isFavorite = typeof isMangaInFavorites === 'function' ? isMangaInFavorites(manga.id) : false;
     const favoriteBtnText = isFavorite ? '❤️ В избранном' : '🤍 В избранное';
@@ -124,14 +137,17 @@ async function renderMangaDetail(manga) {
 
     if (!description) description = 'Описание отсутствует.';
 
+    coverUrl = reminkoSafeImageUrl(coverUrl, '');
     applyMangaViewSeo(manga, { description, cover: coverUrl, author });
 
-    const coverStyle = coverUrl
-        ? `background-image: url('${coverUrl.replace(/'/g, '%27')}'); background-size: cover; background-position: center;`
+    const safeCover = coverUrl ? reminkoSafeCssUrl(coverUrl) : '';
+    const coverStyle = safeCover
+        ? `background-image: url('${safeCover}'); background-size: cover; background-position: center;`
         : `background: ${gradient};`;
+    const mangaId = parseInt(manga.id, 10);
 
     container.innerHTML = `
-        <a href="${previousUrl}" class="back-button">
+        <a href="${reminkoEscapeHtml(previousUrl)}" class="back-button">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
@@ -140,41 +156,41 @@ async function renderMangaDetail(manga) {
         
         <div class="anime-detail">
             <div class="anime-detail-header">
-                <div class="anime-detail-poster" style="${coverStyle}"></div>
+                <div class="anime-detail-poster" style="${reminkoEscapeHtml(coverStyle)}"></div>
                 <div class="anime-detail-info">
-                    <h1 class="anime-detail-title">${manga.title}</h1>
-                    ${manga.titleAlt ? `<p class="anime-detail-alt">${manga.titleAlt}</p>` : ''}
+                    <h1 class="anime-detail-title">${reminkoEscapeHtml(manga.title)}</h1>
+                    ${manga.titleAlt ? `<p class="anime-detail-alt">${reminkoEscapeHtml(manga.titleAlt)}</p>` : ''}
                     <div class="anime-detail-meta">
-                        <div class="anime-detail-rating">⭐ ${rating}</div>
-                        <div class="anime-detail-year">${year}</div>
-                        <div class="anime-detail-status">${manga.status}</div>
-                        <div class="anime-detail-type">${manga.type}</div>
+                        <div class="anime-detail-rating">⭐ ${reminkoEscapeHtml(rating)}</div>
+                        <div class="anime-detail-year">${reminkoEscapeHtml(year)}</div>
+                        <div class="anime-detail-status">${reminkoEscapeHtml(manga.status)}</div>
+                        <div class="anime-detail-type">${reminkoEscapeHtml(manga.type)}</div>
                     </div>
                     <div class="anime-detail-statrow" role="list" aria-label="Кратко о манге">
-                        <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Рейтинг</span><span class="anime-stat-pill__v">${rating || '—'}</span></div>
-                        <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Год</span><span class="anime-stat-pill__v">${year || '—'}</span></div>
-                        <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Глав</span><span class="anime-stat-pill__v" id="mangaChaptersStat">${totalChapters || '—'}</span></div>
-                        <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Статус</span><span class="anime-stat-pill__v">${manga.status || '—'}</span></div>
+                        <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Рейтинг</span><span class="anime-stat-pill__v">${reminkoEscapeHtml(rating || '—')}</span></div>
+                        <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Год</span><span class="anime-stat-pill__v">${reminkoEscapeHtml(year || '—')}</span></div>
+                        <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Глав</span><span class="anime-stat-pill__v" id="mangaChaptersStat">${reminkoEscapeHtml(totalChapters || '—')}</span></div>
+                        <div class="anime-stat-pill" role="listitem"><span class="anime-stat-pill__k">Статус</span><span class="anime-stat-pill__v">${reminkoEscapeHtml(manga.status || '—')}</span></div>
                     </div>
-                    ${author ? `<div class="anime-detail-studio">Автор: ${author}</div>` : ''}
+                    ${author ? `<div class="anime-detail-studio">Автор: ${reminkoEscapeHtml(author)}</div>` : ''}
                     
-                    <div class="anime-detail-description">${description}</div>
+                    <div class="anime-detail-description">${reminkoEscapeHtml(description)}</div>
                     
                     <div class="anime-detail-genres">
                         ${genres
                             .map(
                                 (genre) =>
-                                    `<span class="genre-tag" onclick="window.location.href='../catalog/manga.html?genre=${encodeURIComponent(genre)}'">${genre}</span>`
+                                    `<a class="genre-tag" href="../catalog/manga.html?genre=${encodeURIComponent(String(genre))}">${reminkoEscapeHtml(genre)}</a>`
                             )
                             .join('')}
                     </div>
                     
                     <div class="anime-detail-actions">
-                        <button type="button" class="btn btn-primary" id="readMangaBtn" onclick="startReading(${manga.id})">
+                        <button type="button" class="btn btn-primary" id="readMangaBtn">
                             📖 Читать мангу
                         </button>
-                        <button type="button" class="btn btn-secondary favorite-btn" id="favoriteBtn" onclick="handleMangaFavoriteClick(${manga.id})">
-                            ${favoriteBtnText}
+                        <button type="button" class="btn btn-secondary favorite-btn" id="favoriteBtn">
+                            ${reminkoEscapeHtml(favoriteBtnText)}
                         </button>
                     </div>
                 </div>
@@ -191,6 +207,10 @@ async function renderMangaDetail(manga) {
         </div>
     `;
 
+    document.getElementById('readMangaBtn')?.addEventListener('click', () => startReading(mangaId));
+    document
+        .getElementById('favoriteBtn')
+        ?.addEventListener('click', () => handleMangaFavoriteClick(mangaId));
     loadRemangaChapters(manga);
 }
 
@@ -257,24 +277,34 @@ async function loadRemangaChapters(manga) {
         }
 
         const displayChapters = viewChaptersList.slice().reverse();
+        listEl.replaceChildren();
+        displayChapters.forEach((ch, i) => {
+            const chNum = String(ch.chapter || i + 1);
+            const chTitle = ch.title ? String(ch.title) : '';
+            const row = document.createElement('div');
+            row.className = 'episode-card';
+            row.title = `Глава ${chNum}${chTitle ? ` — ${chTitle}` : ''}`;
 
-        listEl.innerHTML = displayChapters
-            .map((ch, i) => {
-                const chNum = ch.chapter || String(i + 1);
-                const chTitle = ch.title ? ` — ${ch.title}` : '';
-                const paidBadge = ch.isPaid
-                    ? '<span class="ch-lang-badge" title="Платная глава">🔒</span>'
-                    : '<span class="ch-lang-badge ru" title="Бесплатно">RU</span>';
+            const number = document.createElement('span');
+            number.className = 'ch-number';
+            number.textContent = `Глава ${chNum}`;
+            row.appendChild(number);
 
-                return `
-                <div class="episode-card" onclick="openChapter('${ch.id}', '${chNum}', ${manga.id})" title="Глава ${chNum}${chTitle}">
-                    <span class="ch-number">Глава ${chNum}</span>
-                    ${ch.title ? `<span class="ch-title">${ch.title}</span>` : ''}
-                    ${paidBadge}
-                </div>
-            `;
-            })
-            .join('');
+            if (chTitle) {
+                const title = document.createElement('span');
+                title.className = 'ch-title';
+                title.textContent = chTitle;
+                row.appendChild(title);
+            }
+
+            const badge = document.createElement('span');
+            badge.className = ch.isPaid ? 'ch-lang-badge' : 'ch-lang-badge ru';
+            badge.title = ch.isPaid ? 'Платная глава' : 'Бесплатно';
+            badge.textContent = ch.isPaid ? '🔒' : 'RU';
+            row.appendChild(badge);
+            row.addEventListener('click', () => openChapter(String(ch.id || ''), chNum, manga.id));
+            listEl.appendChild(row);
+        });
     } catch (e) {
         console.error('[MangaView] Chapters error:', e);
         if (loadingEl) loadingEl.style.display = 'none';
