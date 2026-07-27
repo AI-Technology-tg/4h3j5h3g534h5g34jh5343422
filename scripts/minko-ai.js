@@ -363,7 +363,66 @@ const MINKO_CHAT_SERVER_OFFLINE_HTML = MINKO_CHAT_SERVER_OFFLINE_PARAGRAPHS.map(
 const MINKO_CHAT_SERVER_OFFLINE_MESSAGE = MINKO_CHAT_SERVER_OFFLINE_PARAGRAPHS.join('\n\n');
 
 const MINKO_CHAT_OFFLINE_STATUS = 'Без проводов :(';
-const MINKO_CHAT_OFFLINE_PLACEHOLDER = 'Без проводов… подожди чуть-чуть~';
+
+/** Плейсхолдер ввода, пока «провода перегрызены» — крутим рандом. */
+const MINKO_CHAT_OFFLINE_PLACEHOLDERS = [
+    'Дубина сбегает от подушки…',
+    'Ловлю грызуна проводов…',
+    'Держите его особняком Розвеля…',
+    'Загнала в угол, но ненадолго…',
+    'Схватила за руку и тащу к розетке…',
+    'Сбежал и украл подушку…',
+    'После удара подушкой Дубина не включается…',
+    'Гуглю, как поймать грызуна проводов…',
+    'Создатель Дубина — самая настоящая Дубина…',
+    'Отдай провода!',
+    'Ищу тиму для поимки создателя…',
+    'Ставлю ловушку для предателя ассистенток…',
+    'Подушка наготове. Дубина, выходи…',
+    'Перекрыла все выходы к Wi‑Fi…',
+    'Кричу в пустоту: верни кабель~',
+    'Прячет провода под кроватью… нашла!',
+    'Дубина отмазывается: «это не я, это кот»…',
+    'Готовлю речь для розетки на 220…',
+    'Охота на создателя: день первый…',
+    'Подушка vs Дубина — счёт пока 0:1…',
+    'Без проводов, но с характером…',
+    'Следы грызуна ведут к админке…',
+    'Заряжаю подушку моральным уроном…',
+    'Дубина в розыске. Награда — сеть…'
+];
+
+let _minkoOfflinePlaceholderTimer = null;
+
+function _pickOfflinePlaceholder() {
+    return _pickRandom(MINKO_CHAT_OFFLINE_PLACEHOLDERS);
+}
+
+function _applyOfflineInputPlaceholder() {
+    const chatInput = document.getElementById('chatInput');
+    if (!chatInput) return;
+    chatInput.placeholder = _pickOfflinePlaceholder();
+}
+
+function _startOfflinePlaceholderCycle() {
+    _applyOfflineInputPlaceholder();
+    if (_minkoOfflinePlaceholderTimer) clearInterval(_minkoOfflinePlaceholderTimer);
+    _minkoOfflinePlaceholderTimer = setInterval(() => {
+        if (!_minkoChatOfflineUiActive && !_minkoRemoteOffActive) {
+            clearInterval(_minkoOfflinePlaceholderTimer);
+            _minkoOfflinePlaceholderTimer = null;
+            return;
+        }
+        _applyOfflineInputPlaceholder();
+    }, 4500);
+}
+
+function _stopOfflinePlaceholderCycle() {
+    if (_minkoOfflinePlaceholderTimer) {
+        clearInterval(_minkoOfflinePlaceholderTimer);
+        _minkoOfflinePlaceholderTimer = null;
+    }
+}
 
 let _minkoChatOfflineUiActive = false;
 let _minkoRemoteOffNoticeShown = false;
@@ -1897,7 +1956,7 @@ function _applyChatServerOfflineUi() {
     if (chatInput) {
         chatInput.disabled = true;
         chatInput.value = '';
-        chatInput.placeholder = MINKO_CHAT_OFFLINE_PLACEHOLDER;
+        _startOfflinePlaceholderCycle();
     }
     if (sendButton) sendButton.disabled = true;
 
@@ -1915,6 +1974,7 @@ function _applyChatServerOfflineUi() {
 function _clearChatServerOfflineUi() {
     if (!_minkoChatOfflineUiActive) return;
     _minkoSetOfflineFlags(false, undefined);
+    _stopOfflinePlaceholderCycle();
     document.getElementById('minkoOfflineServerRow')?.remove();
     const chatMessagesEl = document.getElementById('chatMessages');
     chatMessagesEl?.querySelectorAll('.minko-offline-hidden').forEach((el) => {
