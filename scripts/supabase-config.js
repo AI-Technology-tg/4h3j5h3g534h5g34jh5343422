@@ -250,7 +250,11 @@ function reminkoPathMatchesExtraRoute(pathname, key) {
         case 'calendar':
             return p.includes('/catalog/calendar') || file === 'calendar.html';
         case 'anime_4k':
-            return p.includes('/catalog/anime-4k') || file === 'anime-4k.html';
+            return (
+                p.includes('/catalog/anime-4k') ||
+                file === 'anime-4k.html' ||
+                (p.includes('/anime/') && file === 'view-4k.html')
+            );
         case 'admin':
             return file === 'admin.html';
         case 'privacy':
@@ -274,9 +278,14 @@ function reminkoPathAllowedDuringMaintenance(pathname, extraRoutes) {
     if (reminkoPathIsInfoPage(pathname)) return true;
     if (reminkoPathIsLegalPage(pathname)) return true;
     if (file === 'index.html' || (p.endsWith('/') && (!file || !file.includes('.')))) return true;
-    if (p.includes('/catalog/anime-4k') || file === 'anime-4k.html') return true;
-    if (p.includes('/anime/') && file === 'view-4k.html') return true;
-    if (p.includes('/catalog/anime') || (file === 'anime.html' && p.includes('catalog'))) return true;
+    // ≈4K / calendar / minko_ai — только через extra_allowed_routes (иначе замок в меню врёт)
+    // Важно: anime-4k содержит подстроку /catalog/anime — исключаем явно
+    if (
+        (p.includes('/catalog/anime') && !p.includes('/catalog/anime-4k') && file !== 'anime-4k.html') ||
+        (file === 'anime.html' && p.includes('catalog'))
+    ) {
+        return true;
+    }
     if (p.includes('/anime/') && file === 'view.html') return true;
     if (p.includes('/catalog/manga') || (file === 'manga.html' && p.includes('catalog'))) return true;
     if (p.includes('/manga/') && (file === 'view.html' || file === 'reader.html')) return true;

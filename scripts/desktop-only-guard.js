@@ -253,7 +253,7 @@
                 var css = document.createElement('link');
                 css.id = 'rem-theme-dark-css';
                 css.rel = 'stylesheet';
-                css.href = root + 'styles/theme-dark.css?v=20260726mobile3';
+                css.href = root + 'styles/theme-dark.css?v=20260727consist1';
                 document.head.appendChild(css);
             }
             if (!document.getElementById('rem-dark-bg-preload')) {

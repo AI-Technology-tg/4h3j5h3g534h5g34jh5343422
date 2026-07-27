@@ -2530,6 +2530,29 @@ html {
         white-space: nowrap;
     }
 
+    .info-link-btn.reminko-maint-locked,
+    a.info-link-btn.sidebar-link--maint-locked {
+        opacity: 1 !important;
+        color: #fecaca !important;
+        background: rgba(239, 68, 68, 0.13) !important;
+        border-color: rgba(239, 68, 68, 0.34) !important;
+        filter: none;
+    }
+
+    .info-link-btn.reminko-maint-locked::after,
+    a.info-link-btn.sidebar-link--maint-locked::after {
+        content: 'В разработке';
+        display: inline-block;
+        margin-left: 0.35rem;
+        padding: 0.08rem 0.35rem;
+        border-radius: 999px;
+        background: rgba(239, 68, 68, 0.22);
+        color: #fecaca;
+        font-size: 0.62rem;
+        line-height: 1.2;
+        vertical-align: middle;
+    }
+
     .home-horizontal-scroll,
     .anime-franchise-strip__scroll {
         touch-action: pan-x pan-y pinch-zoom !important;

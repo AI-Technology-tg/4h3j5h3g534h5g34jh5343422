@@ -837,3 +837,11 @@ a.sidebar-link--maint-locked {
     align-items: center;
     gap: 0.35rem;
 }
+
+.info-link-btn.reminko-maint-locked,
+a.info-link-btn.sidebar-link--maint-locked {
+    opacity: 0.72;
+    cursor: not-allowed !important;
+    pointer-events: auto;
+    filter: grayscale(0.25);
+}

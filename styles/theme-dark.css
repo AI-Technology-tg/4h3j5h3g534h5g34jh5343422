@@ -557,19 +557,124 @@ body.theme-dark .genre-picker-search-input {
     color: #e7e0ff !important;
 }
 
+body.theme-dark .genre-picker-panel,
+body.theme-dark #filterGenrePanel.genre-picker-panel,
+body.theme-dark .filter-select-panel.genre-picker-panel {
+    background: #12081f !important;
+    border-color: rgba(157, 77, 255, 0.42) !important;
+    color: #e7e0ff !important;
+}
+
+body.theme-dark .genre-picker-panel .filter-mobile-panel-head,
+body.theme-dark .genre-picker-panel .filter-mobile-panel-head strong {
+    color: #f8f5ff !important;
+    border-color: rgba(157, 77, 255, 0.28) !important;
+}
+
+body.theme-dark .genre-picker-panel .filter-panel-close {
+    color: #fff !important;
+    background-color: rgba(8, 6, 17, 0.88) !important;
+    border-color: rgba(157, 77, 255, 0.42) !important;
+}
+
 body.theme-dark .genre-picker-chip {
     background: rgba(18, 8, 31, 0.9) !important;
     border-color: rgba(157, 77, 255, 0.28) !important;
+    color: #e7e0ff !important;
+}
+
+body.theme-dark .genre-picker-chip:hover {
+    border-color: rgba(255, 45, 85, 0.55) !important;
+}
+
+body.theme-dark .genre-picker-chip__text {
+    color: #e7e0ff !important;
 }
 
 body.theme-dark .genre-picker-chip.is-checked,
 body.theme-dark .genre-picker-chip:has(input:checked) {
     background: linear-gradient(135deg, rgba(255, 45, 85, 0.92), rgba(157, 77, 255, 0.88)) !important;
+    border-color: transparent !important;
+    color: #fff !important;
+}
+
+body.theme-dark .genre-picker-chip.is-checked .genre-picker-chip__text,
+body.theme-dark .genre-picker-chip:has(input:checked) .genre-picker-chip__text {
+    color: #fff !important;
+}
+
+body.theme-dark .genre-picker-chip.genre-adult-locked {
+    opacity: 0.55;
+    filter: grayscale(0.35);
+}
+
+body.theme-dark .genre-picker-footer {
+    border-color: rgba(157, 77, 255, 0.28) !important;
+    background: rgba(8, 6, 17, 0.55) !important;
 }
 
 body.theme-dark .genre-picker-clear {
-    background: rgba(157, 77, 255, 0.18) !important;
-    color: #e7e0ff !important;
+    color: #ddd6f5 !important;
+    border-color: rgba(157, 77, 255, 0.35) !important;
+    background: rgba(18, 8, 31, 0.75) !important;
+}
+
+body.theme-dark .genre-picker-clear:hover {
+    border-color: rgba(255, 45, 85, 0.5) !important;
+    color: #fff !important;
+}
+
+body.theme-dark .genre-picker-selected {
+    color: #cfc5e4 !important;
+}
+
+body.theme-dark .calendar-month-lane__title {
+    color: #f8f5ff !important;
+}
+
+body.theme-dark .calendar-month-lane__count {
+    color: #cfc5e4 !important;
+}
+
+body.theme-dark .calendar-item__poster img,
+body.theme-dark .calendar-ann-card__poster img {
+    opacity: 1;
+}
+
+body.theme-dark .calendar-item__poster img[src=''],
+body.theme-dark .calendar-item__poster img:not([src]),
+body.theme-dark .calendar-ann-card__poster img.calendar-poster--missing {
+    opacity: 0.35;
+}
+
+body.theme-dark a.reminko-maint-locked,
+body.theme-dark a.sidebar-link--maint-locked,
+body.theme-dark .info-link-btn.reminko-maint-locked {
+    opacity: 0.78;
+    color: #fecaca !important;
+}
+
+body.theme-dark .reminko-maint-lock-icon {
+    color: #fecaca;
+    opacity: 0.95;
+}
+
+body.theme-dark .info-link-btn {
+    color: #eee8fb !important;
+    border-color: rgba(157, 77, 255, 0.4) !important;
+    background: rgba(18, 8, 31, 0.75) !important;
+}
+
+body.theme-dark .info-link-btn--ghost {
+    background: transparent !important;
+    color: #ddd6f5 !important;
+}
+
+body.theme-dark .info-link-btn.reminko-maint-locked,
+body.theme-dark a.info-link-btn.sidebar-link--maint-locked {
+    background: rgba(239, 68, 68, 0.14) !important;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    color: #fecaca !important;
 }
 
 body.theme-dark .calendar-item__media {
@@ -715,6 +820,25 @@ body.theme-dark .vip-soon-badge {
         background: #12081f !important;
         border-color: rgba(157, 77, 255, 0.42) !important;
         color: #f8f5ff !important;
+    }
+
+    body.theme-dark .genre-picker-panel,
+    body.theme-dark #filterGenrePanel.genre-picker-panel {
+        background: #12081f !important;
+        border-color: rgba(157, 77, 255, 0.48) !important;
+    }
+
+    body.theme-dark .genre-picker-chip,
+    body.theme-dark .genre-picker-chip__text {
+        color: #e7e0ff !important;
+    }
+
+    body.theme-dark .sidebar-link.reminko-maint-locked,
+    body.theme-dark .sidebar-link.sidebar-link--maint-locked,
+    body.theme-dark .info-link-btn.reminko-maint-locked {
+        color: #fecaca !important;
+        background: rgba(239, 68, 68, 0.16) !important;
+        border-color: rgba(239, 68, 68, 0.42) !important;
     }
 
     body.theme-dark .catalog-mobile-filters__backdrop {
