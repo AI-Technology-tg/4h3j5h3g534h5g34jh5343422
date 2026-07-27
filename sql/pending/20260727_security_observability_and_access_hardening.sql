@@ -311,7 +311,7 @@ BEGIN
     left(COALESCE(v_target_id, ''), 200),
     NULLIF(v_request_id, ''),
     encode(
-      digest(
+      extensions.digest(
         left(v_type, 80) || ':' || COALESCE(v_actor::TEXT, 'system') || ':' || COALESCE(v_target_id, ''),
         'sha256'
       ),
@@ -906,7 +906,7 @@ BEGIN
     SELECT r.allowed
     FROM public.security_consume_rate_limit(
       'watch_together.create',
-      encode(digest(v_uid::TEXT, 'sha256'), 'hex'),
+      encode(extensions.digest(v_uid::TEXT, 'sha256'), 'hex'),
       10,
       3600
     ) r
@@ -999,7 +999,7 @@ BEGIN
     SELECT r.allowed
     FROM public.security_consume_rate_limit(
       'watch_together.join_code',
-      encode(digest(v_uid::TEXT, 'sha256'), 'hex'),
+      encode(extensions.digest(v_uid::TEXT, 'sha256'), 'hex'),
       30,
       300
     ) r
@@ -1311,7 +1311,7 @@ BEGIN
       SELECT r.allowed INTO v_allowed
       FROM public.security_consume_rate_limit(
         'friend.request',
-        encode(digest(auth.uid()::TEXT, 'sha256'), 'hex'),
+        encode(extensions.digest(auth.uid()::TEXT, 'sha256'), 'hex'),
         30,
         3600
       ) r;
@@ -1441,7 +1441,7 @@ BEGIN
       SELECT r.allowed INTO v_allowed
       FROM public.security_consume_rate_limit(
         'notification.send',
-        encode(digest(auth.uid()::TEXT, 'sha256'), 'hex'),
+        encode(extensions.digest(auth.uid()::TEXT, 'sha256'), 'hex'),
         20,
         60
       ) r;

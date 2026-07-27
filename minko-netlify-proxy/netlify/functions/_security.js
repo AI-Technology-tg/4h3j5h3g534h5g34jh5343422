@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+const nodeCrypto = require('crypto');
 const { clientIp } = require('./_cors');
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
@@ -16,6 +16,7 @@ const BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/=-]+\b/gi;
 const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
 const QUERY_SECRET_PATTERN =
     /([?&](?:token|key|secret|code|password|access_token|refresh_token)=)[^&#\s]*/gi;
+const CONTROL_CHAR_PATTERN = /\p{Cc}/gu;
 
 function isConfigured() {
     return Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY && SECURITY_LOG_SALT);
@@ -23,7 +24,7 @@ function isConfigured() {
 
 function safeText(value, maxLength = 200) {
     return String(value == null ? '' : value)
-        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .replace(CONTROL_CHAR_PATTERN, ' ')
         .replace(BEARER_PATTERN, 'Bearer [REDACTED]')
         .replace(JWT_PATTERN, '[JWT_REDACTED]')
         .replace(EMAIL_PATTERN, '[EMAIL_REDACTED]')
@@ -39,7 +40,7 @@ function safePath(value) {
     try {
         const url = new URL(text, 'https://re-minko-anime.com');
         return `${url.pathname || '/'}`
-            .replace(/[\u0000-\u001f\u007f]/g, '')
+            .replace(CONTROL_CHAR_PATTERN, '')
             .slice(0, 1024);
     } catch (_) {
         return (text.split(/[?#]/, 1)[0] || '/').slice(0, 1024);
@@ -58,7 +59,7 @@ function safeOrigin(value) {
 
 function hashValue(value, namespace = 'generic') {
     if (!SECURITY_LOG_SALT) return '';
-    return crypto
+    return nodeCrypto
         .createHmac('sha256', SECURITY_LOG_SALT)
         .update(`${namespace}:${String(value || '')}`)
         .digest('hex');

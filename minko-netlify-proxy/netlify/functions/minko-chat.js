@@ -1669,7 +1669,9 @@ async function openaiAnswerWithSources(
 /** Каталог-факты vs кнопки из researchContext клиента */
 function splitClientResearch(clientResearch) {
     const raw = String(clientResearch || '')
-        .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ')
+        .replace(/\p{Cc}/gu, (character) =>
+            character === '\t' || character === '\n' || character === '\r' ? character : ' '
+        )
         .trim()
         .slice(0, 7500);
     if (!raw) return { catalogFacts: '', watchButtons: '' };

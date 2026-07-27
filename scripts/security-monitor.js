@@ -8,6 +8,7 @@
     const endpoint = '/.netlify/functions/security-ingest';
     const maxEventsPerSession = 20;
     const sentFingerprints = new Set();
+    const controlCharPattern = /\p{Cc}/gu;
     let sentCount = 0;
 
     function redact(value, maxLength) {
@@ -16,7 +17,7 @@
             .replace(/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, '[JWT_REDACTED]')
             .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[EMAIL_REDACTED]')
             .replace(/([?&](?:token|key|secret|code|password)=)[^&#\s]*/gi, '$1[REDACTED]')
-            .replace(/[\u0000-\u001f\u007f]/g, ' ')
+            .replace(controlCharPattern, ' ')
             .replace(/\s+/g, ' ')
             .trim()
             .slice(0, maxLength || 240);
