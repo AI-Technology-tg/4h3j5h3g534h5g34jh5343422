@@ -65,6 +65,7 @@ function isGpt5Family(model) {
 
 const { allowedOrigin, corsHeaders: buildCorsHeaders } = require('./_cors');
 const {
+    blockedClientResponse,
     consumeRateLimit,
     fetchWithTimeout,
     getAuthenticatedUser,
@@ -1802,6 +1803,8 @@ async function callOpenAI(messages, model, maxTokens, temperature) {
 exports.handler = async (event) => {
     const headers = corsHeaders(event);
     if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+    const blocked = blockedClientResponse(event, headers);
+    if (blocked) return blocked;
     if (event.httpMethod !== 'POST') return { statusCode: 404, headers, body: JSON.stringify({ error: 'Not found' }) };
     if (!allowedOrigin(event)) return err(403, 'Origin not allowed', headers);
 

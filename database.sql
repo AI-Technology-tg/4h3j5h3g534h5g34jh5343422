@@ -1085,6 +1085,7 @@ DECLARE
     'avatar_ai_generations',
     'security_events',
     'security_rate_limits',
+    'security_access_blocklist',
     'site_visit_events',
     'direct_messages',
     'dm_groups',
@@ -3651,7 +3652,8 @@ END $$;
 -- ============================================
 -- SECURITY OBSERVABILITY AND ACCESS HARDENING (2026-07-27)
 -- Applied migrations: security_observability_and_access_hardening,
--- security_trigger_function_grants, profile_directory_security_invoker.
+-- security_trigger_function_grants, profile_directory_security_invoker,
+-- security_access_blocklist.
 -- ============================================
 
 -- Security observability and access hardening after the 2026-07-27 incident.
@@ -3741,6 +3743,88 @@ CREATE INDEX IF NOT EXISTS idx_security_rate_limits_expires
 ALTER TABLE public.security_rate_limits ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.security_rate_limits FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.security_rate_limits TO service_role;
+
+-- Access blocklist (emails / domains / IPs) — see sql/pending/20260727_security_access_blocklist.sql
+CREATE TABLE IF NOT EXISTS public.security_access_blocklist (
+  id BIGSERIAL PRIMARY KEY,
+  kind TEXT NOT NULL,
+  value TEXT NOT NULL,
+  reason TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by UUID NULL,
+  CONSTRAINT security_access_blocklist_kind_check
+    CHECK (kind IN ('email', 'email_domain', 'ip', 'visitor_id')),
+  CONSTRAINT security_access_blocklist_value_check
+    CHECK (char_length(trim(value)) BETWEEN 1 AND 320),
+  CONSTRAINT security_access_blocklist_reason_check
+    CHECK (reason IS NULL OR char_length(reason) <= 500)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_security_access_blocklist_kind_value
+  ON public.security_access_blocklist (kind, lower(trim(value)));
+CREATE INDEX IF NOT EXISTS idx_security_access_blocklist_active_kind
+  ON public.security_access_blocklist (kind, is_active)
+  WHERE is_active;
+ALTER TABLE public.security_access_blocklist ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.security_access_blocklist FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.security_access_blocklist TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.security_access_blocklist_id_seq TO service_role;
+
+CREATE OR REPLACE FUNCTION public.security_is_identity_blocked(p_email TEXT DEFAULT NULL, p_ip TEXT DEFAULT NULL)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $$
+DECLARE
+  v_email TEXT := lower(trim(COALESCE(p_email, '')));
+  v_domain TEXT := NULL;
+  v_ip TEXT := lower(trim(COALESCE(p_ip, '')));
+BEGIN
+  IF v_email <> '' AND position('@' in v_email) > 1 THEN
+    v_domain := split_part(v_email, '@', 2);
+  END IF;
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.security_access_blocklist b
+    WHERE b.is_active
+      AND (
+        (b.kind = 'email' AND v_email <> '' AND lower(trim(b.value)) = v_email)
+        OR (b.kind = 'email_domain' AND v_domain IS NOT NULL AND lower(trim(b.value)) = v_domain)
+        OR (b.kind = 'ip' AND v_ip <> '' AND lower(trim(b.value)) = v_ip)
+      )
+  );
+END;
+$$;
+REVOKE ALL ON FUNCTION public.security_is_identity_blocked(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.security_is_identity_blocked(TEXT, TEXT) TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.security_block_auth_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $$
+DECLARE
+  v_email TEXT := lower(trim(COALESCE(NEW.email::TEXT, '')));
+BEGIN
+  IF public.security_is_identity_blocked(v_email, NULL) THEN
+    RAISE LOG 'SECURITY_EVENT|auth_signup_blocked|email_domain=%', split_part(v_email, '@', 2);
+    RAISE EXCEPTION 'registration blocked'
+      USING ERRCODE = '42501',
+            HINT = 'identity is on the security blocklist';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS security_block_auth_user_bi ON auth.users;
+CREATE TRIGGER security_block_auth_user_bi
+  BEFORE INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.security_block_auth_user();
+REVOKE ALL ON FUNCTION public.security_block_auth_user() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.security_block_auth_user() TO postgres, service_role, supabase_auth_admin;
 
 CREATE OR REPLACE FUNCTION public.security_consume_rate_limit(
   p_scope TEXT,

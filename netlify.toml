@@ -13,6 +13,10 @@
 [functions]
   node_bundler = "esbuild"
 
+[[edge_functions]]
+  function = "ip-block"
+  path = "/*"
+
 # web_search (Responses API) дольше обычного chat — нужен запас на Pro/Team
 [functions."minko-chat"]
   timeout = 26

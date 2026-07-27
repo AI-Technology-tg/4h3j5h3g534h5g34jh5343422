@@ -5,6 +5,7 @@ const {
     hashValue,
     ipHash,
     isConfigured,
+    blockedClientResponse,
     recordSecurityEvent,
     safeOrigin,
     safePath,
@@ -24,6 +25,8 @@ function response(statusCode, headers, body) {
 exports.handler = async function handler(event) {
     const headers = corsHeaders(event, 'POST, OPTIONS', 'Content-Type, Authorization');
     if (event.httpMethod === 'OPTIONS') return response(204, headers);
+    const blocked = blockedClientResponse(event, headers);
+    if (blocked) return blocked;
     if (event.httpMethod !== 'POST') {
         return response(405, headers, { error: 'Method not allowed' });
     }

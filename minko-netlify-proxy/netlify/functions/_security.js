@@ -69,6 +69,37 @@ function ipHash(event) {
     return hashValue(clientIp(event), 'ip');
 }
 
+function blockedIpsFromEnv() {
+    return new Set(
+        String(process.env.SECURITY_BLOCKED_IPS || '')
+            .split(/[\s,;]+/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+    );
+}
+
+function isClientIpBlocked(event) {
+    const ip = String(clientIp(event) || '').trim();
+    if (!ip || ip === 'unknown') return false;
+    return blockedIpsFromEnv().has(ip);
+}
+
+function blockedClientResponse(event, headers = {}) {
+    if (!isClientIpBlocked(event)) return null;
+    void recordSecurityEvent(event, {
+        eventType: 'access.ip_blocked',
+        severity: 'high',
+        source: 'netlify',
+        path: event?.path || '/',
+        details: { reason: 'SECURITY_BLOCKED_IPS' }
+    }).catch(() => {});
+    return {
+        statusCode: 403,
+        headers: { ...headers, 'Cache-Control': 'no-store' },
+        body: JSON.stringify({ error: 'forbidden' })
+    };
+}
+
 function sanitizeDetails(input, depth = 0) {
     if (depth > 2 || input == null) return null;
     if (typeof input === 'boolean' || typeof input === 'number') return input;
@@ -268,11 +299,13 @@ module.exports = {
     CREATOR_USER_ID,
     SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY,
+    blockedClientResponse,
     consumeRateLimit,
     fetchWithTimeout,
     getAuthenticatedUser,
     hashValue,
     ipHash,
+    isClientIpBlocked,
     isConfigured,
     recordSecurityEvent,
     readJsonWithLimit,

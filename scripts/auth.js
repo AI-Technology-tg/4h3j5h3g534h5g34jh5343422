@@ -11,6 +11,21 @@ function isValidPassword(password) {
     return password && password.length >= 6;
 }
 
+/** Серверный блоклист email/доменов (RPC). Fail-open только при сетевой ошибке — Auth trigger всё равно режет signup. */
+async function reminkoIsIdentityBlocked(email) {
+    try {
+        if (typeof supabaseClient === 'undefined' || !supabaseClient) return false;
+        const { data, error } = await supabaseClient.rpc('security_is_identity_blocked', {
+            p_email: String(email || '').trim(),
+            p_ip: null
+        });
+        if (error) return false;
+        return data === true;
+    } catch (_) {
+        return false;
+    }
+}
+
 /**
  * Человекочитаемое сообщение об ошибке signUp (лимиты, сеть, занятый email).
  * @param {any} authError — объект error из ответа Supabase
@@ -21,6 +36,14 @@ function mapSignUpAuthError(authError) {
     const status = authError?.status;
     const code = String(authError?.code || '').toLowerCase();
 
+    if (
+        status === 403 ||
+        msg.includes('registration blocked') ||
+        msg.includes('security blocklist') ||
+        msg.includes('42501')
+    ) {
+        return 'Регистрация для этого адреса запрещена.';
+    }
     if (
         status === 429 ||
         msg.includes('rate limit') ||
@@ -91,6 +114,10 @@ async function registerUser(email, password, username, avatar, gender = 'male') 
     }
     
     if (typeof logger !== 'undefined') logger.log('✅ [REGISTER] Supabase клиент найден, продолжаем регистрацию через Supabase Auth');
+
+    if (await reminkoIsIdentityBlocked(email)) {
+        return { success: false, message: 'Регистрация для этого адреса запрещена.' };
+    }
     
     // Примечание: Проверку существования email оставляем на Supabase
     // Если email уже зарегистрирован, Supabase вернет ошибку при signUp
@@ -262,6 +289,10 @@ async function loginUser(email, password, codePassword = null, codePhrase = null
     }
     
     if (typeof logger !== 'undefined') logger.log('✅ [LOGIN] Supabase клиент найден, продолжаем вход через Supabase Auth');
+
+    if (await reminkoIsIdentityBlocked(email)) {
+        return { success: false, message: 'Доступ для этого адреса запрещён.' };
+    }
     
     try {
         if (typeof logger !== 'undefined') logger.log('🔄 [LOGIN] Вызов supabaseClient.auth.signInWithPassword...');
