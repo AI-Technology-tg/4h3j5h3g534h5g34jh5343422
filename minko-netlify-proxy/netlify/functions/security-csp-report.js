@@ -50,7 +50,7 @@ exports.handler = async function handler(event) {
     try {
         const rate = await consumeRateLimit(
             'security.csp_report',
-            `${ipHash(event)}:${directive}`,
+            ipHash(event),
             60,
             300
         );
