@@ -471,8 +471,9 @@ function hydrateJikanDetailPoster(data) {
     const bg = el.style.backgroundImage || '';
     if (bg && !/linear-gradient/i.test(bg)) return;
     void fetchPosterUrlForMal(data.mal_id, data).then((url) => {
-        if (!url || !el.isConnected) return;
-        el.style.backgroundImage = `url('${String(url).replace(/'/g, '%27')}')`;
+        const safeUrl = reminkoSafeImageUrl(url, '');
+        if (!safeUrl || !el.isConnected) return;
+        el.style.backgroundImage = `url('${reminkoSafeCssUrl(safeUrl)}')`;
         el.style.backgroundSize = 'cover';
         el.style.backgroundPosition = 'center';
     });
@@ -1660,8 +1661,9 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
                             typeof shikimoriPosterUrlFromPath === 'function'
                                 ? shikimoriPosterUrlFromPath(shLate.image.original)
                                 : '';
-                        if (latePoster) {
-                            posterEl.style.backgroundImage = `url('${String(latePoster).replace(/'/g, '%27')}')`;
+                        const safeLatePoster = reminkoSafeImageUrl(latePoster, '');
+                        if (safeLatePoster) {
+                            posterEl.style.backgroundImage = `url('${reminkoSafeCssUrl(safeLatePoster)}')`;
                             posterEl.style.backgroundSize = 'cover';
                             posterEl.style.backgroundPosition = 'center';
                         }

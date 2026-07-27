@@ -1615,14 +1615,22 @@ async function loadFavoritePosters() {
                 typeof isWeakPosterSource === 'function' ? isWeakPosterSource(posterUrl) : !posterUrl;
             const ph = typeof POSTER_PLACEHOLDER !== 'undefined' ? POSTER_PLACEHOLDER : '';
             
-            if (posterUrl && posterUrl !== ph && !weak) {
+            const safePosterUrl =
+                typeof reminkoSafeImageUrl === 'function'
+                    ? reminkoSafeImageUrl(posterUrl, '')
+                    : '';
+            if (safePosterUrl && safePosterUrl !== ph && !weak) {
                 const img = new Image();
                 img.onload = () => {
-                    posterEl.style.backgroundImage = `url('${posterUrl}')`;
+                    const cssUrl =
+                        typeof reminkoSafeCssUrl === 'function'
+                            ? reminkoSafeCssUrl(safePosterUrl)
+                            : '';
+                    posterEl.style.backgroundImage = cssUrl ? `url('${cssUrl}')` : '';
                     posterEl.style.backgroundSize = 'cover';
                     posterEl.style.backgroundPosition = 'center';
                 };
-                img.src = posterUrl;
+                img.src = safePosterUrl;
             }
         } catch {}
     }

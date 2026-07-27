@@ -112,11 +112,14 @@
                     (!selectedPath && index === 0)
                         ? ' selected'
                         : '';
-                const url = assetUrl(item.path).replace(/'/g, "\\'");
+                const url =
+                    typeof window.reminkoSafeCssUrl === 'function'
+                        ? window.reminkoSafeCssUrl(assetUrl(item.path))
+                        : '';
                 const title = item.isGoogle ? 'Фото Google' : item.path;
-                return `<button type="button" class="avatar-option-small oauth-setup-avatar${sel}" data-avatar-path="${String(
+                return `<button type="button" class="avatar-option-small oauth-setup-avatar${sel}" data-avatar-path="${reminkoEscapeHtml(
                     item.path
-                ).replace(/"/g, '&quot;')}" title="${title}" style="background-image:url('${url}');background-size:cover;background-position:center"></button>`;
+                )}" title="${reminkoEscapeHtml(title)}" style="background-image:url('${url}');background-size:cover;background-position:center"></button>`;
             })
             .join('');
 
