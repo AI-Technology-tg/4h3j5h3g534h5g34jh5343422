@@ -173,7 +173,7 @@ class NavigationManager {
                         </svg>
                         <span>Каталог аниме</span>
                     </a>
-                    <a href="${this.basePath}catalog/calendar.html" class="sidebar-link ${activeClass('calendar')}" data-page="calendar">
+                    <a href="${this.basePath}catalog/calendar.html" class="sidebar-link ${activeClass('calendar')}" data-page="calendar" data-maint-lock="calendar">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                             <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -189,7 +189,7 @@ class NavigationManager {
                         </svg>
                         <span>Каталог манги</span>
                     </a>
-                    <a href="${this.basePath}catalog/anime-4k.html" class="sidebar-link ${activeClass('catalog-4k')} ${activeClass('anime-view-4k')}" data-page="catalog-4k">
+                    <a href="${this.basePath}catalog/anime-4k.html" class="sidebar-link ${activeClass('catalog-4k')} ${activeClass('anime-view-4k')}" data-page="catalog-4k" data-maint-lock="anime_4k">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="2" y="3" width="20" height="14" rx="2"></rect>
                             <path d="M8 21h8"></path>
