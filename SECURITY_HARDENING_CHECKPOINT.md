@@ -10,11 +10,9 @@
 
 ## Exact stopping point
 
-The last edited file was:
+Stage 8 complete on WIP: security regression tests + negative Supabase permission probes + CSS URL escape fix.
 
-`minko-netlify-proxy/netlify/functions/giveaway-track.js`
-
-The last change replaced the client-controlled giveaway identity with a server-derived HMAC identity and added a distributed rate limit/security event.
+Previous stages 1–7 remain as documented below; pending SQL still **not** applied.
 
 ## Implemented locally so far
 
@@ -59,7 +57,7 @@ The last change replaced the client-controlled giveaway identity with a server-d
 5. Change Netlify publishing from repository root to a clean public build directory so SQL, tests and backend sources are not public.
 6. Add enforceable baseline CSP plus CSP Report-Only telemetry without breaking current inline code/providers.
 7. Review npm dependency changes and remaining audit findings; do not use a breaking forced upgrade blindly.
-8. Add security regression tests and negative Supabase permission tests.
+8. ~~Add security regression tests and negative Supabase permission tests.~~ **Done** (`npm run test:security`, `npm run test:security:playwright`).
 9. Run the dedicated Security Review on the final diff and fix findings.
 10. Coordinate deployment:
     - prepare compatible frontend/serverless;

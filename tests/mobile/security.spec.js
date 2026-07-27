@@ -82,4 +82,29 @@ test.describe('security incident regressions', () => {
         expect(result.emailOnly).toBe(false);
         expect(result.canonical).toBe(true);
     });
+
+    test('XSS URL helpers reject dangerous schemes in browser', async ({ page }, testInfo) => {
+        test.skip(testInfo.project.name !== 'desktop-901', 'Security helper regression runs once');
+
+        await preparePage(page);
+        await openRoute(page, '/');
+
+        const result = await page.evaluate(() => {
+            const fallback = '/Fons/1 b.jpg';
+            return {
+                escape: window.reminkoEscapeHtml('<script>alert(1)</script>'),
+                js: window.reminkoSafeImageUrl('javascript:alert(1)', fallback),
+                proto: window.reminkoSafeImageUrl('http://evil.example/a.png', fallback),
+                css: window.reminkoSafeCssUrl(`https://cdn.example/a"');hack`),
+                https: window.reminkoSafeImageUrl('https://cdn.example/cover.png')
+            };
+        });
+
+        expect(result.escape).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
+        expect(result.js).toContain('Fons/');
+        expect(result.js).not.toMatch(/^javascript:/i);
+        expect(result.proto).toContain('Fons/');
+        expect(result.css).not.toMatch(/['"\\\n\r\f()]/);
+        expect(result.https).toBe('https://cdn.example/cover.png');
+    });
 });

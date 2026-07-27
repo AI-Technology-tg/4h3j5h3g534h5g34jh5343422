@@ -26,7 +26,9 @@
     "test": "npm run test:mobile",
     "test:mobile": "playwright test tests/mobile",
     "test:mobile:report": "playwright show-report",
-    "test:mobile:headed": "playwright test tests/mobile --headed"
+    "test:mobile:headed": "playwright test tests/mobile --headed",
+    "test:security": "node --test tests/security/*.test.js",
+    "test:security:playwright": "playwright test tests/mobile/security.spec.js --project=desktop-901"
   },
   "keywords": [
     "anime",

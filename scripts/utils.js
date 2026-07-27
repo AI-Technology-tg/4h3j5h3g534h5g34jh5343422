@@ -80,8 +80,18 @@ window.reminkoEscapeHtml = reminkoEscapeHtml;
 
 function reminkoSafeCssUrl(url, fallback) {
     return reminkoSafeImageUrl(url, fallback).replace(
-        /['"\\\n\r\f]/g,
-        (character) => encodeURIComponent(character)
+        /['"\\\n\r\f()]/g,
+        (character) =>
+            ({
+                "'": '%27',
+                '"': '%22',
+                '\\': '%5C',
+                '\n': '%0A',
+                '\r': '%0D',
+                '\f': '%0C',
+                '(': '%28',
+                ')': '%29'
+            })[character] || encodeURIComponent(character)
     );
 }
 window.reminkoSafeCssUrl = reminkoSafeCssUrl;
