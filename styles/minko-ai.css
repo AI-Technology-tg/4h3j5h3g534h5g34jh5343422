@@ -385,8 +385,9 @@
     flex-direction: column;
     align-items: flex-end;
     align-self: flex-end;
-    width: fit-content;
+    width: max-content;
     max-width: min(75%, 520px);
+    flex: 0 0 auto;
 }
 
 .minko-msg-meta {
@@ -395,6 +396,8 @@
     gap: 8px;
     margin-bottom: 4px;
     padding: 0 4px;
+    width: max-content;
+    max-width: 100%;
 }
 
 .minko-msg-name {
@@ -418,6 +421,8 @@
     display: inline-block;
     width: fit-content;
     max-width: 100%;
+    height: auto;
+    min-height: 0;
     box-sizing: border-box;
     padding: 10px 14px;
     border-radius: 14px;
@@ -439,12 +444,26 @@
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
 }
 
-.message-user .message-bubble {
+.message-user .message-bubble,
+.message-user .minko-msg-bubble {
+    width: max-content;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 7px 12px;
+    line-height: 1.35;
     background: linear-gradient(135deg, rgba(109, 40, 217, 0.55), rgba(192, 38, 211, 0.42));
     border: 1px solid rgba(216, 180, 254, 0.28);
     border-bottom-right-radius: 6px;
     color: #fff;
     box-shadow: 0 2px 14px rgba(109, 40, 217, 0.2);
+}
+
+.message-user .message-bubble p,
+.message-user .minko-msg-bubble p {
+    margin: 0;
+    width: max-content;
+    max-width: 100%;
 }
 
 .message-bubble p,
@@ -1520,8 +1539,8 @@ body.minko-game-focus-lock #minkoGameOverlay * {
     .message-user .message-content,
     .message-user .minko-msg-body {
         max-width: min(88%, 100%);
-        width: fit-content;
-        flex: 0 1 auto;
+        width: max-content;
+        flex: 0 0 auto;
         align-self: flex-end;
     }
 
@@ -1529,6 +1548,15 @@ body.minko-game-focus-lock #minkoGameOverlay * {
     .minko-msg-bubble {
         padding: 10px 14px;
         font-size: 14px;
+    }
+
+    .message-user .message-bubble,
+    .message-user .minko-msg-bubble {
+        padding: 7px 12px;
+        line-height: 1.35;
+        width: max-content;
+        height: auto;
+        min-height: 0;
     }
 
     .minko-ai-input,

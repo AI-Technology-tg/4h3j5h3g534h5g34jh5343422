@@ -803,7 +803,7 @@
                 }
             }
 
-            // 3) Прямой Shikimori CDN по MAL (без Jikan 504)
+            // 3) Прямой Shikimori CDN по MAL (без Jikan — там частые 504)
             const shikiDirect = `https://shikimori.one/system/animes/original/${mal}.jpg`;
             if (!isWeakPosterSource(shikiDirect)) {
                 try {
@@ -818,24 +818,6 @@
                     if (ok) {
                         writeMalPosterCache(mal, shikiDirect);
                         return shikiDirect;
-                    }
-                } catch (_) {
-                    /* ignore */
-                }
-            }
-
-            // 4) Jikan — только если circuit закрыт (иначе 504 спам)
-            const jikanBlocked =
-                typeof global.reminkoJikanIsCircuitOpen === 'function' &&
-                global.reminkoJikanIsCircuitOpen();
-            if (!jikanBlocked) {
-                try {
-                    if (typeof global.jikanFetchPosterByMalId === 'function') {
-                        const u = upgradeMalCdnPosterUrl(await global.jikanFetchPosterByMalId(mal));
-                        if (u && !isWeakPosterSource(u)) {
-                            writeMalPosterCache(mal, u);
-                            return u;
-                        }
                     }
                 } catch (_) {
                     /* ignore */

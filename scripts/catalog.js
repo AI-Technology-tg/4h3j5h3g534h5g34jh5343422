@@ -1141,6 +1141,57 @@ function updateGenreWatchSelectedLabel() {
     el.textContent = `${checked.length} выбрано`;
 }
 
+function genreWatchEstimateRadius(label) {
+    const len = String(label || '').length;
+    // approx half-width/half-height for packing
+    const w = Math.min(140, 28 + len * 6.2);
+    const h = len > 14 ? 34 : 22;
+    return Math.max(22, Math.sqrt((w * 0.5) ** 2 + (h * 0.5) ** 2));
+}
+
+function clampGenreWatchPan() {
+    const cloud = document.getElementById('genreWatchCloud');
+    const stage = document.getElementById('genreWatchStage');
+    if (!cloud || !stage) return;
+    const zoom = parseFloat(cloud.dataset.zoom || '1') || 1;
+    const bubbles = [...cloud.querySelectorAll('.genre-watch-bubble')];
+    if (!bubbles.length) return;
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const bubble of bubbles) {
+        const wx = (parseFloat(bubble.dataset.wx || '0') || 0) * zoom;
+        const wy = (parseFloat(bubble.dataset.wy || '0') || 0) * zoom;
+        const r = (parseFloat(bubble.dataset.wr || '24') || 24) * zoom;
+        minX = Math.min(minX, wx - r);
+        maxX = Math.max(maxX, wx + r);
+        minY = Math.min(minY, wy - r);
+        maxY = Math.max(maxY, wy + r);
+    }
+
+    const cx = stage.clientWidth / 2;
+    const cy = stage.clientHeight / 2;
+    const margin = 48;
+    let panX = parseFloat(cloud.dataset.panX || '0') || 0;
+    let panY = parseFloat(cloud.dataset.panY || '0') || 0;
+
+    // Keep cloud intersecting the stage (can't wander into empty void)
+    const screenMinX = cx + minX + panX;
+    const screenMaxX = cx + maxX + panX;
+    const screenMinY = cy + minY + panY;
+    const screenMaxY = cy + maxY + panY;
+
+    if (screenMaxX < margin) panX += margin - screenMaxX;
+    if (screenMinX > stage.clientWidth - margin) panX -= screenMinX - (stage.clientWidth - margin);
+    if (screenMaxY < margin) panY += margin - screenMaxY;
+    if (screenMinY > stage.clientHeight - margin) panY -= screenMinY - (stage.clientHeight - margin);
+
+    cloud.dataset.panX = String(panX);
+    cloud.dataset.panY = String(panY);
+}
+
 function layoutGenreWatchBubbles() {
     const cloud = document.getElementById('genreWatchCloud');
     const stage = document.getElementById('genreWatchStage');
@@ -1148,20 +1199,54 @@ function layoutGenreWatchBubbles() {
     const bubbles = [...cloud.querySelectorAll('.genre-watch-bubble')];
     if (!bubbles.length) return;
 
-    const n = bubbles.length;
+    if (!cloud.dataset.zoom) cloud.dataset.zoom = '1';
+    if (!cloud.dataset.panX) cloud.dataset.panX = '0';
+    if (!cloud.dataset.panY) cloud.dataset.panY = '0';
+
     const golden = Math.PI * (3 - Math.sqrt(5));
-    const radiusStep = 38;
+    const placed = [];
+
     bubbles.forEach((bubble, i) => {
-        const r = 8 + radiusStep * Math.sqrt(i + 0.35);
-        const a = i * golden;
-        const x = Math.cos(a) * r;
-        const y = Math.sin(a) * r;
+        const label = bubble.dataset.label || bubble.textContent || '';
+        const r = genreWatchEstimateRadius(label);
+        bubble.dataset.wr = String(r);
+
+        let x = 0;
+        let y = 0;
+        let found = false;
+        for (let attempt = 0; attempt < 80 && !found; attempt += 1) {
+            const idx = i + attempt * 0.15;
+            const rad = 6 + 26 * Math.sqrt(idx + 0.2);
+            const a = idx * golden;
+            x = Math.cos(a) * rad;
+            y = Math.sin(a) * rad;
+            found = placed.every((p) => {
+                const dx = x - p.x;
+                const dy = y - p.y;
+                const need = (r + p.r) * 1.08;
+                return dx * dx + dy * dy >= need * need;
+            });
+        }
+        // light relaxation against already placed
+        for (let iter = 0; iter < 4; iter += 1) {
+            for (const p of placed) {
+                const dx = x - p.x;
+                const dy = y - p.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+                const need = (r + p.r) * 1.06;
+                if (dist < need) {
+                    const push = (need - dist) * 0.55;
+                    x += (dx / dist) * push;
+                    y += (dy / dist) * push;
+                }
+            }
+        }
         bubble.dataset.wx = String(x);
         bubble.dataset.wy = String(y);
-        const len = String(bubble.dataset.label || '').length;
-        const size = len > 12 ? 'sm' : len > 8 ? 'md' : 'lg';
-        bubble.dataset.size = size;
+        placed.push({ x, y, r });
     });
+
+    clampGenreWatchPan();
     applyGenreWatchTransforms();
 }
 
@@ -1169,28 +1254,77 @@ function applyGenreWatchTransforms() {
     const cloud = document.getElementById('genreWatchCloud');
     const stage = document.getElementById('genreWatchStage');
     if (!cloud || !stage) return;
+
+    clampGenreWatchPan();
+
+    const zoom = Math.min(1.55, Math.max(0.82, parseFloat(cloud.dataset.zoom || '1') || 1));
+    cloud.dataset.zoom = String(zoom);
     const panX = parseFloat(cloud.dataset.panX || '0') || 0;
     const panY = parseFloat(cloud.dataset.panY || '0') || 0;
     const cx = stage.clientWidth / 2;
     const cy = stage.clientHeight / 2;
-    const maxDist = Math.max(120, Math.min(cx, cy) * 0.92);
+    const maxDist = Math.max(90, Math.min(cx, cy) * 0.95);
 
-    cloud.querySelectorAll('.genre-watch-bubble').forEach((bubble) => {
-        const wx = parseFloat(bubble.dataset.wx || '0') || 0;
-        const wy = parseFloat(bubble.dataset.wy || '0') || 0;
-        const x = cx + wx + panX;
-        const y = cy + wy + panY;
+    const bubbles = [...cloud.querySelectorAll('.genre-watch-bubble')];
+    const positions = bubbles.map((bubble) => {
+        const wx = (parseFloat(bubble.dataset.wx || '0') || 0) * zoom;
+        const wy = (parseFloat(bubble.dataset.wy || '0') || 0) * zoom;
+        return {
+            bubble,
+            x: cx + wx + panX,
+            y: cy + wy + panY,
+            r: (parseFloat(bubble.dataset.wr || '24') || 24) * zoom
+        };
+    });
+
+    // Genre nearest to center becomes focus — others scatter away
+    let focus = null;
+    let focusDist = Infinity;
+    for (const p of positions) {
+        const d = Math.hypot(p.x - cx, p.y - cy);
+        if (d < focusDist) {
+            focusDist = d;
+            focus = p;
+        }
+    }
+    const focusStrength =
+        focus && focusDist < maxDist * 0.72 ? Math.max(0, 1 - focusDist / (maxDist * 0.72)) : 0;
+
+    for (const p of positions) {
+        let { x, y } = p;
+        if (focus && focusStrength > 0.05 && p.bubble !== focus.bubble) {
+            let dx = x - focus.x;
+            let dy = y - focus.y;
+            let dist = Math.hypot(dx, dy) || 0.01;
+            const want = (p.r + focus.r) * (1.25 + focusStrength * 0.9);
+            if (dist < want) {
+                const push = (want - dist) * focusStrength;
+                x += (dx / dist) * push;
+                y += (dy / dist) * push;
+                dist = Math.hypot(x - focus.x, y - focus.y) || dist;
+            }
+            // soft radial scatter from focus
+            const scatter = 10 * focusStrength;
+            x += (dx / dist) * scatter;
+            y += (dy / dist) * scatter;
+        }
+
         const dx = x - cx;
         const dy = y - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dist = Math.hypot(dx, dy);
         const t = Math.min(1, dist / maxDist);
-        const scale = Math.max(0.42, 1.18 - t * 0.9);
-        const opacity = Math.max(0.28, 1 - t * 0.75);
-        const z = Math.round(1000 - dist);
-        bubble.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${scale})`;
-        bubble.style.opacity = String(opacity);
-        bubble.style.zIndex = String(z);
-    });
+        const isFocus = focus && p.bubble === focus.bubble && focusStrength > 0.2;
+        const scale = isFocus
+            ? 1.22 + focusStrength * 0.28
+            : Math.max(0.62, 1.08 - t * 0.55);
+        const opacity = Math.max(0.38, 1 - t * 0.62);
+        const z = Math.round(1000 - dist) + (isFocus ? 200 : 0);
+
+        p.bubble.classList.toggle('is-focus', !!isFocus);
+        p.bubble.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${scale})`;
+        p.bubble.style.opacity = String(opacity);
+        p.bubble.style.zIndex = String(z);
+    }
 }
 
 function bindGenreWatchInteractionOnce() {
@@ -1207,6 +1341,14 @@ function bindGenreWatchInteractionOnce() {
     let basePanY = 0;
     let raf = 0;
 
+    const scheduleApply = () => {
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+            raf = 0;
+            applyGenreWatchTransforms();
+        });
+    };
+
     const onMove = (clientX, clientY) => {
         if (!dragging) return;
         const dx = clientX - startX;
@@ -1214,12 +1356,7 @@ function bindGenreWatchInteractionOnce() {
         if (Math.abs(dx) + Math.abs(dy) > 6) moved = true;
         cloud.dataset.panX = String(basePanX + dx);
         cloud.dataset.panY = String(basePanY + dy);
-        if (!raf) {
-            raf = requestAnimationFrame(() => {
-                raf = 0;
-                applyGenreWatchTransforms();
-            });
-        }
+        scheduleApply();
     };
 
     stage.addEventListener(
@@ -1249,9 +1386,27 @@ function bindGenreWatchInteractionOnce() {
     const endDrag = () => {
         dragging = false;
         stage.classList.remove('is-dragging');
+        clampGenreWatchPan();
+        applyGenreWatchTransforms();
     };
     stage.addEventListener('pointerup', endDrag);
     stage.addEventListener('pointercancel', endDrag);
+
+    // Zoom only inside the genre field
+    stage.addEventListener(
+        'wheel',
+        (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const cur = parseFloat(cloud.dataset.zoom || '1') || 1;
+            const next = Math.min(1.55, Math.max(0.82, cur * (e.deltaY < 0 ? 1.08 : 0.93)));
+            if (Math.abs(next - cur) < 0.001) return;
+            cloud.dataset.zoom = String(next);
+            clampGenreWatchPan();
+            applyGenreWatchTransforms();
+        },
+        { passive: false }
+    );
 
     cloud.addEventListener('click', (e) => {
         if (moved) {
@@ -1264,7 +1419,6 @@ function bindGenreWatchInteractionOnce() {
         if (!bubble || bubble.classList.contains('genre-adult-locked')) return;
         const input = bubble.querySelector('input[type="checkbox"]');
         if (!input || input.disabled) return;
-        // label handles toggle; sync UI after tick
         setTimeout(() => {
             bubble.classList.toggle('is-checked', !!input.checked);
             updateGenreWatchSelectedLabel();
@@ -1278,7 +1432,6 @@ function bindGenreWatchInteractionOnce() {
         }, 0);
     });
 
-    // Keep transforms fresh when panel opens / resizes
     const panel = document.getElementById('filterGenrePanel');
     if (panel && typeof MutationObserver !== 'undefined') {
         const mo = new MutationObserver(() => {
