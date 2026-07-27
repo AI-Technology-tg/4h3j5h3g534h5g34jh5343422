@@ -25,6 +25,8 @@ describe('CSP baseline in _headers', () => {
         );
         assert.match(headers, /script-src 'self' 'unsafe-inline'/);
         assert.match(headers, /object-src 'none'/);
+        assert.match(headers, /connect-src[\s\S]*https:\/\/mc\.yandex\.com/);
+        assert.match(headers, /connect-src[\s\S]*wss:\/\/mc\.yandex\.com/);
     });
 
     it('keeps core browser hardening headers', () => {

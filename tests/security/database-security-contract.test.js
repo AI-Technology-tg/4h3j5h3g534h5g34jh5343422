@@ -52,7 +52,7 @@ describe('database security contract', () => {
     it('preserves security tables and hides trigger functions from RPC roles', () => {
         assert.match(
             sql,
-            /'security_events',\s*'security_rate_limits',\s*'site_visit_events'/
+            /'security_events',\s*'security_rate_limits',\s*'security_access_blocklist',\s*'site_visit_events'/
         );
         assert.match(
             sql,
