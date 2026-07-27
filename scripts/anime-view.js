@@ -1401,7 +1401,7 @@ async function renderJikanAnimeDetail(data, mergedCard = null) {
         container.innerHTML = `
             <div class="page-placeholder">
                 <h1>Контент 18+</h1>
-                <p>Это аниме относится к жанрам «Хентай» или «Эротика». Включите их отображение в настройках профиля и подтвердите возраст (18+).</p>
+                <p>Это аниме относится к жанрам 18+ (Хентай, Эротика, Этти, Яой или Юри). Включите их отображение в настройках профиля и подтвердите возраст (18+).</p>
                 <a href="../profile.html" class="btn btn-primary">Открыть настройки</a>
                 <a href="../index.html" class="btn btn-secondary" style="margin-left:0.5rem;">На главную</a>
             </div>`;

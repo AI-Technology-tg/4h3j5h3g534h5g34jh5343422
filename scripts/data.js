@@ -1253,25 +1253,13 @@ function filterAnime(filters) {
     let results = getAllAnime();
     
     if (filters.genre && filters.genre.length > 0) {
-        // Если выбрано 2 или больше жанров - показываем только аниме со ВСЕМИ выбранными жанрами (логика И)
-        // Если выбран 1 жанр - показываем аниме с этим жанром
+        // 2+ жанра — AND; 1 жанр — наличие (с учётом синонимов Боевик↔Экшен и т.п.)
         if (filters.genre.length >= 2) {
-            results = results.filter(anime => {
-                // Проверяем точное совпадение всех выбранных жанров
-                return filters.genre.every(selectedGenre => 
-                    anime.genres.some(animeGenre => 
-                        animeGenre.toLowerCase().trim() === selectedGenre.toLowerCase().trim()
-                    )
-                );
-            });
-        } else {
-            // Для одного жанра проверяем точное совпадение
-            const selectedGenre = filters.genre[0].toLowerCase().trim();
-            results = results.filter(anime => 
-                anime.genres.some(genre => 
-                    genre.toLowerCase().trim() === selectedGenre
-                )
+            results = results.filter((anime) =>
+                filters.genre.every((selectedGenre) => reminkoAnimeHasGenre(anime, selectedGenre))
             );
+        } else {
+            results = results.filter((anime) => reminkoAnimeHasGenre(anime, filters.genre[0]));
         }
     }
     
@@ -1454,29 +1442,95 @@ function sortAnime(animeList, sortBy) {
     }
 }
 
-// Получить все уникальные жанры
+/** Канон жанров для фильтра (дубли/синонимы → одно имя). */
+const REMINKO_GENRE_CANON = {
+    Боевик: 'Экшен',
+    Детский: 'Детское',
+    Военный: 'Военное',
+    Суперсила: 'Супер сила',
+    Исекай: 'Исэкай',
+    Сёнэн: 'Сёнен',
+    'Взрослые герои': 'Взрослые персонажи',
+    Милашки: 'CGDCT',
+    Гуро: 'Жестокость',
+    'Бойс-лав': 'Яой',
+    'Гёрлс-лав': 'Юри',
+    'Смена пола': 'Магическая смена пола',
+    'Уход за детьми': 'Забота о детях',
+    Делинквенты: 'Хулиганы',
+    'Игра на выживание': 'Игра с высокими ставками',
+    Айдолы: 'Идолы (Жен.)',
+    Отаку: 'Культура отаку',
+    Искусство: 'Исполнительское искусство',
+    Стратегия: 'Стратегические игры',
+    Машины: 'Гонки',
+    Игры: 'Видеоигры',
+    Премия: 'Удостоено наград',
+    Юмор: 'Гэг-юмор',
+    Демоны: 'Сверхъестественное',
+    Магия: 'Фэнтези',
+    Полиция: 'Детектив',
+    Мелодрама: 'Драма',
+    Криминал: 'Организованная преступность',
+    Семейный: 'Детское'
+};
+
+/** Мусор/мета-теги — не показываем в фильтре жанров. */
+const REMINKO_GENRE_FILTER_SKIP = new Set(['Аниме', 'Мультфильм', 'Короткометражка', '']);
+
+function reminkoCanonicalGenre(genre) {
+    const g = String(genre || '').trim();
+    if (!g) return '';
+    return REMINKO_GENRE_CANON[g] || g;
+}
+
+function reminkoGenresMatch(animeGenre, selectedGenre) {
+    const a = reminkoCanonicalGenre(animeGenre).toLowerCase();
+    const b = reminkoCanonicalGenre(selectedGenre).toLowerCase();
+    return !!a && !!b && a === b;
+}
+
+function reminkoAnimeHasGenre(anime, selectedGenre) {
+    if (!anime || !selectedGenre) return false;
+    const list = Array.isArray(anime.genres) ? anime.genres : [];
+    return list.some((g) => reminkoGenresMatch(g, selectedGenre));
+}
+
+if (typeof window !== 'undefined') {
+    window.reminkoCanonicalGenre = reminkoCanonicalGenre;
+    window.reminkoGenresMatch = reminkoGenresMatch;
+    window.reminkoAnimeHasGenre = reminkoAnimeHasGenre;
+}
+
+// Получить все уникальные жанры (только реальный каталог Kodik + кастом, без Jikan-виртуалок)
 function getAllGenres() {
     const genres = new Set();
-    const source =
-        typeof getAllAnime === 'function'
-            ? getAllAnime()
-            : [...animeDatabase.all, ...getCustomAnimeFromStorageSync()];
-    source.forEach((anime) => {
-        (anime.genres || []).forEach((genre) => {
-            if (genre) genres.add(genre);
-        });
-    });
-    if (typeof window !== 'undefined') {
-        for (const row of getMergedJikanVirtualRows()) {
-            const j = row.jikan;
-            if (!j) continue;
-            for (const g of [...(j.genres || []), ...(j.themes || [])]) {
-                if (g && g.name) genres.add(mapJikanGenreName(g.name));
-            }
+    const push = (genre) => {
+        const c = reminkoCanonicalGenre(genre);
+        if (!c || REMINKO_GENRE_FILTER_SKIP.has(c)) return;
+        genres.add(c);
+    };
+
+    const kodik =
+        typeof getKodikCatalogAnimeList === 'function' ? getKodikCatalogAnimeList() : [];
+    for (const anime of kodik) {
+        (anime.genres || []).forEach(push);
+    }
+
+    const custom =
+        typeof getCustomAnimeFromStorageSync === 'function' ? getCustomAnimeFromStorageSync() : [];
+    for (const anime of custom) {
+        (anime.genres || []).forEach(push);
+    }
+
+    // Сайтовый каталог (если есть) — без Jikan virtual
+    if (typeof animeDatabase !== 'undefined' && Array.isArray(animeDatabase.all)) {
+        for (const anime of animeDatabase.all) {
+            if (anime && (anime.isJikanVirtual || anime.isKodikCalendarAnnounced)) continue;
+            (anime.genres || []).forEach(push);
         }
     }
-    genres.add('Хентай');
-    genres.add('Эротика');
+
     return Array.from(genres).sort((a, b) => a.localeCompare(b, 'ru'));
 }
 

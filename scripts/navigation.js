@@ -633,7 +633,13 @@ class NavigationManager {
         const isManga = this.currentPage === 'manga' || this.currentPage === 'manga-view' || this.currentPage === 'manga-reader';
         const catalogPath = isManga ? `${this.basePath}catalog/manga.html` : `${this.basePath}catalog/anime.html`;
         
-        const allGenres = getAllGenres().filter(genre => genre !== 'Хентай').slice(0, 8);
+        const adultHide =
+            (typeof window !== 'undefined' && Array.isArray(window.reminkoAdultGenreLabels)
+                ? window.reminkoAdultGenreLabels
+                : ['Хентай', 'Эротика', 'Этти', 'Яой', 'Юри']);
+        const allGenres = getAllGenres()
+            .filter((genre) => !adultHide.includes(genre))
+            .slice(0, 8);
         
         genresContainer.innerHTML = allGenres.map(genre => `
             <a href="${catalogPath}?genre=${encodeURIComponent(genre)}" class="sidebar-genre-link" data-genre="${genre}">

@@ -1,9 +1,9 @@
 /**
- * 18+ жанры (Хентай, Эротика): скрытие из выдачи, разблокировка по дате рождения.
+ * 18+ жанры (Хентай, Эротика, Этти, Яой, Юри): скрытие из выдачи, разблокировка по дате рождения.
  */
 (function () {
     const LS_KEY = 'reminko_adult_unlock_v1';
-    const ADULT_GENRES_RU = ['Хентай', 'Эротика'];
+    const ADULT_GENRES_RU = ['Хентай', 'Эротика', 'Этти', 'Яой', 'Юри'];
 
     function parseUnlock() {
         try {
@@ -52,6 +52,24 @@
             n === 'эротика' ||
             n.includes('erotic') ||
             n.includes('эротик') ||
+            n === 'ecchi' ||
+            n === 'этти' ||
+            n.includes('ecchi') ||
+            n.includes('этти') ||
+            n === 'yaoi' ||
+            n === 'яой' ||
+            n.includes('yaoi') ||
+            n.includes('яой') ||
+            n === 'yuri' ||
+            n === 'юри' ||
+            n.includes('yuri') ||
+            n.includes('юри') ||
+            n === 'boys love' ||
+            n === 'boy love' ||
+            n === 'бойс-лав' ||
+            n === 'girls love' ||
+            n === 'girl love' ||
+            n === 'гёрлс-лав' ||
             n === 'для взрослых' ||
             n.includes('для взрослых') ||
             n === 'rx' ||
@@ -139,7 +157,8 @@
                 <span class="close" data-reminko-adult-close>&times;</span>
                 <h2 class="modal-title">Контент 18+</h2>
                 <p style="font-size:0.95rem;line-height:1.5;color:var(--text-secondary,#aaa);margin-bottom:1rem;">
-                    Жанры «Хентай» и «Эротика» предназначены для аудитории от 18 лет. Продолжая, вы подтверждаете,
+                    Жанры «Хентай», «Эротика», «Этти», «Яой» и «Юри» предназначены для аудитории от 18 лет.
+                    Продолжая, вы подтверждаете,
                     что достигли совершеннолетия в вашей стране и согласны с отображением такого контента на сайте.
                 </p>
                 <div class="form-group">
