@@ -264,23 +264,6 @@ class NavigationManager {
                         </svg>
                         <span>История</span>
                     </a>
-                    <a href="${this.basePath}profile.html" class="sidebar-link ${activeClass('profile')}" data-page="profile">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="12" cy="7" r="4"></circle>
-                        </svg>
-                        <span>Профиль</span>
-                    </a>
-                    <a href="#" class="sidebar-link sidebar-link-random" data-page="random" data-random-anime>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M16 3h5v5"></path>
-                            <path d="M4 20 21 3"></path>
-                            <path d="M21 16v5h-5"></path>
-                            <path d="m15 15 6 6"></path>
-                            <path d="M4 4 9 9"></path>
-                        </svg>
-                        <span>Случайное</span>
-                    </a>
                     <a href="${this.basePath}info.html" class="sidebar-link ${activeClass('info')}" data-page="info">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
