@@ -3018,21 +3018,21 @@ html {
     font-style: italic;
 }
 
-/* Режим «в разработке»: полноэкранное уведомление для закрытых разделов */
+/* Режим «в разработке»: закрытый раздел сразу уводит на главную (без заглушки) */
+html.reminko-maintenance-redirect,
 body.reminko-maintenance-active {
-    overflow: hidden;
+    overflow: hidden !important;
 }
 
+html.reminko-maintenance-redirect body,
+body.reminko-maintenance-active > *:not(script):not(style) {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* legacy overlay styles (больше не показываем карточку) */
 .reminko-maintenance-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 200000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    background: rgba(6, 8, 20, 0.82);
-    backdrop-filter: blur(12px);
+    display: none !important;
 }
 
 .reminko-maintenance-overlay-card {

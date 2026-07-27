@@ -359,24 +359,33 @@ function reminkoMaintAssetPrefix() {
     return '';
 }
 
-function reminkoShowMaintenanceOverlay() {
-    if (document.getElementById('reminkoMaintenanceOverlay')) return;
+function reminkoMaintHomeHref() {
+    return reminkoMaintAssetPrefix() + 'index.html';
+}
+
+/** Закрытый раздел — сразу на главную, без страницы-заглушки. */
+function reminkoRedirectMaintenanceToHome() {
+    if (window.__reminkoMaintenanceRedirecting) return;
+    window.__reminkoMaintenanceRedirecting = true;
     window.__reminkoMaintenancePageReplaced = true;
-    const pre = reminkoMaintAssetPrefix();
-    const wrap = document.createElement('div');
-    wrap.id = 'reminkoMaintenanceOverlay';
-    wrap.className = 'reminko-maintenance-overlay';
-    wrap.innerHTML =
-        '<div class="reminko-maintenance-overlay-card">' +
-        '<h1 class="reminko-maintenance-title">Раздел в доработке</h1>' +
-        '<p class="reminko-maintenance-text">Эта страница временно закрыта. Загляните на главную, в каталог аниме или на страницу «Инфо».</p>' +
-        '<div class="reminko-maintenance-actions">' +
-        `<a class="reminko-maintenance-btn" href="${pre}index.html">На главную</a>` +
-        `<a class="reminko-maintenance-btn reminko-maintenance-btn-secondary" href="${pre}info.html">Инфо</a>` +
-        '</div></div>';
-    document.body.appendChild(wrap);
-    document.body.classList.add('reminko-maintenance-active');
-    if (typeof hideLoading === 'function') hideLoading();
+    try {
+        document.documentElement.classList.add('reminko-maintenance-redirect');
+        if (document.body) document.body.classList.add('reminko-maintenance-active');
+        if (typeof hideLoading === 'function') hideLoading();
+    } catch (_) {
+        /* ignore */
+    }
+    const home = reminkoMaintHomeHref();
+    try {
+        window.location.replace(home);
+    } catch (_) {
+        window.location.href = home;
+    }
+}
+
+/** @deprecated — оставлено на случай старых вызовов; всегда редирект на главную. */
+function reminkoShowMaintenanceOverlay() {
+    reminkoRedirectMaintenanceToHome();
 }
 
 window.reminkoEnsureMaintenanceGate = async function reminkoEnsureMaintenanceGate() {
@@ -405,7 +414,7 @@ window.reminkoEnsureMaintenanceGate = async function reminkoEnsureMaintenanceGat
             return;
         }
 
-        reminkoShowMaintenanceOverlay();
+        reminkoRedirectMaintenanceToHome();
     })();
     return __reminkoMaintGatePromise;
 };
