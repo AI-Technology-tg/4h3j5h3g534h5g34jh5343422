@@ -1125,8 +1125,6 @@ class NavigationManager {
                 };
                 if (user && !user.isAnonymous) {
                     let isSiteCreatorAcc =
-                        user.isSiteCreator === true ||
-                        user.is_site_creator === true ||
                         (typeof window.reminkoIsSiteCreatorProfile === 'function' &&
                             window.reminkoIsSiteCreatorProfile(user));
                     if (!isSiteCreatorAcc && typeof window.reminkoIsUserSiteCreator === 'function') {

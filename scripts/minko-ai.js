@@ -2283,9 +2283,15 @@ function _minkoIsCurrentUserSiteCreator() {
         const raw = sessionStorage.getItem('currentUser');
         if (!raw) return false;
         const u = JSON.parse(raw) || {};
-        if (u.is_site_creator === true || u.isSiteCreator === true) return true;
+        if (typeof reminkoIsSiteCreatorProfile === 'function') {
+            return reminkoIsSiteCreatorProfile(u);
+        }
         const email = String(u.email || '').trim().toLowerCase();
-        return email === 'creator@reminko.com';
+        return (
+            email === 'creator@reminko.com' &&
+            typeof reminkoUserIdIsSiteCreatorSync === 'function' &&
+            reminkoUserIdIsSiteCreatorSync(u.id)
+        );
     } catch (_) {
         return false;
     }

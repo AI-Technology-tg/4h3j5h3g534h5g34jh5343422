@@ -472,35 +472,15 @@ async function reminkoFetchProfilesIn(supabaseClient, userIds) {
 }
 window.reminkoFetchProfilesIn = reminkoFetchProfilesIn;
 
-/** UUID создателя: config → is_site_creator → ник dubina */
-async function reminkoResolveSiteCreatorUserId(supabaseClient) {
+/** UUID создателя: только config или закреплённый канонический UUID. */
+async function reminkoResolveSiteCreatorUserId() {
     const cfg =
         typeof window !== 'undefined' &&
         window.APP_CONFIG &&
         typeof window.APP_CONFIG.siteCreatorUserId === 'string' &&
         window.APP_CONFIG.siteCreatorUserId.trim();
     if (cfg && /^[0-9a-f-]{36}$/i.test(cfg)) return cfg.trim();
-    if (!supabaseClient) return null;
-    try {
-        const flagged = await supabaseClient
-            .from('profiles')
-            .select('id')
-            .eq('is_site_creator', true)
-            .limit(1)
-            .maybeSingle();
-        if (!flagged.error && flagged.data?.id) return flagged.data.id;
-    } catch (_) { /* колонка может отсутствовать */ }
-    for (const pattern of ['subarik', 'dubina', '%subarik%', '%dubina%']) {
-        try {
-            const q =
-                pattern.includes('%')
-                    ? supabaseClient.from('profiles').select('id').ilike('username', pattern).limit(1)
-                    : supabaseClient.from('profiles').select('id').eq('username', pattern).limit(1);
-            const { data, error } = await q.maybeSingle();
-            if (!error && data?.id) return data.id;
-        } catch (_) { /* noop */ }
-    }
-    return null;
+    return 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb';
 }
 window.reminkoResolveSiteCreatorUserId = reminkoResolveSiteCreatorUserId;
 
@@ -1077,19 +1057,13 @@ function reminkoUserIdIsSiteCreatorSync(userId) {
 window.reminkoUserIdIsSiteCreatorSync = reminkoUserIdIsSiteCreatorSync;
 
 /**
- * Создатель сайта: флаг профиля, UUID, ник dubina/creator или e-mail.
+ * Создатель сайта определяется только по закреплённому UUID.
+ * E-mail, username и изменяемые флаги профиля не являются источником авторизации.
  * @param {{ id?: string, username?: string, email?: string, isSiteCreator?: boolean, is_site_creator?: boolean }|null|undefined} p
  */
 function reminkoIsSiteCreatorProfile(p) {
     if (!p) return false;
-    if (p.isSiteCreator === true || p.is_site_creator === true) return true;
-    if (p.id && reminkoUserIdIsSiteCreatorSync(p.id)) return true;
-    const u = String(p.username || '')
-        .toLowerCase()
-        .trim();
-    if (u === 'creator' || u === 'creator@reminko.com' || u === 'dubina' || u === 'subarik') return true;
-    if (p.email && String(p.email).toLowerCase() === 'creator@reminko.com') return true;
-    return false;
+    return Boolean(p.id && reminkoUserIdIsSiteCreatorSync(p.id));
 }
 
 /** Подготовка профиля для аватара в чатах и ЛС. */

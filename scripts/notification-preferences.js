@@ -186,6 +186,27 @@
         return rel;
     }
 
+    function reminkoSafeBrowserNotificationLink(value) {
+        const raw = String(value == null ? '' : value).trim();
+        if (!raw) return '';
+        try {
+            const configuredOrigin =
+                global.APP_CONFIG && typeof global.APP_CONFIG.siteOrigin === 'string'
+                    ? global.APP_CONFIG.siteOrigin
+                    : global.location.origin;
+            const base = `${String(configuredOrigin || global.location.origin).replace(/\/$/, '')}/`;
+            const url = new URL(raw, base);
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+            const allowedOrigins = new Set([new URL(base).origin]);
+            if (global.location.protocol === 'http:' || global.location.protocol === 'https:') {
+                allowedOrigins.add(global.location.origin);
+            }
+            return allowedOrigins.has(url.origin) ? url.href : '';
+        } catch (_) {
+            return '';
+        }
+    }
+
     async function reminkoRequestBrowserNotifyPermission() {
         if (typeof Notification === 'undefined') return 'unsupported';
         if (Notification.permission === 'granted') return 'granted';
@@ -214,14 +235,15 @@
                 tag: context.tag || 'reminko-' + (context.type || 'info'),
                 renotify: true
             });
-            if (context.link) {
+            const safeLink = reminkoSafeBrowserNotificationLink(context.link);
+            if (safeLink) {
                 n.onclick = () => {
                     try {
                         global.focus();
                     } catch (_) {
                         /* ignore */
                     }
-                    global.location.href = context.link;
+                    global.location.assign(safeLink);
                     n.close();
                 };
             }

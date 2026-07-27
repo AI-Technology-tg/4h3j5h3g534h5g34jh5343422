@@ -13,8 +13,8 @@
 --   • watch_history: SELECT разрешён всем (USING true) — так фронт читает историю
 --     чужого профиля. Если нужна только «своя» история — смените политику и уберите
 --     выборку чужих строк в profile.js.
---   • notifications: INSERT с auth.uid() IS NOT NULL — любой залогиненный может
---     вставить строку с любым user_id (заявки в друзья и т.д.). Спам снижайте в коде.
+--   • notifications: INSERT ограничен разрешёнными сценариями, отправитель пишется
+--     в sender_id, а HTML и опасные URL блокируются CHECK-ограничением.
 --
 -- ОПАСНО: блок «УДАЛЕНИЕ ТАБЛИЦ» ниже удаляет ЛЮБЫЕ public-таблицы не из списка.
 -- Если добавляли свои таблицы — допишите их в _allowed или закомментируйте блок.
@@ -189,6 +189,7 @@ CREATE TABLE IF NOT EXISTS public.global_chat_likes (
 CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  sender_id UUID REFERENCES auth.users(id) ON DELETE SET NULL DEFAULT auth.uid(),
   title TEXT NOT NULL,
   message TEXT NOT NULL,
   type TEXT DEFAULT 'info',
@@ -412,7 +413,7 @@ UPDATE public.watch_together_participants
 SET player_ready = false
 WHERE player_ready IS NULL;
 
--- profiles: текущая активность (что смотрит) и флаг создателя (опционально, дублирует email)
+-- profiles: текущая активность и защищённый флаг единственного creator-аккаунта
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_activity JSONB;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_site_creator BOOLEAN DEFAULT false;
 
@@ -611,6 +612,7 @@ GRANT EXECUTE ON FUNCTION public.reminko_is_dm_group_member(uuid) TO authenticat
 CREATE OR REPLACE FUNCTION public.dm_group_members_enforce_limit()
 RETURNS trigger
 LANGUAGE plpgsql
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   cnt integer;
@@ -944,7 +946,27 @@ ALTER TABLE public.chat_automod_state ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_automod_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.creator_audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Политики admins / chat_mutes и site_visit_events ниже зависят от is_site_creator_user_id — см. блок перед ними.
+-- Единственный источник creator-авторизации. Функция создаётся до любых зависимых RLS-политик.
+CREATE OR REPLACE FUNCTION public.is_site_creator_user_id(user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM auth.users u
+    WHERE u.id = user_id
+      AND u.id = 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb'::UUID
+      AND lower(trim(coalesce(u.email::text, ''))) = 'creator@reminko.com'
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_site_creator_user_id(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_site_creator_user_id(uuid) FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_site_creator_user_id(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_site_creator_user_id(uuid) TO service_role;
 
 -- global_chat_messages: reply_to и deleted_at
 ALTER TABLE public.global_chat_messages ADD COLUMN IF NOT EXISTS reply_to UUID REFERENCES public.global_chat_messages(id) ON DELETE SET NULL;
@@ -966,6 +988,65 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT false;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ban_reason TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ;
+
+ALTER TABLE public.notifications
+  ADD COLUMN IF NOT EXISTS sender_id UUID
+  REFERENCES auth.users(id) ON DELETE SET NULL
+  DEFAULT auth.uid();
+ALTER TABLE public.notifications
+  ALTER COLUMN sender_id SET DEFAULT auth.uid();
+
+UPDATE public.notifications
+SET link = NULL
+WHERE link IS NOT NULL
+  AND trim(link) <> ''
+  AND (
+    char_length(link) > 1024
+    OR link ~ '[<>[:cntrl:]]'
+    OR trim(link) ~* '^[a-z][a-z0-9+.-]*:'
+    OR trim(link) ~ '^//'
+    OR position(E'\\' in link) > 0
+  );
+
+UPDATE public.notifications
+SET data = '{}'::JSONB
+WHERE data IS NOT NULL
+  AND (
+    jsonb_typeof(data) <> 'object'
+    OR octet_length(data::TEXT) > 4096
+    OR data::TEXT ~ '[<>]'
+  );
+
+ALTER TABLE public.notifications
+  DROP CONSTRAINT IF EXISTS notifications_plain_text_payload_check;
+ALTER TABLE public.notifications
+  ADD CONSTRAINT notifications_plain_text_payload_check
+  CHECK (
+    char_length(trim(title)) BETWEEN 1 AND 160
+    AND char_length(message) <= 2000
+    AND title !~ '[<>]'
+    AND message !~ '[<>]'
+    AND char_length(coalesce(type, '')) <= 64
+    AND (
+      link IS NULL
+      OR trim(link) = ''
+      OR (
+        char_length(link) <= 1024
+        AND link !~ '[<>[:cntrl:]]'
+        AND trim(link) !~* '^[a-z][a-z0-9+.-]*:'
+        AND trim(link) !~ '^//'
+        AND position(E'\\' in link) = 0
+      )
+    )
+    AND (
+      data IS NULL
+      OR (
+        jsonb_typeof(data) = 'object'
+        AND octet_length(data::TEXT) <= 4096
+        AND data::TEXT !~ '[<>]'
+      )
+    )
+  );
 
 -- user_settings: дополнительные поля
 ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS auto_play_next_episode BOOLEAN DEFAULT false;
@@ -1040,6 +1121,7 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON public.notifications(user_id, read);
+CREATE INDEX IF NOT EXISTS idx_notifications_sender_created ON public.notifications(sender_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_global_chat_messages_user_id ON public.global_chat_messages(user_id);
 CREATE INDEX IF NOT EXISTS idx_global_chat_messages_created_at ON public.global_chat_messages(created_at DESC);
@@ -1120,8 +1202,14 @@ DROP POLICY IF EXISTS "profiles_select" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_update" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_insert" ON public.profiles;
 CREATE POLICY "profiles_select" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "profiles_update" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "profiles_insert" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "profiles_update" ON public.profiles
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+CREATE POLICY "profiles_insert" ON public.profiles
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = id);
+REVOKE INSERT, UPDATE ON public.profiles FROM anon;
 
 -- favorites_anime (SELECT публичный — чужие списки видны; менять только свои)
 DROP POLICY IF EXISTS "favorites_anime_all" ON public.favorites_anime;
@@ -1171,25 +1259,29 @@ DROP POLICY IF EXISTS "ai_subscriptions_select" ON public.ai_subscriptions;
 DROP POLICY IF EXISTS "ai_subscriptions_insert" ON public.ai_subscriptions;
 DROP POLICY IF EXISTS "ai_subscriptions_update" ON public.ai_subscriptions;
 DROP POLICY IF EXISTS "ai_subscriptions_site_creator_all" ON public.ai_subscriptions;
-CREATE POLICY "ai_subscriptions_select" ON public.ai_subscriptions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "ai_subscriptions_insert" ON public.ai_subscriptions FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "ai_subscriptions_update" ON public.ai_subscriptions FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "ai_subscriptions_select" ON public.ai_subscriptions
+  FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
 CREATE POLICY "ai_subscriptions_site_creator_all" ON public.ai_subscriptions FOR ALL TO authenticated
-  USING (lower(trim(coalesce(auth.jwt() ->> 'email', ''))) = 'creator@reminko.com')
-  WITH CHECK (lower(trim(coalesce(auth.jwt() ->> 'email', ''))) = 'creator@reminko.com');
+  USING (public.is_site_creator_user_id(auth.uid()))
+  WITH CHECK (public.is_site_creator_user_id(auth.uid()));
 
 -- vip_subscriptions
 DROP POLICY IF EXISTS "vip_subscriptions_select" ON public.vip_subscriptions;
 DROP POLICY IF EXISTS "vip_subscriptions_insert" ON public.vip_subscriptions;
 DROP POLICY IF EXISTS "vip_subscriptions_update" ON public.vip_subscriptions;
 DROP POLICY IF EXISTS "vip_subscriptions_site_creator_all" ON public.vip_subscriptions;
-CREATE POLICY "vip_subscriptions_select" ON public.vip_subscriptions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "vip_subscriptions_insert" ON public.vip_subscriptions FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "vip_subscriptions_update" ON public.vip_subscriptions FOR UPDATE USING (auth.uid() = user_id);
--- Учётная запись создателя (email в JWT): выдача/снятие VIP «Вместе» любому user_id из панели
+CREATE POLICY "vip_subscriptions_select" ON public.vip_subscriptions
+  FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
 CREATE POLICY "vip_subscriptions_site_creator_all" ON public.vip_subscriptions FOR ALL TO authenticated
-  USING (lower(trim(coalesce(auth.jwt() ->> 'email', ''))) = 'creator@reminko.com')
-  WITH CHECK (lower(trim(coalesce(auth.jwt() ->> 'email', ''))) = 'creator@reminko.com');
+  USING (public.is_site_creator_user_id(auth.uid()))
+  WITH CHECK (public.is_site_creator_user_id(auth.uid()));
+DROP POLICY IF EXISTS "vip_subscriptions_user_cancel" ON public.vip_subscriptions;
+CREATE POLICY "vip_subscriptions_user_cancel" ON public.vip_subscriptions
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id AND is_active = false);
 
 -- watch_together_sessions
 DROP POLICY IF EXISTS "wt_sessions_select" ON public.watch_together_sessions;
@@ -1319,11 +1411,80 @@ CREATE POLICY "chat_likes_delete" ON public.global_chat_likes FOR DELETE USING (
 DROP POLICY IF EXISTS "notifications_select" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_update" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_insert" ON public.notifications;
-CREATE POLICY "notifications_select" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "notifications_update" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "notifications_insert" ON public.notifications FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS "notifications_insert_user" ON public.notifications;
+DROP POLICY IF EXISTS "notifications_insert_creator" ON public.notifications;
+CREATE POLICY "notifications_select" ON public.notifications
+  FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+CREATE POLICY "notifications_update" ON public.notifications
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "notifications_insert_creator" ON public.notifications
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    sender_id = auth.uid()
+    AND auth.uid() = 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb'::UUID
+    AND lower(trim(coalesce(auth.jwt() ->> 'email', ''))) = 'creator@reminko.com'
+  );
+CREATE POLICY "notifications_insert_user" ON public.notifications
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    sender_id = auth.uid()
+    AND (
+      (type IN ('minko', 'new_episode') AND user_id = auth.uid())
+      OR (
+        type = 'friend_request'
+        AND EXISTS (
+          SELECT 1 FROM public.friends f
+          WHERE f.user_id = auth.uid()
+            AND f.friend_id = notifications.user_id
+            AND f.status = 'pending'
+        )
+      )
+      OR (
+        type = 'friend_accepted'
+        AND EXISTS (
+          SELECT 1 FROM public.friends f
+          WHERE f.user_id = notifications.user_id
+            AND f.friend_id = auth.uid()
+            AND f.status = 'accepted'
+        )
+      )
+      OR (
+        type = 'watch_together_invite'
+        AND EXISTS (
+          SELECT 1 FROM public.friends f
+          WHERE f.status = 'accepted'
+            AND (
+              (f.user_id = auth.uid() AND f.friend_id = notifications.user_id)
+              OR
+              (f.friend_id = auth.uid() AND f.user_id = notifications.user_id)
+            )
+        )
+      )
+      OR (
+        type = 'watch_join_request'
+        AND coalesce(data ->> 'session_id', '') ~*
+          '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        AND EXISTS (
+          SELECT 1 FROM public.watch_together_sessions s
+          WHERE s.id = (data ->> 'session_id')::UUID
+            AND s.host_id = notifications.user_id
+            AND s.is_active = true
+            AND s.host_id <> auth.uid()
+        )
+      )
+    )
+  );
 DROP POLICY IF EXISTS "notifications_delete" ON public.notifications;
-CREATE POLICY "notifications_delete" ON public.notifications FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "notifications_delete" ON public.notifications
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+REVOKE INSERT, UPDATE ON public.notifications FROM anon;
+REVOKE UPDATE ON public.notifications FROM authenticated;
+GRANT INSERT ON public.notifications TO authenticated;
+GRANT UPDATE (read, read_at) ON public.notifications TO authenticated;
 
 -- friends
 DROP POLICY IF EXISTS "friends_select" ON public.friends;
@@ -1339,7 +1500,7 @@ CREATE POLICY "friends_delete" ON public.friends FOR DELETE USING (auth.uid() = 
 DROP POLICY IF EXISTS "custom_anime_select" ON public.custom_anime;
 CREATE POLICY "custom_anime_select" ON public.custom_anime FOR SELECT USING (true);
 
--- catalog_site_anime (читать всем; INSERT — гости added_by NULL или пользователи со своим uid; правки/удаление — создатель по email в JWT)
+-- catalog_site_anime (читать всем; изменять публичный каталог может только Создатель)
 DROP POLICY IF EXISTS "catalog_site_anime_select" ON public.catalog_site_anime;
 DROP POLICY IF EXISTS "catalog_site_anime_insert" ON public.catalog_site_anime;
 DROP POLICY IF EXISTS "catalog_site_anime_update" ON public.catalog_site_anime;
@@ -1348,14 +1509,16 @@ CREATE POLICY "catalog_site_anime_select" ON public.catalog_site_anime FOR SELEC
 DROP POLICY IF EXISTS "catalog_site_anime_insert_authenticated" ON public.catalog_site_anime;
 DROP POLICY IF EXISTS "catalog_site_anime_insert_anon" ON public.catalog_site_anime;
 CREATE POLICY "catalog_site_anime_insert_authenticated" ON public.catalog_site_anime FOR INSERT TO authenticated
-  WITH CHECK (added_by IS NOT NULL AND auth.uid() = added_by);
-CREATE POLICY "catalog_site_anime_insert_anon" ON public.catalog_site_anime FOR INSERT TO anon
-  WITH CHECK (added_by IS NULL);
+  WITH CHECK (
+    public.is_site_creator_user_id(auth.uid())
+    AND added_by = auth.uid()
+  );
 CREATE POLICY "catalog_site_anime_update" ON public.catalog_site_anime FOR UPDATE TO authenticated
-  USING (lower(trim(coalesce(auth.jwt() ->> 'email', ''))) = 'creator@reminko.com')
-  WITH CHECK (lower(trim(coalesce(auth.jwt() ->> 'email', ''))) = 'creator@reminko.com');
+  USING (public.is_site_creator_user_id(auth.uid()))
+  WITH CHECK (public.is_site_creator_user_id(auth.uid()));
 CREATE POLICY "catalog_site_anime_delete" ON public.catalog_site_anime FOR DELETE TO authenticated
-  USING (lower(trim(coalesce(auth.jwt() ->> 'email', ''))) = 'creator@reminko.com');
+  USING (public.is_site_creator_user_id(auth.uid()));
+REVOKE INSERT ON public.catalog_site_anime FROM anon;
 
 ALTER TABLE public.catalog_4k_anime ENABLE ROW LEVEL SECURITY;
 
@@ -1372,11 +1535,9 @@ CREATE POLICY "catalog_4k_anime_insert_authenticated" ON public.catalog_4k_anime
   FOR INSERT TO authenticated
   WITH CHECK (
     public.is_site_creator_user_id(auth.uid())
-    OR (added_by IS NOT NULL AND auth.uid() = added_by)
+    AND added_by = auth.uid()
   );
-CREATE POLICY "catalog_4k_anime_insert_anon" ON public.catalog_4k_anime
-  FOR INSERT TO anon
-  WITH CHECK (added_by IS NULL);
+REVOKE INSERT ON public.catalog_4k_anime FROM anon;
 
 DROP POLICY IF EXISTS "catalog_4k_anime_update" ON public.catalog_4k_anime;
 CREATE POLICY "catalog_4k_anime_update" ON public.catalog_4k_anime
@@ -1428,29 +1589,100 @@ REVOKE ALL ON FUNCTION public.get_user_email(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_user_email(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_email(uuid) TO service_role;
 
-CREATE OR REPLACE FUNCTION public.is_site_creator_user_id(user_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
+UPDATE public.profiles
+SET is_site_creator = (id = 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb'::UUID)
+WHERE is_site_creator IS DISTINCT FROM
+  (id = 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb'::UUID);
+
+ALTER TABLE public.profiles
+  DROP CONSTRAINT IF EXISTS profiles_site_creator_identity_check;
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_site_creator_identity_check
+  CHECK (
+    COALESCE(is_site_creator, false) = false
+    OR id = 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb'::UUID
+  );
+
+UPDATE public.profiles
+SET username = 'user-' || left(id::TEXT, 8)
+WHERE username ~ '[<>[:cntrl:]]'
+   OR char_length(trim(username)) NOT BETWEEN 2 AND 40;
+
+ALTER TABLE public.profiles
+  DROP CONSTRAINT IF EXISTS profiles_username_plain_text_check;
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_username_plain_text_check
+  CHECK (
+    char_length(trim(username)) BETWEEN 2 AND 40
+    AND username !~ '[<>[:cntrl:]]'
+  );
+
+ALTER TABLE public.profiles
+  DROP CONSTRAINT IF EXISTS profiles_avatar_safe_value_check;
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_avatar_safe_value_check
+  CHECK (
+    avatar IS NULL
+    OR (
+      char_length(avatar) <= 2048
+      AND avatar !~ '[<>[:cntrl:]]'
+      AND avatar !~* '^\s*(javascript|vbscript):'
+    )
+  );
+
+CREATE OR REPLACE FUNCTION public.protect_profile_security_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
 SET search_path = public
 AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM auth.users u
-    LEFT JOIN public.profiles p ON p.id = u.id
-    WHERE u.id = user_id
-      AND (
-        lower(trim(coalesce(u.email::text, ''))) = 'creator@reminko.com'
-        OR COALESCE(p.is_site_creator, false) = true
-      )
-  );
+DECLARE
+  v_actor UUID := auth.uid();
+  v_actor_email TEXT := lower(trim(coalesce(auth.jwt() ->> 'email', '')));
+  v_jwt_role TEXT := lower(trim(coalesce(auth.jwt() ->> 'role', '')));
+  v_trusted BOOLEAN :=
+    (
+      v_actor = 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb'::UUID
+      AND v_actor_email = 'creator@reminko.com'
+    )
+    OR v_jwt_role = 'service_role'
+    OR session_user IN ('postgres', 'supabase_admin');
+  v_privileged_change BOOLEAN := false;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    v_privileged_change :=
+      COALESCE(NEW.is_site_creator, false)
+      OR lower(trim(coalesce(NEW.role, 'user'))) <> 'user'
+      OR COALESCE(NEW.is_banned, false)
+      OR NEW.ban_reason IS NOT NULL
+      OR NEW.banned_at IS NOT NULL;
+  ELSE
+    v_privileged_change :=
+      OLD.id IS DISTINCT FROM NEW.id
+      OR OLD.created_at IS DISTINCT FROM NEW.created_at
+      OR OLD.is_site_creator IS DISTINCT FROM NEW.is_site_creator
+      OR OLD.role IS DISTINCT FROM NEW.role
+      OR OLD.is_banned IS DISTINCT FROM NEW.is_banned
+      OR OLD.ban_reason IS DISTINCT FROM NEW.ban_reason
+      OR OLD.banned_at IS DISTINCT FROM NEW.banned_at;
+  END IF;
+
+  IF v_privileged_change AND NOT v_trusted THEN
+    RAISE EXCEPTION 'profiles: protected security fields cannot be changed'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END;
 $$;
 
-REVOKE ALL ON FUNCTION public.is_site_creator_user_id(uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.is_site_creator_user_id(uuid) FROM anon;
-GRANT EXECUTE ON FUNCTION public.is_site_creator_user_id(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.is_site_creator_user_id(uuid) TO service_role;
+DROP TRIGGER IF EXISTS protect_profile_security_fields_trigger ON public.profiles;
+CREATE TRIGGER protect_profile_security_fields_trigger
+BEFORE INSERT OR UPDATE ON public.profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.protect_profile_security_fields();
+
+COMMENT ON COLUMN public.notifications.sender_id IS
+  'Authenticated originator of the notification; introduced after the 2026-07-27 incident.';
 
 CREATE OR REPLACE FUNCTION public.creator_full_delete_user(
   p_user_id UUID,
@@ -2722,6 +2954,7 @@ CREATE OR REPLACE FUNCTION public.giveaway_normalize_social_handle(p_handle TEXT
 RETURNS TEXT
 LANGUAGE plpgsql
 IMMUTABLE
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v TEXT;
@@ -3355,6 +3588,54 @@ $$;
 
 REVOKE ALL ON FUNCTION public.giveaway_creator_stats() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.giveaway_creator_stats() TO authenticated;
+
+-- ============================================
+-- 11. ФИНАЛЬНОЕ УСИЛЕНИЕ ПРАВ БРАУЗЕРНЫХ РОЛЕЙ
+-- ============================================
+
+-- Эти права не нужны браузеру; TRUNCATE не защищается RLS.
+REVOKE TRUNCATE, REFERENCES, TRIGGER
+ON ALL TABLES IN SCHEMA public
+FROM anon, authenticated;
+
+REVOKE ALL ON public.profiles FROM anon;
+GRANT SELECT ON public.profiles TO anon;
+REVOKE DELETE ON public.profiles FROM authenticated;
+
+REVOKE ALL ON public.catalog_site_anime FROM anon;
+GRANT SELECT ON public.catalog_site_anime TO anon;
+REVOKE ALL ON public.catalog_4k_anime FROM anon;
+GRANT SELECT ON public.catalog_4k_anime TO anon;
+
+REVOKE ALL ON public.notifications FROM anon;
+REVOKE ALL ON public.ai_subscriptions FROM anon;
+REVOKE ALL ON public.vip_subscriptions FROM anon;
+
+-- У Supabase EXECUTE по умолчанию выдаётся PUBLIC. Для SECURITY DEFINER
+-- анонимный вызов запрещён; единственное исключение — публичный счётчик online.
+DO $$
+DECLARE
+  f REGPROCEDURE;
+BEGIN
+  FOR f IN
+    SELECT p.oid::REGPROCEDURE
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.prosecdef
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', f);
+  END LOOP;
+END
+$$;
+
+GRANT EXECUTE ON FUNCTION public.site_visit_online_count(integer) TO anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+REVOKE ALL ON FUNCTION public.handle_anon_user_meta_sync()
+FROM PUBLIC, anon, authenticated;
+
+-- Публичный bucket отдаёт файлы по URL без разрешения на листинг объектов.
+DROP POLICY IF EXISTS "anime_4k_videos_public_read" ON storage.objects;
 
 -- ============================================
 -- ГОТОВО

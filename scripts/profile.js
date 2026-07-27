@@ -468,15 +468,12 @@ async function renderProfile(userData, isViewMode = false) {
     const totalFavorites = favoritesAnime.length + favoritesManga.length;
 
     // Аватар
-    const creatorByEmail = (userData.email || '').toLowerCase() === 'creator@reminko.com';
-    const creatorByName =
-        ['creator@reminko.com', 'creator', 'subarik', 'dubina'].includes(
-            (userData.username || '').toLowerCase()
-        ) ||
-        (typeof reminkoUserIdIsSiteCreatorSync === 'function' &&
-            reminkoUserIdIsSiteCreatorSync(profileUserId));
     const isCreatorAccount =
-        Boolean(userData.isSiteCreator || userData.is_site_creator) || creatorByEmail || creatorByName;
+        typeof reminkoIsSiteCreatorProfile === 'function'
+            ? reminkoIsSiteCreatorProfile({ ...userData, id: profileUserId })
+            : (userData.email || '').toLowerCase() === 'creator@reminko.com' &&
+              typeof reminkoUserIdIsSiteCreatorSync === 'function' &&
+              reminkoUserIdIsSiteCreatorSync(profileUserId);
 
     await Promise.all([
         typeof reminkoEnsureSiteCreatorUserIdCached === 'function'
@@ -607,12 +604,13 @@ async function renderProfile(userData, isViewMode = false) {
                 '&quot;'
             );
         }
-        const un = (p.username || '').toLowerCase();
         const isCr =
-            (p.email && String(p.email).toLowerCase() === 'creator@reminko.com') ||
-            un === 'creator' ||
-            un === 'creator@reminko.com' ||
-            p.isSiteCreator === true;
+            typeof reminkoIsSiteCreatorProfile === 'function'
+                ? reminkoIsSiteCreatorProfile(p)
+                : p.email &&
+                  String(p.email).toLowerCase() === 'creator@reminko.com' &&
+                  typeof reminkoUserIdIsSiteCreatorSync === 'function' &&
+                  reminkoUserIdIsSiteCreatorSync(p.id);
         const av = isCr ? 'Fons/Creator ava.png' : 'Fons/1 b.jpg';
         return (typeof reminkoResolveAssetUrl === 'function' ? reminkoResolveAssetUrl(av) : av).replace(/"/g, '&quot;');
     }

@@ -153,13 +153,13 @@
 
     <script src="config.local.js" onerror="window.__reminkoNoLocalConfig=true"></script>
     <script src="scripts/config.js?v=20260720h"></script>
-    <script src="scripts/utils.js?v=20260726mobile1"></script>
+    <script src="scripts/utils.js?v=20260727security1"></script>
     <script src="scripts/utils-notifications.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scripts/supabase-config.js"></script>
     <script src="scripts/oauth-auth.js"></script>
     <script src="scripts/oauth-profile-setup.js?v=20260725a"></script>
-    <script src="scripts/navigation.js?v=20260726mobile1"></script>
+    <script src="scripts/navigation.js?v=20260727security1"></script>
     <script src="scripts/auth.js"></script>
     <script src="scripts/register.js"></script>
     <script src="scripts/main.js"></script>
@@ -184,7 +184,10 @@
                 if (typeof reminkoIsSiteCreatorProfile === 'function') {
                     return reminkoIsSiteCreatorProfile(profile || { id: user.id, email: user.email });
                 }
-                return !!(profile && profile.is_site_creator === true);
+                return (
+                    user.id === 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb' &&
+                    String(user.email || '').trim().toLowerCase() === 'creator@reminko.com'
+                );
             } catch (_) {
                 return false;
             }

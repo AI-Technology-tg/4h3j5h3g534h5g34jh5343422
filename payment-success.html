@@ -353,66 +353,13 @@
             }
 
             if (product === 'vip-watch') {
-                if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-                    try {
-                        const { data: existing } = await supabaseClient
-                            .from('vip_subscriptions')
-                            .select('*')
-                            .eq('user_id', user.id)
-                            .maybeSingle();
-
-                        if (existing && existing.is_active && existing.expires_at && new Date(existing.expires_at) > new Date()) {
-                            showError(cfg.alreadyMsg);
-                            redirectTo('profile.html', 4000);
-                            return;
-                        }
-
-                        const expiresAt = new Date();
-                        expiresAt.setMonth(expiresAt.getMonth() + 1);
-
-                        let dbError = null;
-                        if (existing) {
-                            const { error } = await supabaseClient.from('vip_subscriptions').update({
-                                is_active: true,
-                                expires_at: expiresAt.toISOString(),
-                                updated_at: new Date().toISOString()
-                            }).eq('user_id', user.id);
-                            dbError = error;
-                        } else {
-                            const { error } = await supabaseClient.from('vip_subscriptions').insert({
-                                user_id: user.id,
-                                is_active: true,
-                                expires_at: expiresAt.toISOString()
-                            });
-                            dbError = error;
-                        }
-
-                        if (dbError) {
-                            console.error('[VIP Watch] DB error:', dbError);
-                            showError('Ошибка активации: ' + (dbError.message || 'неизвестная ошибка') + '. Обратитесь в поддержку.');
-                            redirectTo('profile.html', 8000);
-                            return;
-                        }
-
-                        showSuccess(cfg, expiresAt);
-                        redirectTo(cfg.redirect, 5000);
-                    } catch (e) {
-                        console.error('[VIP Watch] Exception:', e);
-                        showError('Ошибка: ' + e.message + '. Попробуйте обновить страницу.');
-                        document.getElementById('errorState').insertAdjacentHTML('beforeend', `
-                            <div style="margin-top:16px;">
-                                <a href="payment-success.html?product=${product}" style="color:#a855f7;text-decoration:underline;font-size:14px;">Попробовать снова</a>
-                            </div>
-                        `);
-                    }
-                } else {
-                    showError('Ошибка подключения к базе данных. Попробуйте обновить страницу.');
-                    document.getElementById('errorState').insertAdjacentHTML('beforeend', `
-                        <div style="margin-top:16px;">
-                            <a href="payment-success.html?product=${product}" style="color:#a855f7;text-decoration:underline;font-size:14px;">Попробовать снова</a>
-                        </div>
-                    `);
-                }
+                // Никогда не выдаём VIP по факту открытия публичной страницы.
+                // Активация допустима только после серверной проверки Stripe webhook/session.
+                showError(
+                    'Для безопасности VIP активируется только после серверной проверки оплаты. ' +
+                    'Если платёж уже завершён, обратитесь в поддержку — доступ будет подтверждён по операции.'
+                );
+                redirectTo('profile.html', 9000);
             }
         })();
 

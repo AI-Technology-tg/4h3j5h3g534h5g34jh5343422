@@ -49,6 +49,28 @@ class NotificationService {
             .replace(/</g, '&lt;');
     }
 
+    _safeNavigationLink(value) {
+        const raw = String(value == null ? '' : value).trim();
+        if (!raw) return '';
+        try {
+            const configuredOrigin =
+                window.APP_CONFIG && typeof window.APP_CONFIG.siteOrigin === 'string'
+                    ? window.APP_CONFIG.siteOrigin
+                    : window.location.origin;
+            const base = `${String(configuredOrigin || window.location.origin).replace(/\/$/, '')}/`;
+            const url = new URL(raw, base);
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+            const allowedOrigins = new Set([new URL(base).origin]);
+            if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+                allowedOrigins.add(window.location.origin);
+            }
+            if (!allowedOrigins.has(url.origin)) return '';
+            return url.href;
+        } catch (_) {
+            return '';
+        }
+    }
+
     _playNotificationSoundFallback() {
         try {
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -105,7 +127,11 @@ class NotificationService {
 
     _maybeBrowserPush(title, body, context) {
         if (typeof window.reminkoShowBrowserNotification !== 'function') return;
-        void window.reminkoShowBrowserNotification(title, body, context);
+        const safeContext = context && typeof context === 'object' ? { ...context } : {};
+        if (safeContext.link) {
+            safeContext.link = this._safeNavigationLink(safeContext.link);
+        }
+        void window.reminkoShowBrowserNotification(title, body, safeContext);
     }
 
     _siteToastsEnabled(type) {
@@ -563,6 +589,7 @@ class NotificationService {
             headline = this.getTypeTitle(notifType);
             if (options && typeof options.link === 'string') link = options.link.trim();
         }
+        link = this._safeNavigationLink(link);
 
         if (!this._siteToastsEnabled(notifType)) {
             if (options.withSound) this._playNotificationSound();
@@ -917,22 +944,60 @@ class NotificationService {
             footer.style.display = this.notifications.length > 0 ? 'flex' : 'none';
         }
 
+        container.replaceChildren();
+
         if (this.notifications.length === 0) {
-            container.innerHTML =
-                '<div class="notifications-empty-hint">Пока пусто — новые события появятся здесь.</div>';
+            const empty = document.createElement('div');
+            empty.className = 'notifications-empty-hint';
+            empty.textContent = 'Пока пусто — новые события появятся здесь.';
+            container.appendChild(empty);
             return;
         }
 
-        container.innerHTML = this.notifications.map(notif => `
-            <div class="notification-item ${notif.read ? '' : 'unread'}" onclick="window.notificationService.markAsRead('${notif.id}'); ${notif.link ? `window.location.href='${notif.link}'` : ''}">
-                <div class="notification-icon">${this.getNotificationIcon(notif.type)}</div>
-                <div class="notification-item-body">
-                    <div class="notification-title">${notif.title}</div>
-                    <div class="notification-message">${notif.message}</div>
-                    <div class="notification-time">${this.formatTime(notif.created_at)}</div>
-                </div>
-            </div>
-        `).join('');
+        const fragment = document.createDocumentFragment();
+        this.notifications.forEach((notif) => {
+            const item = document.createElement('div');
+            item.className = `notification-item${notif.read ? '' : ' unread'}`;
+            item.setAttribute('role', 'button');
+            item.tabIndex = 0;
+
+            const icon = document.createElement('div');
+            icon.className = 'notification-icon';
+            icon.textContent = this.getNotificationIcon(notif.type);
+
+            const body = document.createElement('div');
+            body.className = 'notification-item-body';
+
+            const title = document.createElement('div');
+            title.className = 'notification-title';
+            title.textContent = String(notif.title || '');
+
+            const message = document.createElement('div');
+            message.className = 'notification-message';
+            message.textContent = String(notif.message || '');
+
+            const time = document.createElement('div');
+            time.className = 'notification-time';
+            time.textContent = this.formatTime(notif.created_at);
+
+            body.append(title, message, time);
+            item.append(icon, body);
+
+            const safeLink = this._safeNavigationLink(notif.link);
+            const activate = () => {
+                void this.markAsRead(notif.id);
+                if (safeLink) window.location.assign(safeLink);
+            };
+            item.addEventListener('click', activate);
+            item.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                activate();
+            });
+
+            fragment.appendChild(item);
+        });
+        container.appendChild(fragment);
     }
 
     // Форматирование времени

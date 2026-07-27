@@ -22,8 +22,6 @@ const DirectMessagesService = {
         if (!data) return null;
         let p = { ...data, id: data.id || userId };
         let isCreator =
-            p.is_site_creator === true ||
-            p.isSiteCreator === true ||
             (typeof window.reminkoUserIdIsSiteCreatorSync === 'function' &&
                 window.reminkoUserIdIsSiteCreatorSync(userId)) ||
             (typeof window.reminkoIsSiteCreatorProfile === 'function' &&
