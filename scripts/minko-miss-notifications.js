@@ -1,7 +1,7 @@
 /**
- * Minko «скучаю»: если пользователь давно не заходил или не писал в Minko AI —
- * мягкое уведомление с приглашением в чат (тост + inbox + browser push).
- * Срабатывает при открытой вкладке / возврате на сайт (как episode-notifications).
+ * Minko «скучаю» + «провода починили»:
+ * — если чат выключен / Minko в разработке (maintenance) — не пишем «вернись»;
+ * — если заходили на вкладку, пока она была без проводов — при возврате в сеть шлём особое уведомление.
  */
 (function (global) {
     'use strict';
@@ -11,6 +11,8 @@
     const IDLE_MS = 24 * 60 * 60 * 1000;
     /** Антиспам между «скучаю» */
     const COOLDOWN_MS = 48 * 60 * 60 * 1000;
+    /** Антиспам «провода починили» */
+    const BACK_ONLINE_COOLDOWN_MS = 12 * 60 * 60 * 1000;
     const CHECK_MS = 15 * 60 * 1000;
     const SHOW_DELAY_MS = 2800;
 
@@ -25,10 +27,15 @@
         'Если ты занят — ладно. Если забыл — я напомню: я тут. Напишешь?'
     ];
 
+    const BACK_ONLINE_PHRASE =
+        'Ты заходил ко мне пока Дубина чинил провода, я уже в сети, поговорим?';
+
     let _service = null;
     let _timer = null;
     let _running = false;
     let _showTimer = null;
+    let _availCache = { at: 0, unavailable: false };
+    const AVAIL_CACHE_MS = 45 * 1000;
 
     function minkoChatLink() {
         const path = global.location?.pathname || '';
@@ -80,6 +87,19 @@
         const now = Date.now();
         state.lastMinkoChatAt = now;
         state.lastSiteAt = now;
+        // Живое общение — сбрасываем «ждал провода»
+        state.visitedWhileOffline = false;
+        state.pendingBackOnline = false;
+        writeState(state);
+        return state;
+    }
+
+    function markVisitedWhileOffline() {
+        const state = readState();
+        state.visitedWhileOffline = true;
+        state.pendingBackOnline = true;
+        state.visitedWhileOfflineAt = Date.now();
+        state.lastSiteAt = Date.now();
         writeState(state);
         return state;
     }
@@ -112,7 +132,76 @@
         }
     }
 
-    async function deliverMissYou(phrase) {
+    async function isSiteCreator() {
+        try {
+            if (typeof reminkoIsUserSiteCreator === 'function') {
+                return !!(await reminkoIsUserSiteCreator());
+            }
+        } catch (_) {
+            /* ignore */
+        }
+        return false;
+    }
+
+    /**
+     * true = Minko «выключена» / в разработке — «скучаю» не шлём.
+     */
+    async function isMinkoUnavailable(force) {
+        const now = Date.now();
+        if (!force && now - _availCache.at < AVAIL_CACHE_MS) {
+            return _availCache.unavailable;
+        }
+
+        let unavailable = false;
+
+        try {
+            if (typeof reminkoEnsureMaintenanceGate === 'function') {
+                await reminkoEnsureMaintenanceGate();
+            }
+            const m = global.__reminkoMaintenance;
+            if (m && m.enabled) {
+                const extras = new Set(m.extra_allowed_routes || []);
+                const creator = await isSiteCreator();
+                if (!creator && !extras.has('minko_ai')) {
+                    unavailable = true;
+                }
+            }
+        } catch (_) {
+            /* ignore */
+        }
+
+        if (!unavailable && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('minko_ai_public_state')
+                    .select('chat_enabled, offline_except_creator')
+                    .eq('id', 1)
+                    .maybeSingle();
+                if (!error && data) {
+                    if (data.chat_enabled === false) {
+                        unavailable = true;
+                    } else if (data.offline_except_creator === true) {
+                        const creator = await isSiteCreator();
+                        if (!creator) unavailable = true;
+                    }
+                }
+            } catch (_) {
+                /* ignore */
+            }
+        }
+
+        // Локальный офлайн-UI на странице Minko (провода / прокси)
+        if (!unavailable && isOnMinkoPage()) {
+            if (global.__minkoChatOfflineUiActive === true || global.__minkoRemoteOffActive === true) {
+                unavailable = true;
+            }
+        }
+
+        _availCache = { at: now, unavailable };
+        return unavailable;
+    }
+
+    async function deliverMinkoNotice(phrase, kind) {
         const title = 'Minko';
         const link = minkoChatLink();
         const payload = {
@@ -125,9 +214,8 @@
         const user = await resolveUser();
         if (user && _service && typeof _service.createNotification === 'function') {
             try {
-                // Inbox + realtime-тост/push — без локального дубля
                 await _service.createNotification(user.id, 'minko', title, phrase, link, {
-                    kind: 'miss_you'
+                    kind: kind || 'miss_you'
                 });
                 if (typeof _service.loadNotifications === 'function') {
                     await _service.loadNotifications();
@@ -146,9 +234,50 @@
             void global.reminkoShowBrowserNotification(title, phrase, {
                 type: 'minko',
                 link,
-                tag: 'reminko-minko-miss'
+                tag: kind === 'back_online' ? 'reminko-minko-back-online' : 'reminko-minko-miss'
             });
         }
+    }
+
+    async function maybeDeliverBackOnline(opts) {
+        const state = readState();
+        if (!state.pendingBackOnline && !state.visitedWhileOffline) return false;
+
+        const unavailable = await isMinkoUnavailable(!!(opts && opts.forceAvail));
+        if (unavailable) {
+            if (isOnMinkoPage()) markVisitedWhileOffline();
+            return false;
+        }
+
+        const now = Date.now();
+        const cooled =
+            !state.lastBackOnlineAt || now - state.lastBackOnlineAt >= BACK_ONLINE_COOLDOWN_MS;
+        if (!cooled) {
+            state.pendingBackOnline = false;
+            state.visitedWhileOffline = false;
+            writeState(state);
+            return false;
+        }
+
+        // Уже на вкладке Minko — видит, что она онлайн; тост не нужен
+        if (isOnMinkoPage()) {
+            state.pendingBackOnline = false;
+            state.visitedWhileOffline = false;
+            writeState(state);
+            return false;
+        }
+
+        state.pendingBackOnline = false;
+        state.visitedWhileOffline = false;
+        state.lastBackOnlineAt = now;
+        writeState(state);
+
+        const delay = opts && opts.immediate ? 0 : SHOW_DELAY_MS;
+        if (_showTimer) clearTimeout(_showTimer);
+        _showTimer = setTimeout(() => {
+            void deliverMinkoNotice(BACK_ONLINE_PHRASE, 'back_online');
+        }, delay);
+        return true;
     }
 
     async function checkMissYou(opts) {
@@ -160,10 +289,20 @@
                 return;
             }
 
+            const unavailable = await isMinkoUnavailable(!!(opts && opts.forceAvail));
+            if (unavailable) {
+                if (isOnMinkoPage()) markVisitedWhileOffline();
+                touchSite();
+                return;
+            }
+
+            // Сначала «провода починили» для тех, кто заходил в офлайн
+            const sentBack = await maybeDeliverBackOnline(opts);
+            if (sentBack) return;
+
             const state = readState();
             const now = Date.now();
 
-            // Первый заход — только базовая отметка, без «скучаю»
             if (!state.lastSiteAt) {
                 state.lastSiteAt = now;
                 state.lastMinkoChatAt = now;
@@ -174,10 +313,8 @@
             const lastChat = state.lastMinkoChatAt || state.lastSiteAt;
             const minkoIdle = now - lastChat >= IDLE_MS;
             const siteIdle = now - state.lastSiteAt >= IDLE_MS;
-            const cooled =
-                !state.lastMissAt || now - state.lastMissAt >= COOLDOWN_MS;
+            const cooled = !state.lastMissAt || now - state.lastMissAt >= COOLDOWN_MS;
 
-            // Обновляем визит сайта после проверки (иначе siteIdle всегда ложный)
             const shouldNotify = cooled && (minkoIdle || siteIdle) && !isOnMinkoPage();
 
             state.lastSiteAt = now;
@@ -192,7 +329,7 @@
             const delay = opts && opts.immediate ? 0 : SHOW_DELAY_MS;
             if (_showTimer) clearTimeout(_showTimer);
             _showTimer = setTimeout(() => {
-                void deliverMissYou(phrase);
+                void deliverMinkoNotice(phrase, 'miss_you');
             }, delay);
         } catch (e) {
             console.warn('[minko-miss]', e);
@@ -209,6 +346,18 @@
         touchSite();
     };
 
+    /** Вызвать со страницы Minko, когда пользователь видит офлайн / «без проводов». */
+    global.reminkoMinkoMarkVisitedOffline = function reminkoMinkoMarkVisitedOffline() {
+        markVisitedWhileOffline();
+        _availCache = { at: 0, unavailable: true };
+    };
+
+    /** Чат снова доступен — попробовать уведомить тех, кто заходил в офлайн. */
+    global.reminkoMinkoOnChatBackOnline = function reminkoMinkoOnChatBackOnline() {
+        _availCache = { at: 0, unavailable: false };
+        return maybeDeliverBackOnline({ immediate: true, forceAvail: true });
+    };
+
     /** Для отладки в консоли: reminkoMinkoMissForceCheck() */
     global.reminkoMinkoMissForceCheck = function reminkoMinkoMissForceCheck() {
         const state = readState();
@@ -216,7 +365,7 @@
         state.lastSiteAt = Date.now() - IDLE_MS - 1000;
         state.lastMissAt = 0;
         writeState(state);
-        return checkMissYou({ immediate: true });
+        return checkMissYou({ immediate: true, forceAvail: true });
     };
 
     global.reminkoMinkoMissInit = function reminkoMinkoMissInit(notificationService) {

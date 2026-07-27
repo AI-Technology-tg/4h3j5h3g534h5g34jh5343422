@@ -362,11 +362,30 @@ const MINKO_CHAT_SERVER_OFFLINE_HTML = MINKO_CHAT_SERVER_OFFLINE_PARAGRAPHS.map(
 
 const MINKO_CHAT_SERVER_OFFLINE_MESSAGE = MINKO_CHAT_SERVER_OFFLINE_PARAGRAPHS.join('\n\n');
 
-const MINKO_CHAT_OFFLINE_STATUS = 'Сейчас без сети 💤';
-const MINKO_CHAT_OFFLINE_PLACEHOLDER = 'Сейчас без сети… подожди чуть-чуть~';
+const MINKO_CHAT_OFFLINE_STATUS = 'Без проводов :(';
+const MINKO_CHAT_OFFLINE_PLACEHOLDER = 'Без проводов… подожди чуть-чуть~';
 
 let _minkoChatOfflineUiActive = false;
 let _minkoRemoteOffNoticeShown = false;
+
+function _minkoSetOfflineFlags(offlineUi, remoteOff) {
+    if (typeof offlineUi === 'boolean') {
+        _minkoChatOfflineUiActive = offlineUi;
+        try {
+            window.__minkoChatOfflineUiActive = offlineUi;
+        } catch (_) {
+            /* ignore */
+        }
+    }
+    if (typeof remoteOff === 'boolean') {
+        _minkoRemoteOffActive = remoteOff;
+        try {
+            window.__minkoRemoteOffActive = remoteOff;
+        } catch (_) {
+            /* ignore */
+        }
+    }
+}
 
 /** Только пузырь ассистента — никогда не трогаем сообщения «Вы». */
 function _minkoAssistantBubbles() {
@@ -1821,8 +1840,15 @@ function _syncSleepyOnlinePresentation() {
 }
 
 function _applyChatServerOfflineUi() {
-    _minkoChatOfflineUiActive = true;
+    _minkoSetOfflineFlags(true, undefined);
     _setMinkoHeadStatus(MINKO_CHAT_OFFLINE_STATUS);
+    try {
+        if (typeof window.reminkoMinkoMarkVisitedOffline === 'function') {
+            window.reminkoMinkoMarkVisitedOffline();
+        }
+    } catch (_) {
+        /* ignore */
+    }
     const chatMessagesEl = document.getElementById('chatMessages');
     if (!chatMessagesEl) return;
 
@@ -1888,7 +1914,7 @@ function _applyChatServerOfflineUi() {
 
 function _clearChatServerOfflineUi() {
     if (!_minkoChatOfflineUiActive) return;
-    _minkoChatOfflineUiActive = false;
+    _minkoSetOfflineFlags(false, undefined);
     document.getElementById('minkoOfflineServerRow')?.remove();
     _minkoAssistantBubbles().forEach((bubble) => {
         if (bubble.dataset.reminkoOfflineBackup) {
@@ -1903,6 +1929,13 @@ function _clearChatServerOfflineUi() {
         chatInput.placeholder = _pickRandom(SLEEPY_PLACEHOLDERS);
     }
     if (sendButton) sendButton.disabled = false;
+    try {
+        if (typeof window.reminkoMinkoOnChatBackOnline === 'function') {
+            void window.reminkoMinkoOnChatBackOnline();
+        }
+    } catch (_) {
+        /* ignore */
+    }
 }
 
 function _minkoChatProbeBaseUrl(chatUrl) {
@@ -1980,7 +2013,7 @@ function _grokHealthUrl() {
 }
 
 function _applyMinkoRemoteOffUi(msg) {
-    _minkoRemoteOffActive = true;
+    _minkoSetOfflineFlags(undefined, true);
     _minkoRemoteMaintenanceMsg = (msg && String(msg).trim()) || '';
     // Для обычных пользователей визуал офлайна должен совпадать с состоянием «сервер недоступен».
     _applyChatServerOfflineUi();
@@ -1994,7 +2027,7 @@ function _applyMinkoRemoteOffUi(msg) {
 
 function _clearMinkoRemoteOffUi() {
     if (!_minkoRemoteOffActive) return;
-    _minkoRemoteOffActive = false;
+    _minkoSetOfflineFlags(undefined, false);
     _minkoRemoteOffNoticeShown = false;
     _clearChatServerOfflineUi();
     if (_isMinkoDeepAsleep() > 0) return;
