@@ -2932,7 +2932,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Если в прошлый раз были «без проводов» — сразу офлайн-UI (под boot-pending, без мигания истории)
     if (_minkoWasOfflineBoot()) {
         _applyChatServerOfflineUi();
+        _minkoFinishChatBoot();
     }
+    // Запасной выход, если проверка зависла (probe до ~4.5с) — не раньше офлайн/онлайн-решения
+    setTimeout(() => {
+        if (_minkoChatOfflineUiActive || _minkoRemoteOffActive || freeOnline) {
+            _minkoFinishChatBoot();
+        }
+    }, 5200);
     _minkoForceChatToEnd('init');
     window.addEventListener('load', () => _minkoForceChatToEnd('load'), { once: true });
 
