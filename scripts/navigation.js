@@ -242,28 +242,6 @@ class NavigationManager {
                         <span>Сообщения</span>
                         <span class="friends-badge hidden" id="dmBadge">0</span>
                     </a>
-                    <a href="${this.basePath}favorites.html" class="sidebar-link ${activeClass('favorites')}" data-page="favorites">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"></path>
-                        </svg>
-                        <span>Избранное</span>
-                    </a>
-                    <a href="${this.basePath}favorites-manga.html" class="sidebar-link ${activeClass('favorites-manga')}" data-page="favorites-manga">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                            <path d="M12 7.2c1.4-1.5 4-0.5 4 1.5 0 1.8-2.1 3.3-4 4.8-1.9-1.5-4-3-4-4.8 0-2 2.6-3 4-1.5z"></path>
-                        </svg>
-                        <span>Манга избранное</span>
-                    </a>
-                    <a href="${this.basePath}history.html" class="sidebar-link ${activeClass('history')}" data-page="history">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
-                            <path d="M3 3v5h5"></path>
-                            <path d="M12 7v5l3 2"></path>
-                        </svg>
-                        <span>История</span>
-                    </a>
                     <a href="${this.basePath}info.html" class="sidebar-link ${activeClass('info')}" data-page="info">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>

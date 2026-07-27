@@ -1967,30 +1967,30 @@
     }
 }
 
-/* —— Genre Apple Watch cloud —— */
-.genre-watch-panel {
-    min-width: min(90vw, 340px) !important;
-    max-width: min(92vw, 360px) !important;
+/* —— Compact genre picker —— */
+.genre-picker-panel {
+    min-width: min(92vw, 320px) !important;
+    max-width: min(94vw, 340px) !important;
     padding: 0.55rem 0.6rem 0.5rem !important;
     overflow: hidden !important;
 }
 
-.genre-watch-panel .filter-mobile-panel-head {
+.genre-picker-panel .filter-mobile-panel-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    margin: 0 0 0.35rem;
-    padding: 0 0.05rem 0.3rem;
+    margin: 0 0 0.4rem;
+    padding: 0 0.05rem 0.35rem;
     border-bottom: 1px solid rgba(227, 0, 255, 0.16);
 }
 
-.genre-watch-panel .filter-mobile-panel-head strong {
+.genre-picker-panel .filter-mobile-panel-head strong {
     color: #f8fafc;
     font-size: 0.88rem;
 }
 
-.genre-watch-panel .filter-panel-close {
+.genre-picker-panel .filter-panel-close {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2005,63 +2005,59 @@
     cursor: pointer;
 }
 
-.genre-watch-stage {
-    position: relative;
+.genre-picker-search {
+    margin: 0 0 0.45rem;
+}
+
+.genre-picker-search-input {
     width: 100%;
-    height: min(36vh, 260px);
-    border-radius: 20px;
-    overflow: hidden;
-    touch-action: none;
-    cursor: grab;
-    background:
-        radial-gradient(circle at 50% 45%, rgba(227, 0, 255, 0.16), transparent 58%),
-        radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.18), rgba(7, 8, 16, 0.94) 74%);
-    border: 1px solid rgba(227, 0, 255, 0.22);
-    box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.32);
-    user-select: none;
+    box-sizing: border-box;
+    border: 1px solid rgba(227, 0, 255, 0.28);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #f8fafc;
+    font: inherit;
+    font-size: 0.82rem;
+    padding: 0.5rem 0.7rem;
+    outline: none;
 }
 
-.genre-watch-stage.is-dragging {
-    cursor: grabbing;
+.genre-picker-search-input:focus {
+    border-color: rgba(227, 0, 255, 0.55);
+    box-shadow: 0 0 0 2px rgba(227, 0, 255, 0.15);
 }
 
-.genre-watch-cloud {
-    position: absolute;
-    inset: 0;
-    transform-origin: center center;
+.genre-picker-panel #genrePickerGrid.filter-genres-grid,
+.genre-picker-panel .filter-genres-grid {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
+    max-height: min(42vh, 280px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.1rem 0.05rem 0.2rem;
+    scrollbar-width: thin;
 }
 
-.genre-watch-bubble {
-    position: absolute;
-    left: 0;
-    top: 0;
+.genre-picker-chip {
     display: inline-flex !important;
     align-items: center;
-    justify-content: center;
-    gap: 0.15rem;
-    min-width: 0;
-    max-width: 148px;
-    min-height: 0;
-    padding: 0.38rem 0.62rem !important;
+    gap: 0.28rem;
+    max-width: 100%;
     margin: 0 !important;
+    padding: 0.38rem 0.62rem !important;
     border-radius: 999px !important;
-    border: 1px solid rgba(255, 255, 255, 0.14) !important;
-    background: rgba(22, 22, 40, 0.9) !important;
-    color: rgba(248, 250, 252, 0.94) !important;
-    font-size: 0.7rem !important;
-    font-weight: 700 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: rgba(248, 250, 252, 0.92) !important;
+    font-size: 0.72rem !important;
+    font-weight: 650 !important;
     line-height: 1.2 !important;
-    text-align: center;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
-    transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
-    will-change: transform, opacity;
     cursor: pointer;
+    white-space: nowrap;
 }
 
-.genre-watch-bubble input[type='checkbox'] {
+.genre-picker-chip input[type='checkbox'] {
     position: absolute !important;
     opacity: 0 !important;
     pointer-events: none !important;
@@ -2069,53 +2065,51 @@
     height: 0 !important;
 }
 
-.genre-watch-bubble__text {
-    display: block;
-    max-width: 136px;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    word-break: break-word;
-    hyphens: auto;
+.genre-picker-chip__text {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.genre-watch-bubble.is-focus .genre-watch-bubble__text {
-    max-width: 168px;
-}
-
-.genre-watch-bubble.is-checked,
-.genre-watch-bubble:has(input:checked) {
-    background: linear-gradient(135deg, rgba(227, 0, 255, 0.92), rgba(124, 58, 237, 0.9)) !important;
-    border-color: rgba(255, 255, 255, 0.35) !important;
+.genre-picker-chip.is-checked,
+.genre-picker-chip:has(input:checked) {
+    background: linear-gradient(135deg, rgba(227, 0, 255, 0.9), rgba(124, 58, 237, 0.88)) !important;
+    border-color: rgba(255, 255, 255, 0.28) !important;
     color: #fff !important;
-    box-shadow: 0 0 0 2px rgba(227, 0, 255, 0.35), 0 8px 22px rgba(124, 58, 237, 0.42);
 }
 
-.genre-watch-bubble.is-focus {
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.28), 0 10px 26px rgba(124, 58, 237, 0.4);
-}
-
-.genre-watch-bubble.genre-adult-locked {
+.genre-picker-chip.genre-adult-locked {
     opacity: 0.55 !important;
 }
 
-.genre-watch-footer {
+.genre-picker-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.6rem;
-    margin-top: 0.4rem;
-    padding: 0 0.1rem;
+    margin-top: 0.45rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid rgba(227, 0, 255, 0.14);
 }
 
-.genre-watch-hint {
-    font-size: 0.64rem;
-    color: rgba(255, 255, 255, 0.42);
+.genre-picker-clear {
+    border: 0;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(248, 250, 252, 0.88);
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.35rem 0.65rem;
+    border-radius: 8px;
+    cursor: pointer;
 }
 
-.genre-watch-selected {
-    font-size: 0.74rem;
-    font-weight: 750;
+.genre-picker-clear:hover {
+    background: rgba(227, 0, 255, 0.2);
+}
+
+.genre-picker-selected {
+    font-size: 0.72rem;
+    font-weight: 700;
     color: #e9d5ff;
     max-width: 55%;
     overflow: hidden;
@@ -2124,33 +2118,28 @@
 }
 
 @media (max-width: 900px) {
-    .catalog-filter-bar--anime #filterGenrePanel.genre-watch-panel.filter-select-panel {
-        width: min(92vw, 340px) !important;
-        max-height: min(62vh, 420px) !important;
+    .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel.filter-select-panel {
+        width: min(94vw, 340px) !important;
+        max-height: min(70vh, 460px) !important;
         overflow: hidden !important;
-        padding: 0.55rem !important;
+        padding: 0.6rem !important;
     }
 
-    .catalog-filter-bar--anime #filterGenrePanel.genre-watch-panel .filter-genres-grid {
-        display: none !important;
-    }
-
-    .genre-watch-stage {
-        height: min(34vh, 250px);
-        border-radius: 18px;
+    .genre-picker-panel #genrePickerGrid.filter-genres-grid {
+        max-height: min(48vh, 320px) !important;
+        display: flex !important;
     }
 }
 
 @media (min-width: 901px) {
-    .catalog-filter-bar--anime #filterGenrePanel.genre-watch-panel {
+    .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel {
         position: absolute;
         left: 0;
         top: calc(100% + 0.45rem);
         z-index: 80;
     }
 
-    .genre-watch-stage {
-        height: 250px;
-        border-radius: 18px;
+    .genre-picker-panel #genrePickerGrid.filter-genres-grid {
+        max-height: 260px;
     }
 }

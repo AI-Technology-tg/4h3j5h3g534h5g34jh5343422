@@ -48,7 +48,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../styles/main.css?v=20260726mobile2">
     <link rel="stylesheet" href="../styles/sidebar-layout.css?v=20260726mobile1">
-    <link rel="stylesheet" href="../styles/catalog.css?v=20260727watch2">
+    <link rel="stylesheet" href="../styles/catalog.css?v=20260727nav2">
     <link rel="stylesheet" href="../styles/home.css?v=20260726mobile2">
     <link rel="stylesheet" href="../styles/loading.css">
     <link rel="stylesheet" href="../styles/notifications.css?v=20260726mobile1">
@@ -92,17 +92,18 @@
                             <span class="filter-chip-value">Все</span>
                             <svg class="filter-chip-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
-                        <div class="filter-dropdown filter-select-panel anime-fb-dropdown anime-fb-dropdown--wide genre-watch-panel" id="filterGenrePanel">
+                        <div class="filter-dropdown filter-select-panel anime-fb-dropdown anime-fb-dropdown--wide genre-picker-panel" id="filterGenrePanel">
                             <div class="filter-mobile-panel-head">
                                 <strong>Жанры</strong>
                                 <button type="button" class="filter-panel-close" data-filter-panel-close="filterGenrePanel" aria-label="Закрыть жанры">×</button>
                             </div>
-                            <div class="genre-watch-stage" id="genreWatchStage">
-                                <div class="genre-watch-cloud" id="genreWatchCloud"></div>
+                            <div class="genre-picker-search">
+                                <input type="search" id="genrePickerSearch" class="genre-picker-search-input" placeholder="Поиск жанра…" autocomplete="off" enterkeyhint="search">
                             </div>
-                            <div class="genre-watch-footer">
-                                <span class="genre-watch-hint">Тащи · колесо = масштаб</span>
-                                <span class="genre-watch-selected" id="genreWatchSelected">Все</span>
+                            <div class="filter-dropdown-inner filter-genres-grid" id="genrePickerGrid"></div>
+                            <div class="genre-picker-footer">
+                                <button type="button" class="genre-picker-clear" id="genrePickerClear">Сбросить</button>
+                                <span class="genre-picker-selected" id="genrePickerSelected">Все</span>
                             </div>
                         </div>
                     </div>
@@ -291,7 +292,7 @@
     <script src="../scripts/direct-messages.js"></script>
     <script src="../scripts/oauth-auth.js"></script>
     <script src="../scripts/oauth-profile-setup.js?v=20260727security3"></script>
-    <script src="../scripts/navigation.js?v=20260727nav1"></script>
+    <script src="../scripts/navigation.js?v=20260727nav2"></script>
     <script src="../scripts/auth.js"></script>
     <script src="../scripts/anime-stats.js"></script>
     <script src="../scripts/notifications.js"></script>
@@ -302,8 +303,8 @@
     <script src="../scripts/loading-phrases.js"></script>
     <script src="../scripts/loading.js"></script>
     <script src="../scripts/release-countdown.js?v=20260725q"></script>
-    <script src="../scripts/catalog.js?v=20260727genre1"></script>
-    <script src="../scripts/apply-navigation.js?v=20260727nav1"></script>
+    <script src="../scripts/catalog.js?v=20260727nav2"></script>
+    <script src="../scripts/apply-navigation.js?v=20260727nav2"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             if (typeof window.KodikCatalogStore?.load === 'function') {

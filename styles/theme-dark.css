@@ -551,21 +551,25 @@ body.theme-dark .calendar-month-chips {
     background: linear-gradient(180deg, rgba(11, 11, 18, 0.96) 70%, rgba(11, 11, 18, 0)) !important;
 }
 
-body.theme-dark .genre-watch-stage {
-    background:
-        radial-gradient(circle at 50% 45%, rgba(255, 45, 85, 0.16), transparent 55%),
-        radial-gradient(circle at 50% 50%, rgba(18, 8, 31, 0.25), rgba(7, 8, 16, 0.94) 72%) !important;
-    border-color: rgba(157, 77, 255, 0.32) !important;
+body.theme-dark .genre-picker-search-input {
+    background: rgba(18, 8, 31, 0.85) !important;
+    border-color: rgba(157, 77, 255, 0.35) !important;
+    color: #e7e0ff !important;
 }
 
-body.theme-dark .genre-watch-bubble {
+body.theme-dark .genre-picker-chip {
     background: rgba(18, 8, 31, 0.9) !important;
     border-color: rgba(157, 77, 255, 0.28) !important;
 }
 
-body.theme-dark .genre-watch-bubble.is-checked,
-body.theme-dark .genre-watch-bubble:has(input:checked) {
+body.theme-dark .genre-picker-chip.is-checked,
+body.theme-dark .genre-picker-chip:has(input:checked) {
     background: linear-gradient(135deg, rgba(255, 45, 85, 0.92), rgba(157, 77, 255, 0.88)) !important;
+}
+
+body.theme-dark .genre-picker-clear {
+    background: rgba(157, 77, 255, 0.18) !important;
+    color: #e7e0ff !important;
 }
 
 body.theme-dark .calendar-item__media {
