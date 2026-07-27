@@ -22,6 +22,7 @@
     "minify:js": "node scripts/build/minify-js.js",
     "minify:css": "node scripts/build/minify-css.js",
     "lint": "eslint scripts/*.js --max-warnings 999 || true",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
     "test": "npm run test:mobile",
     "test:mobile": "playwright test tests/mobile",
     "test:mobile:report": "playwright show-report",
@@ -37,8 +38,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "2.94.0",
-    "lucide": "0.469.0"
+    "@supabase/supabase-js": "2.94.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",
@@ -48,6 +48,6 @@
     "terser": "^5.24.0"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=20.0.0"
   }
 }
