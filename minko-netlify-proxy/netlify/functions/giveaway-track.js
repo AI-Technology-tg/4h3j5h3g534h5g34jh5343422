@@ -2,32 +2,18 @@
  * POST JSON: { refCode, deviceHash, visitorId?, landingPath? }
  * Запись уникального перехода по реф-ссылке розыгрыша.
  */
-const crypto = require('crypto');
-const { corsHeaders, clientIp } = require('./_cors');
+const { allowedOrigin, corsHeaders } = require('./_cors');
+const {
+    consumeRateLimit,
+    hashValue,
+    ipHash,
+    recordSecurityEvent,
+    safePath,
+    safeText
+} = require('./_security');
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const IP_SALT = process.env.GIVEAWAY_IP_SALT || process.env.SUPABASE_SERVICE_ROLE_KEY || 'reminko-giveaway';
-
-const rateBuckets = new Map();
-const RATE_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT = 40;
-
-function hashIp(ip) {
-    return crypto.createHash('sha256').update(`${IP_SALT}:${ip}`).digest('hex');
-}
-
-function rateLimitOk(key) {
-    const now = Date.now();
-    const bucket = rateBuckets.get(key) || { count: 0, reset: now + RATE_WINDOW_MS };
-    if (now > bucket.reset) {
-        bucket.count = 0;
-        bucket.reset = now + RATE_WINDOW_MS;
-    }
-    bucket.count += 1;
-    rateBuckets.set(key, bucket);
-    return bucket.count <= RATE_LIMIT;
-}
 
 async function recordClick(payload) {
     const url = `${SUPABASE_URL}/rest/v1/rpc/giveaway_record_click`;
@@ -65,6 +51,9 @@ exports.handler = async function handler(event) {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
     }
+    if (!allowedOrigin(event)) {
+        return { statusCode: 403, headers, body: JSON.stringify({ error: 'Origin not allowed' }) };
+    }
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
         return { statusCode: 503, headers, body: JSON.stringify({ error: 'Service unavailable' }) };
@@ -78,30 +67,51 @@ exports.handler = async function handler(event) {
     }
 
     const refCode = String(body.refCode || body.ref_code || '').trim().toLowerCase();
-    const deviceHash = String(body.deviceHash || body.device_hash || '').trim();
+    const clientDeviceHash = String(body.deviceHash || body.device_hash || '').trim();
     const visitorId = String(body.visitorId || body.visitor_id || '').trim().slice(0, 64);
-    const landingPath = String(body.landingPath || body.landing_path || '').trim().slice(0, 512);
+    const landingPath = safePath(body.landingPath || body.landing_path || '/').slice(0, 512);
 
     if (!/^[a-z0-9]{8,16}$/.test(refCode)) {
         return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid ref code' }) };
     }
-    if (deviceHash.length < 32 || deviceHash.length > 128) {
+    if (clientDeviceHash.length < 16 || clientDeviceHash.length > 128) {
         return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid device hash' }) };
     }
 
-    const ip = clientIp(event);
-    const rateKey = `${hashIp(ip)}:${refCode}`;
-    if (!rateLimitOk(rateKey)) {
-        return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
-    }
-
     try {
+        const serverIpHash = ipHash(event);
+        const rate = await consumeRateLimit(
+            'giveaway.click',
+            `${serverIpHash}:${refCode}`,
+            40,
+            60
+        );
+        if (!rate.allowed) {
+            console.warn('SECURITY_EVENT|giveaway_click_rate_limited');
+            await recordSecurityEvent(event, {
+                eventType: 'api.giveaway_click_rate_limited',
+                severity: 'medium',
+                source: 'netlify',
+                targetType: 'giveaway_ref',
+                targetId: refCode
+            }).catch(() => {});
+            return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
+        }
+
+        const userAgent = safeText(
+            event.headers['user-agent'] || event.headers['User-Agent'] || '',
+            512
+        );
+        const deviceHash = hashValue(
+            `${serverIpHash}:${userAgent}`,
+            'giveaway-device'
+        );
         const result = await recordClick({
             refCode,
             deviceHash,
             visitorId,
-            ipHash: hashIp(ip),
-            userAgent: event.headers['user-agent'] || event.headers['User-Agent'] || '',
+            ipHash: serverIpHash,
+            userAgent,
             landingPath
         });
         return {
@@ -110,7 +120,7 @@ exports.handler = async function handler(event) {
             body: JSON.stringify(result)
         };
     } catch (e) {
-        console.error('[giveaway-track]', e.message);
+        console.error('[giveaway-track]', safeText(e?.message, 200));
         return { statusCode: 500, headers, body: JSON.stringify({ error: 'Track failed' }) };
     }
 };

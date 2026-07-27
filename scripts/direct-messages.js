@@ -52,19 +52,19 @@ const DirectMessagesService = {
                 const list = await reminkoFetchProfilesIn(supabaseClient, [userId]);
                 data = list[0] || null;
             } else {
-                let row = await supabaseClient
-                    .from('profiles')
-                    .select('id, username, avatar, last_online, current_activity, is_site_creator')
-                    .eq('id', userId)
-                    .maybeSingle();
-                if (row.error) {
-                    row = await supabaseClient
-                        .from('profiles')
-                        .select('id, username, avatar, last_online')
+                for (const source of ['profile_directory', 'profiles']) {
+                    const row = await supabaseClient
+                        .from(source)
+                        .select(
+                            'id, username, avatar, last_online, current_activity, is_site_creator'
+                        )
                         .eq('id', userId)
                         .maybeSingle();
+                    if (!row.error) {
+                        data = row.data;
+                        break;
+                    }
                 }
-                data = row.data;
             }
             if (data) {
                 const p = this._normalizeProfileRow(userId, data);

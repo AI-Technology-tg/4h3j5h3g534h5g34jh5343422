@@ -1276,6 +1276,20 @@ function _showSleepOverlay(onWake, opts) {
     });
 
     function onMessage(e) {
+        const frame = document.getElementById('minkoGameFrame');
+        if (e.origin !== window.location.origin || !frame || e.source !== frame.contentWindow) {
+            if (
+                typeof window.reminkoReportSecuritySignal === 'function' &&
+                e.data &&
+                e.data.type === 'minkoGame'
+            ) {
+                window.reminkoReportSecuritySignal('client.auth_anomaly', {
+                    category: 'minko_game_message_origin',
+                    sourceUrl: e.origin
+                });
+            }
+            return;
+        }
         const data = e.data || {};
         if (data.type !== 'minkoGame') return;
         if (data.action === 'wakeMinko') {

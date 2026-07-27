@@ -1885,7 +1885,7 @@ async function loadFriendsWatching() {
                 ? await reminkoFetchProfilesIn(supabaseClient, friendIds)
                 : (
                       await supabaseClient
-                          .from('profiles')
+                          .from('profile_directory')
                           .select('id, username, avatar, current_activity')
                           .in('id', friendIds)
                   ).data;

@@ -25,11 +25,32 @@ function reminkoEncodeAssetPath(pathStr) {
 function reminkoResolveAssetUrl(url) {
     if (url == null || url === '') return reminkoEncodeAssetPath('/Fons/1 b.jpg');
     const s = String(url).trim();
-    if (/^https?:\/\//i.test(s) || s.startsWith('data:') || s.startsWith('blob:')) return s;
+    if (/^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(s)) return s;
+    if (/^https:\/\//i.test(s)) return s;
+    if (/^blob:/i.test(s)) {
+        try {
+            if (new URL(s).origin === window.location.origin) return s;
+        } catch (_) {
+            return reminkoEncodeAssetPath('/Fons/1 b.jpg');
+        }
+    }
+    if (/^[a-z][a-z0-9+.-]*:/i.test(s) || s.startsWith('//') || s.includes('\\')) {
+        return reminkoEncodeAssetPath('/Fons/1 b.jpg');
+    }
     const rel = s.startsWith('/') ? s.slice(1) : s.replace(/^\.\//, '').replace(/^\/+/, '');
     return '/' + reminkoEncodeAssetPath(rel);
 }
 window.reminkoResolveAssetUrl = reminkoResolveAssetUrl;
+
+function reminkoSafeImageUrl(url, fallback) {
+    const fallbackUrl = fallback == null ? '' : String(fallback);
+    if (url == null || String(url).trim() === '') return fallbackUrl;
+    const resolved = reminkoResolveAssetUrl(url);
+    const defaultAvatar = reminkoEncodeAssetPath('/Fons/1 b.jpg');
+    if (resolved === defaultAvatar && String(url).trim() !== 'Fons/1 b.jpg') return fallbackUrl;
+    return resolved;
+}
+window.reminkoSafeImageUrl = reminkoSafeImageUrl;
 
 /** Узкий экран или мобильная вёрстка (≤900px). */
 function reminkoIsMobileLayout() {
@@ -453,7 +474,7 @@ function reminkoDevOnlySetElement(el, html, badgeLabel) {
 }
 window.reminkoDevOnlySetElement = reminkoDevOnlySetElement;
 
-/** Профили по списку id — цепочка select при отсутствии колонок в Supabase */
+/** Безопасные публичные поля профилей по списку id. */
 async function reminkoFetchProfilesIn(supabaseClient, userIds) {
     if (!supabaseClient || !userIds || !userIds.length) return [];
     const ids = [...new Set(userIds.filter(Boolean))];
@@ -463,14 +484,35 @@ async function reminkoFetchProfilesIn(supabaseClient, userIds) {
         'id, username, avatar, last_online',
         'id, username, avatar'
     ];
-    for (const sel of chains) {
-        const { data, error } = await supabaseClient.from('profiles').select(sel).in('id', ids);
-        if (!error) return data || [];
-        if (!reminkoIsProfileSelectColumnError(error)) break;
+    for (const source of ['profile_directory', 'profiles']) {
+        for (const sel of chains) {
+            const { data, error } = await supabaseClient.from(source).select(sel).in('id', ids);
+            if (!error) return data || [];
+            if (!reminkoIsProfileSelectColumnError(error)) break;
+        }
     }
     return [];
 }
 window.reminkoFetchProfilesIn = reminkoFetchProfilesIn;
+
+async function reminkoFetchPublicProfile(supabaseClient, userId, columns) {
+    if (!supabaseClient || !userId) return { profile: null, error: { message: 'no client' } };
+    const safeColumns =
+        columns || 'id, username, avatar, gender, last_online, current_activity, is_site_creator';
+    let lastError = null;
+    for (const source of ['profile_directory', 'profiles']) {
+        const { data, error } = await supabaseClient
+            .from(source)
+            .select(safeColumns)
+            .eq('id', userId)
+            .maybeSingle();
+        if (!error) return { profile: data, error: null };
+        lastError = error;
+        if (!reminkoIsProfileSelectColumnError(error)) break;
+    }
+    return { profile: null, error: lastError };
+}
+window.reminkoFetchPublicProfile = reminkoFetchPublicProfile;
 
 /** UUID создателя: только config или закреплённый канонический UUID. */
 async function reminkoResolveSiteCreatorUserId() {

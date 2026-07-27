@@ -281,11 +281,11 @@
         if (isOther) {
             ids = await fetchFavoriteAnimeIdsForUser(viewUserId);
             try {
-                const { data: p } = await supabaseClient
-                    .from('profiles')
-                    .select('username')
-                    .eq('id', viewUserId)
-                    .maybeSingle();
+                const profiles =
+                    typeof window.reminkoFetchProfilesIn === 'function'
+                        ? await window.reminkoFetchProfilesIn(supabaseClient, [viewUserId])
+                        : [];
+                const p = profiles[0] || null;
                 ownerName = (p && p.username) || 'пользователя';
             } catch (_) {
                 ownerName = 'пользователя';

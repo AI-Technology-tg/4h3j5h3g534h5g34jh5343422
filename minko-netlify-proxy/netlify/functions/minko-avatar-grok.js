@@ -18,6 +18,13 @@ const LIMIT = 3;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const { corsHeaders: buildCorsHeaders } = require('./_cors');
+const {
+    consumeRateLimit,
+    getAuthenticatedUser,
+    recordSecurityEvent,
+    safeText,
+    supabaseRequest
+} = require('./_security');
 
 const NSFW_RE =
     /(nude|naked|nsfw|porn|porno|sexual|xxx|erotic|fetish|hentai|loli|shota|rape|nudes?|nipple|genital|penis|vagina|boobs?|tits\b|\bnsfw\b)/i;
@@ -53,61 +60,52 @@ function getImageModel() {
     return (process.env.XAI_IMAGE_MODEL || 'grok-imagine-image').trim();
 }
 
-async function verifySupabaseUser(jwt) {
-    const base = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-    const anon = (process.env.SUPABASE_ANON_KEY || '').trim();
-    if (!base || !anon || !jwt) return null;
-    const r = await fetch(`${base}/auth/v1/user`, {
-        headers: { Authorization: `Bearer ${jwt}`, apikey: anon }
-    });
-    if (!r.ok) return null;
-    const j = await r.json().catch(() => null);
-    return j && j.id ? j : null;
-}
-
-async function countGenerationsInWindow(userId) {
-    const base = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-    const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-    if (!base || !key) return { rows: [], error: 'no_service_key' };
-
-    const since = new Date(Date.now() - WINDOW_MS).toISOString();
-    const url = `${base}/rest/v1/avatar_ai_generations?user_id=eq.${encodeURIComponent(
-        userId
-    )}&created_at=gte.${encodeURIComponent(since)}&select=id,created_at&order=created_at.asc`;
-    const r = await fetch(url, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` }
-    });
-    const rows = await r.json().catch(() => []);
-    if (!r.ok || !Array.isArray(rows)) return { rows: [], error: 'count_failed' };
-    return { rows };
-}
-
-async function insertGeneration(userId) {
-    const base = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-    const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-    if (!base || !key) return false;
-    const r = await fetch(`${base}/rest/v1/avatar_ai_generations`, {
+async function avatarQuota(userId) {
+    const rows = await supabaseRequest('/rest/v1/rpc/avatar_ai_generation_quota', {
         method: 'POST',
-        headers: {
-            apikey: key,
-            Authorization: `Bearer ${key}`,
-            'Content-Type': 'application/json',
-            Prefer: 'return=minimal'
-        },
-        body: JSON.stringify({ user_id: userId })
+        body: JSON.stringify({
+            p_user_id: userId,
+            p_limit: LIMIT,
+            p_window_hours: Math.round(WINDOW_MS / 3600000)
+        })
     });
-    return r.ok;
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    return {
+        limit: LIMIT,
+        used: Number(row?.used || 0),
+        remaining: Number(row?.remaining || 0),
+        resetsAt: row?.resets_at || null
+    };
 }
 
-function quotaFromRows(rows) {
-    const used = rows.length;
-    const remaining = Math.max(0, LIMIT - used);
-    let resetsAt = null;
-    if (used >= LIMIT && rows[0] && rows[0].created_at) {
-        const t = new Date(rows[0].created_at).getTime() + WINDOW_MS;
-        resetsAt = new Date(t).toISOString();
-    }
-    return { limit: LIMIT, used, remaining, resetsAt };
+async function reserveGeneration(userId) {
+    const rows = await supabaseRequest('/rest/v1/rpc/reserve_avatar_ai_generation', {
+        method: 'POST',
+        body: JSON.stringify({
+            p_user_id: userId,
+            p_limit: LIMIT,
+            p_window_hours: Math.round(WINDOW_MS / 3600000)
+        })
+    });
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    return {
+        allowed: row?.allowed === true,
+        reservationId: row?.reservation_id || null,
+        used: Number(row?.used || 0),
+        remaining: Number(row?.remaining || 0),
+        resetsAt: row?.resets_at || null
+    };
+}
+
+async function finishGeneration(reservationId, success) {
+    if (!reservationId) return;
+    await supabaseRequest('/rest/v1/rpc/finish_avatar_ai_generation', {
+        method: 'POST',
+        body: JSON.stringify({
+            p_reservation_id: reservationId,
+            p_success: success === true
+        })
+    });
 }
 
 function buildPrompt(userLine) {
@@ -130,10 +128,7 @@ exports.handler = async (event) => {
 
     const apiKey = getXaiKey();
     const svc = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-    const authHeader = event.headers.authorization || event.headers.Authorization || '';
-    const jwt = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
-
-    const user = await verifySupabaseUser(jwt);
+    const user = await getAuthenticatedUser(event);
     if (!user || !user.id) {
         return err(401, 'Нужна авторизация: войдите в аккаунт и обновите страницу.', event);
     }
@@ -142,11 +137,12 @@ exports.handler = async (event) => {
         return err(503, 'На сервере не настроен SUPABASE_SERVICE_ROLE_KEY.', event);
     }
 
-    const { rows: windowRows } = await countGenerationsInWindow(user.id);
-    const quota = quotaFromRows(windowRows);
-
     if (event.httpMethod === 'GET') {
-        return ok(quota, event);
+        try {
+            return ok(await avatarQuota(user.id), event);
+        } catch (_) {
+            return err(503, 'Не удалось проверить квоту генераций.', event);
+        }
     }
 
     if (event.httpMethod !== 'POST') {
@@ -171,6 +167,14 @@ exports.handler = async (event) => {
         return err(400, 'Опиши образ чуть подробнее (от 4 символов).', event);
     }
     if (NSFW_RE.test(rawPrompt) || NSFW_RU.test(rawPrompt)) {
+        await recordSecurityEvent(event, {
+            eventType: 'api.avatar_prompt_blocked',
+            severity: 'medium',
+            source: 'netlify',
+            actorUserId: user.id,
+            targetType: 'avatar_generation',
+            details: { reason: 'unsafe_prompt_pattern' }
+        }).catch(() => {});
         return err(
             400,
             'Такой запрос недопустим. Только безопасный аниме-стиль, без сексуального и откровенного контента.',
@@ -178,12 +182,26 @@ exports.handler = async (event) => {
         );
     }
 
-    if (quota.remaining <= 0) {
+    const rate = await consumeRateLimit('api.avatar_generation', user.id, 10, 300).catch(() => ({
+        allowed: false
+    }));
+    if (!rate.allowed) {
+        return err(429, 'Слишком много запросов. Попробуйте через несколько минут.', event);
+    }
+
+    let reservation;
+    try {
+        reservation = await reserveGeneration(user.id);
+    } catch (error) {
+        console.error('[minko-avatar-grok] reserve failed', safeText(error?.message, 160));
+        return err(503, 'Не удалось проверить квоту генераций.', event);
+    }
+    if (!reservation.allowed) {
         return err(
             429,
             `Лимит ${LIMIT} генераций на 24 часа исчерпан. Следующая попытка после сброса окна.`,
             event,
-            { resetsAt: quota.resetsAt, remaining: 0, limit: LIMIT }
+            { resetsAt: reservation.resetsAt, remaining: 0, limit: LIMIT }
         );
     }
 
@@ -205,13 +223,19 @@ exports.handler = async (event) => {
             })
         });
     } catch (e) {
-        console.error('[minko-avatar-grok] xai fetch', e);
+        await finishGeneration(reservation.reservationId, false).catch(() => {});
+        console.error('[minko-avatar-grok] xai fetch', safeText(e?.message, 160));
         return err(502, 'Не удалось связаться с сервисом генерации изображений.', event);
     }
 
     const xaiData = await xaiRes.json().catch(() => ({}));
     if (!xaiRes.ok) {
-        console.error('[minko-avatar-grok] xai error', xaiRes.status, xaiData);
+        await finishGeneration(reservation.reservationId, false).catch(() => {});
+        console.error(
+            '[minko-avatar-grok] xai error',
+            xaiRes.status,
+            safeText(xaiData?.error?.code || xaiData?.code || '', 80)
+        );
         return err(
             502,
             (xaiData && xaiData.error && (xaiData.error.message || xaiData.error)) ||
@@ -226,17 +250,13 @@ exports.handler = async (event) => {
         url = 'data:image/png;base64,' + item.b64_json;
     }
     if (!url) {
-        console.error('[minko-avatar-grok] unexpected response', xaiData);
+        await finishGeneration(reservation.reservationId, false).catch(() => {});
+        console.error('[minko-avatar-grok] unexpected empty response');
         return err(502, 'Пустой ответ картинки. Уточните модель в кабинете xAI.', event);
     }
 
-    const inserted = await insertGeneration(user.id);
-    if (!inserted) {
-        console.error('[minko-avatar-grok] insert failed');
-    }
-
-    const next = await countGenerationsInWindow(user.id);
-    const q2 = quotaFromRows(next.rows);
+    await finishGeneration(reservation.reservationId, true);
+    const q2 = await avatarQuota(user.id);
 
     return ok({
         url,

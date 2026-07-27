@@ -5,11 +5,19 @@
 const KODIK_ORIGIN = 'https://kodik-api.com';
 const TOKEN = (process.env.KODIK_API_TOKEN || '').trim();
 const ALLOWED_PATHS = new Set(['/search', '/list', '/translations/v2', '/qualities', '/countries', '/genres', '/years']);
-const { corsHeaders: buildCorsHeaders } = require('./_cors');
+const { allowedOrigin, corsHeaders: buildCorsHeaders } = require('./_cors');
+const {
+    consumeRateLimit,
+    ipHash,
+    recordSecurityEvent,
+    safeText
+} = require('./_security');
+const ALLOWED_PARAM_NAME = /^[a-z][a-z0-9_]{0,39}$/i;
 
 function corsHeaders(event) {
     return {
         ...buildCorsHeaders(event, 'GET, POST, OPTIONS'),
+        'Cache-Control': 'public, max-age=60, stale-while-revalidate=120',
         'Content-Type': 'application/json; charset=utf-8'
     };
 }
@@ -43,6 +51,9 @@ exports.handler = async (event) => {
     if (event.httpMethod !== 'GET' && event.httpMethod !== 'POST') {
         return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
     }
+    if (!allowedOrigin(event)) {
+        return { statusCode: 403, headers, body: JSON.stringify({ error: 'Origin not allowed' }) };
+    }
     if (!TOKEN) {
         return {
             statusCode: 503,
@@ -58,8 +69,16 @@ exports.handler = async (event) => {
     if (!path || !ALLOWED_PATHS.has(path)) {
         return { statusCode: 403, headers, body: JSON.stringify({ error: 'Kodik path not allowed' }) };
     }
-    const params = Object.assign({}, q, { token: TOKEN });
-    delete params.path;
+    const params = {};
+    for (const [key, rawValue] of Object.entries(q).slice(0, 30)) {
+        if (key === 'path' || key === 'token' || !ALLOWED_PARAM_NAME.test(key)) continue;
+        const value = safeText(rawValue, 500);
+        if (value) params[key] = value;
+    }
+    if (params.limit) {
+        params.limit = String(Math.min(50, Math.max(1, Number.parseInt(params.limit, 10) || 20)));
+    }
+    params.token = TOKEN;
 
     const target = buildKodikTarget(path);
     if (!target) {
@@ -73,14 +92,46 @@ exports.handler = async (event) => {
     });
 
     try {
+        const rate = await consumeRateLimit(
+            'proxy.kodik',
+            `${ipHash(event)}:${path}`,
+            120,
+            300
+        );
+        if (!rate.allowed) {
+            console.warn('SECURITY_EVENT|kodik_proxy_rate_limited');
+            await recordSecurityEvent(event, {
+                eventType: 'api.kodik_proxy_rate_limited',
+                severity: 'medium',
+                source: 'netlify',
+                targetType: 'proxy_path',
+                targetId: path
+            }).catch(() => {});
+            return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
+        }
         let res;
         if (event.httpMethod === 'POST') {
             let body = event.body || '';
             if (event.isBase64Encoded && body) {
                 body = Buffer.from(body, 'base64').toString('utf8');
             }
-            const form = new URLSearchParams(body);
-            if (!form.has('token')) form.set('token', TOKEN);
+            if (Buffer.byteLength(body, 'utf8') > 8192) {
+                return { statusCode: 413, headers, body: JSON.stringify({ error: 'Payload too large' }) };
+            }
+            const incoming = new URLSearchParams(body);
+            const form = new URLSearchParams();
+            for (const [key, rawValue] of [...incoming.entries()].slice(0, 30)) {
+                if (key === 'token' || !ALLOWED_PARAM_NAME.test(key)) continue;
+                const value = safeText(rawValue, 500);
+                if (value) form.set(key, value);
+            }
+            if (form.has('limit')) {
+                form.set(
+                    'limit',
+                    String(Math.min(50, Math.max(1, Number.parseInt(form.get('limit'), 10) || 20)))
+                );
+            }
+            form.set('token', TOKEN);
             res = await fetch(target.toString(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -90,13 +141,16 @@ exports.handler = async (event) => {
             res = await fetch(target.toString(), { method: 'GET' });
         }
         const text = await res.text();
+        if (Buffer.byteLength(text, 'utf8') > 2 * 1024 * 1024) {
+            return { statusCode: 502, headers, body: JSON.stringify({ error: 'Upstream response too large' }) };
+        }
         return {
             statusCode: res.status,
             headers,
             body: text || '{}'
         };
     } catch (e) {
-        console.error('[kodik-proxy]', e);
+        console.error('[kodik-proxy]', safeText(e?.message, 200));
         return {
             statusCode: 502,
             headers,

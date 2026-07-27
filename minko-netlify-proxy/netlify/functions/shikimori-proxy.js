@@ -6,11 +6,14 @@
 // .one теперь редиректит через DDoS Guard и зависает в Netlify Functions.
 const SHIKI_ORIGIN = 'https://shikimori.io';
 const SHIKI_UA = 'Re-Minko/1.0 (https://re-minko-anime.com; +contact@re-minko-anime.com)';
-const { corsHeaders: buildCorsHeaders } = require('./_cors');
+const { allowedOrigin, corsHeaders: buildCorsHeaders } = require('./_cors');
+const { consumeRateLimit, ipHash, recordSecurityEvent, safeText } = require('./_security');
+const ALLOWED_PARAMS = new Set(['search', 'limit', 'status', 'order', 'page', 'censored']);
 
 function corsHeaders(event) {
     return {
         ...buildCorsHeaders(event, 'GET, OPTIONS'),
+        'Cache-Control': 'public, max-age=120, stale-while-revalidate=300',
         'Content-Type': 'application/json; charset=utf-8'
     };
 }
@@ -32,6 +35,9 @@ exports.handler = async (event) => {
     if (event.httpMethod !== 'GET') {
         return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
     }
+    if (!allowedOrigin(event)) {
+        return { statusCode: 403, headers, body: JSON.stringify({ error: 'Origin not allowed' }) };
+    }
 
     const q = event.queryStringParameters || {};
     const path = normalizePath(q.path);
@@ -50,14 +56,30 @@ exports.handler = async (event) => {
     }
 
     Object.keys(q).forEach((key) => {
-        if (key === 'path') return;
-        const v = q[key];
-        if (v !== undefined && v !== null && String(v) !== '') {
-            target.searchParams.set(key, String(v));
-        }
+        if (key === 'path' || !ALLOWED_PARAMS.has(key)) return;
+        let value = safeText(q[key], key === 'search' ? 160 : 40);
+        if (!value) return;
+        if (key === 'limit') value = String(Math.min(50, Math.max(1, Number(value) || 20)));
+        if (key === 'page') value = String(Math.min(100, Math.max(1, Number(value) || 1)));
+        if (key === 'censored') value = /^(1|true)$/i.test(value) ? 'true' : 'false';
+        if (key === 'status' && !/^[a-z_,]{1,60}$/i.test(value)) return;
+        if (key === 'order' && !/^[a-z_]{1,40}$/i.test(value)) return;
+        target.searchParams.set(key, value);
     });
 
     try {
+        const rate = await consumeRateLimit('proxy.shikimori', ipHash(event), 120, 300);
+        if (!rate.allowed) {
+            console.warn('SECURITY_EVENT|shikimori_proxy_rate_limited');
+            await recordSecurityEvent(event, {
+                eventType: 'api.shikimori_proxy_rate_limited',
+                severity: 'medium',
+                source: 'netlify',
+                targetType: 'proxy_path',
+                targetId: path
+            }).catch(() => {});
+            return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
+        }
         const res = await fetch(target.toString(), {
             method: 'GET',
             headers: {
@@ -67,13 +89,16 @@ exports.handler = async (event) => {
             redirect: 'follow'
         });
         const text = await res.text();
+        if (Buffer.byteLength(text, 'utf8') > 2 * 1024 * 1024) {
+            return { statusCode: 502, headers, body: JSON.stringify({ error: 'Upstream response too large' }) };
+        }
         return {
             statusCode: res.status,
             headers,
             body: text || (res.ok ? 'null' : '{}')
         };
     } catch (e) {
-        console.error('[shikimori-proxy]', e);
+        console.error('[shikimori-proxy]', safeText(e?.message, 200));
         return {
             statusCode: 502,
             headers,

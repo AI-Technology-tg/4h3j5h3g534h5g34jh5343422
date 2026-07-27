@@ -5,6 +5,33 @@ const mangaFavoritesPerPage = 10; // 5x2 для манги
 let currentFavoritesPage = 0;
 let currentMangaFavoritesPage = 0;
 
+function profileEscapeHtml(value) {
+    return String(value == null ? '' : value).replace(
+        /[&<>"']/g,
+        (ch) =>
+            ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[ch]
+    );
+}
+
+function profileSafeCssUrl(value) {
+    const safe =
+        typeof window.reminkoSafeImageUrl === 'function'
+            ? window.reminkoSafeImageUrl(value, '')
+            : String(value || '');
+    return String(safe || '')
+        .replace(/\\/g, '%5C')
+        .replace(/'/g, '%27')
+        .replace(/"/g, '%22')
+        .replace(/\(/g, '%28')
+        .replace(/\)/g, '%29');
+}
+
 /**
  * Пресеты в Fons: 1–5 — «N b.jpg» / «N g.jpg», с 6 по 15 в папке — «N B.jpg» / «N G.jpg».
  */
@@ -41,7 +68,16 @@ function getRandomAvatar() {
 function reminkoNormalizeAvatarPath(raw) {
     let s = String(raw || '').trim();
     if (!s) return '';
-    if (/^https?:\/\//i.test(s) || s.startsWith('data:') || s.startsWith('blob:')) return s;
+    if (/^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(s)) return s;
+    if (/^https:\/\//i.test(s)) return s;
+    if (/^blob:/i.test(s)) {
+        try {
+            return new URL(s).origin === window.location.origin ? s : '';
+        } catch (_) {
+            return '';
+        }
+    }
+    if (/^[a-z][a-z0-9+.-]*:/i.test(s) || s.startsWith('//') || s.includes('\\')) return '';
     s = s.replace(/^\/+/, '');
     // Частый косяк кэша: "/Fons/1 b.jpg" vs "Fons/1 b.jpg"
     if (/^fons\//i.test(s)) {
@@ -93,7 +129,7 @@ function reminkoPaintProfileShell(userData, isViewMode) {
             ? reminkoResolveAssetUrl(rawAv)
             : rawAv
         : '';
-    const avCss = String(av).replace(/'/g, "\\'");
+    const avCss = profileSafeCssUrl(av);
     const avStyle = avCss
         ? `background-image:url('${avCss}');background-size:cover;background-position:center;background-color:#2a2a32`
         : 'background-color:#2a2a32';
@@ -104,7 +140,7 @@ function reminkoPaintProfileShell(userData, isViewMode) {
                     <div class="profile-avatar" style="${avStyle}"></div>
                 </div>
                 <div class="profile-head-main">
-                    <h1 class="profile-name">${name}</h1>
+                    <h1 class="profile-name">${profileEscapeHtml(name)}</h1>
                     <p class="profile-email">${isViewMode ? 'Профиль пользователя' : 'Ваш профиль'}</p>
                 </div>
             </div>
@@ -154,12 +190,26 @@ async function loadUserProfile(userId) {
     }
     
     try {
-        // Загружаем профиль пользователя из Supabase
-        const { data: profile, error } = await supabaseClient
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .maybeSingle();
+        // Для чужого профиля читаем только безопасные публичные поля.
+        let profile = null;
+        let error = null;
+        if (typeof window.reminkoFetchPublicProfile === 'function') {
+            const result = await window.reminkoFetchPublicProfile(
+                supabaseClient,
+                userId,
+                'id, username, avatar, gender, created_at, is_site_creator'
+            );
+            profile = result.profile;
+            error = result.error;
+        } else {
+            const result = await supabaseClient
+                .from('profile_directory')
+                .select('id, username, avatar, gender, created_at, is_site_creator')
+                .eq('id', userId)
+                .maybeSingle();
+            profile = result.data;
+            error = result.error;
+        }
         
         if (error || !profile) {
             if (typeof showError === 'function') {
@@ -356,11 +406,10 @@ async function renderProfile(userData, isViewMode = false) {
                 const friendIds = friends
                     .map((f) => (f.user_id === profileUserId ? f.friend_id : f.user_id))
                     .filter(Boolean);
-                const { data: p } = await supabaseClient
-                    .from('profiles')
-                    .select('id, username, avatar')
-                    .in('id', friendIds);
-                profiles = p || [];
+                profiles =
+                    typeof window.reminkoFetchProfilesIn === 'function'
+                        ? await window.reminkoFetchProfilesIn(supabaseClient, friendIds)
+                        : [];
             }
             return { vip: vipData || null, friends, profiles };
         } catch (error) {
@@ -511,8 +560,7 @@ async function renderProfile(userData, isViewMode = false) {
             }
         }
     }
-    const avatarUrlCss =
-        typeof reminkoResolveAssetUrl === 'function' ? reminkoResolveAssetUrl(avatarUrl) : avatarUrl;
+    const avatarUrlCss = profileSafeCssUrl(avatarUrl);
     /* Как у всех: круг 150×150 из CSS, cover + center — без 92% / 18%, иначе «плывёт» круг */
     const avatarStyle = `background-image: url('${avatarUrlCss.replace(/'/g, "\\'")}'); background-size: cover; background-position: center; background-repeat: no-repeat;`;
 
@@ -567,31 +615,38 @@ async function renderProfile(userData, isViewMode = false) {
 
     function renderFavTiles(items, type) {
         return (items || []).map((item) => {
-            const gradient =
+            const generatedGradient =
                 typeof generateGradient === 'function'
                     ? generateGradient(item.id)
+                    : 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
+            const gradient =
+                typeof generatedGradient === 'string' &&
+                /^linear-gradient\([^;{}]+\)$/i.test(generatedGradient)
+                    ? generatedGradient
                     : 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
             const poster =
                 item.posterUrl ||
                 (item.images && item.images.jpg && item.images.jpg.image_url) ||
                 '';
-            const posterStyle = poster
-                ? `background-image:url('${String(poster).replace(/'/g, "\\'")}');background-size:cover;background-position:center;`
+            const safePoster = profileSafeCssUrl(poster);
+            const posterStyle = safePoster
+                ? `background-image:url('${safePoster}');background-size:cover;background-position:center;`
                 : `background: ${gradient};`;
-            const onclick =
-                type === 'anime' ? `openAnimePage(${item.id})` : `openMangaPage(${item.id})`;
-            const title = item.title || '';
+            const title = String(item.title || '');
             const shortTitle = title.length > 15 ? title.substring(0, 15) + '...' : title;
-            const searchTitle = item.titleAlt || item.title || '';
+            const searchTitle = String(item.titleAlt || item.title || '');
+            const safeId = String(item.id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
             const malAttr =
                 type === 'anime' && item.mal_id != null && Number(item.mal_id) > 0
-                    ? ` data-fav-mal-id="${String(item.mal_id).replace(/"/g, '')}"`
+                    ? ` data-fav-mal-id="${profileEscapeHtml(
+                          String(item.mal_id).replace(/[^0-9]/g, '')
+                      )}"`
                     : '';
-            return `<div class="favorite-mini-card" onclick="${onclick}" title="${title.replace(/"/g, '&quot;')}" data-fav-type="${type}" data-fav-title="${searchTitle.replace(/"/g, '&quot;')}"${malAttr}>
+            return `<div class="favorite-mini-card" role="link" tabindex="0" title="${profileEscapeHtml(title)}" data-fav-id="${profileEscapeHtml(safeId)}" data-fav-type="${type}" data-fav-title="${profileEscapeHtml(searchTitle)}"${malAttr}>
                 <div class="favorite-mini-poster" style="${posterStyle}">
-                    <div class="favorite-mini-year">${item.year || ''}</div>
+                    <div class="favorite-mini-year">${profileEscapeHtml(item.year || '')}</div>
                 </div>
-                <div class="favorite-mini-title">${shortTitle}</div>
+                <div class="favorite-mini-title">${profileEscapeHtml(shortTitle)}</div>
             </div>`;
         }).join('');
     }
@@ -599,9 +654,8 @@ async function renderProfile(userData, isViewMode = false) {
     function friendTileAvatar(p) {
         if (p && p.avatar && String(p.avatar).trim()) {
             const av = p.avatar;
-            return (typeof reminkoResolveAssetUrl === 'function' ? reminkoResolveAssetUrl(av) : av).replace(
-                /"/g,
-                '&quot;'
+            return profileEscapeHtml(
+                typeof reminkoResolveAssetUrl === 'function' ? reminkoResolveAssetUrl(av) : av
             );
         }
         const isCr =
@@ -612,15 +666,17 @@ async function renderProfile(userData, isViewMode = false) {
                   typeof reminkoUserIdIsSiteCreatorSync === 'function' &&
                   reminkoUserIdIsSiteCreatorSync(p.id);
         const av = isCr ? 'Fons/Creator ava.png' : 'Fons/1 b.jpg';
-        return (typeof reminkoResolveAssetUrl === 'function' ? reminkoResolveAssetUrl(av) : av).replace(/"/g, '&quot;');
+        return profileEscapeHtml(
+            typeof reminkoResolveAssetUrl === 'function' ? reminkoResolveAssetUrl(av) : av
+        );
     }
 
     function renderFriendTiles(profiles) {
         if (!profiles || profiles.length === 0) return '';
         return profiles.slice(0, 12).map(p => `
-            <a href="profile.html?user=${p.id}" class="profile-friend-tile" title="${p.username || 'Пользователь'}">
+            <a href="profile.html?user=${encodeURIComponent(p.id || '')}" class="profile-friend-tile" title="${profileEscapeHtml(p.username || 'Пользователь')}">
                 <img src="${friendTileAvatar(p)}" alt="" class="profile-friend-tile-avatar reminko-avatar-img" width="56" height="56" decoding="async" onerror="this.onerror=null;this.src='/Fons/1 b.jpg'">
-                <div class="profile-friend-tile-name">${(p.username || 'Пользователь').length > 10 ? (p.username || '').substring(0, 10) + '…' : (p.username || 'Пользователь')}</div>
+                <div class="profile-friend-tile-name">${profileEscapeHtml((p.username || 'Пользователь').length > 10 ? (p.username || '').substring(0, 10) + '…' : (p.username || 'Пользователь'))}</div>
             </a>
         `).join('');
     }
@@ -663,15 +719,15 @@ async function renderProfile(userData, isViewMode = false) {
                     ` : ''}
                 </div>
                 <div class="profile-head-main">
-                    <h1 class="profile-name">${profileName} ${vipBadge}</h1>
-                    ${!isViewMode ? `<p class="profile-email">${userData.email || ''}</p>` : ''}
+                    <h1 class="profile-name">${profileEscapeHtml(profileName)} ${vipBadge}</h1>
+                    ${!isViewMode ? `<p class="profile-email">${profileEscapeHtml(userData.email || '')}</p>` : ''}
                 </div>
                 <div class="profile-actions-row">
                     ${!isViewMode ? `
                         <button class="btn btn-primary" onclick="editProfile()">Редактировать</button>
                         <button class="btn btn-secondary" onclick="openSettingsModal()">Настройки</button>
                     ` : `
-                        <a href="messages.html?user=${profileUserId}" class="btn btn-secondary">Написать</a>
+                        <a href="messages.html?user=${encodeURIComponent(profileUserId || '')}" class="btn btn-secondary">Написать</a>
                     `}
                 </div>
             </div>
@@ -697,7 +753,7 @@ async function renderProfile(userData, isViewMode = false) {
             <div class="profile-tab-content active" id="profileTabFavorites">
                 <div class="profile-section">
                     <div class="profile-section-header">
-                        <h2 class="section-title">${isViewMode ? `Избранное аниме ${profileName}` : 'Избранное аниме'}</h2>
+                        <h2 class="section-title">${isViewMode ? `Избранное аниме ${profileEscapeHtml(profileName)}` : 'Избранное аниме'}</h2>
                         ${
                             favoritesAnime.length > 0
                                 ? `<a href="favorites.html${isViewMode ? '?user=' + encodeURIComponent(profileUserId) : ''}" class="btn btn-primary btn-sm">Все избранное</a>`
@@ -712,7 +768,7 @@ async function renderProfile(userData, isViewMode = false) {
                 </div>
                 <div class="profile-section">
                     <div class="profile-section-header">
-                        <h2 class="section-title">${isViewMode ? `Избранная манга ${profileName}` : 'Избранная манга'}</h2>
+                        <h2 class="section-title">${isViewMode ? `Избранная манга ${profileEscapeHtml(profileName)}` : 'Избранная манга'}</h2>
                         ${
                             !isViewMode && favoritesManga.length > 0
                                 ? '<a href="favorites-manga.html" class="btn btn-primary btn-sm">Все избранное</a>'
@@ -736,7 +792,7 @@ async function renderProfile(userData, isViewMode = false) {
                     </p>` : ''}
                     ${!isViewMode && userData.email ? `<div class="profile-info-item">
                         <span class="info-label">Email:</span>
-                        <span class="info-value">${userData.email}</span>
+                        <span class="info-value">${profileEscapeHtml(userData.email)}</span>
                     </div>` : ''}
                     <div class="profile-info-item">
                         <span class="info-label">Дата регистрации:</span>
@@ -808,6 +864,21 @@ async function renderProfile(userData, isViewMode = false) {
             </div>
         </div>` : ''}
     `;
+    container.querySelectorAll('.favorite-mini-card[data-fav-id]').forEach((card) => {
+        const open = () => {
+            const id = card.dataset.favId;
+            if (!id) return;
+            if (card.dataset.favType === 'manga') openMangaPage(id);
+            else openAnimePage(id);
+        };
+        card.addEventListener('click', open);
+        card.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                open();
+            }
+        });
+    });
     const tabParam = new URLSearchParams(window.location.search).get('tab');
     initProfileTabs(tabParam);
     initFavoritesTilesDragScroll();
@@ -1094,18 +1165,25 @@ async function openAvatarPicker() {
         currentUserAvatars = avatarsToShow;
     }
     
-    // Показываем все доступные аватары
-    grid.innerHTML = avatarsToShow.map((avatarPath, index) => {
-        // Используем путь как data-атрибут для точного соответствия
-        const encodedPath = encodeURIComponent(avatarPath);
-        const cssUrl =
-            typeof reminkoResolveAssetUrl === 'function'
-                ? reminkoResolveAssetUrl(avatarPath).replace(/'/g, "\\'")
-                : String(avatarPath).replace(/'/g, "\\'");
-        return `
-            <div class="avatar-option" style="background-image: url('${cssUrl}'); background-size: cover; background-position: center;" data-avatar-path="${encodedPath}" onclick="selectAvatarByPath('${encodedPath}')"></div>
-        `;
-    }).join('');
+    // Показываем все доступные аватары без HTML-инъекций и inline-обработчиков.
+    grid.replaceChildren();
+    for (const avatarPath of avatarsToShow) {
+        const safeUrl =
+            typeof window.reminkoSafeImageUrl === 'function'
+                ? window.reminkoSafeImageUrl(avatarPath, '')
+                : '';
+        if (!safeUrl) continue;
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'avatar-option';
+        option.style.backgroundImage = `url("${safeUrl.replace(/["\\]/g, '')}")`;
+        option.style.backgroundSize = 'cover';
+        option.style.backgroundPosition = 'center';
+        option.dataset.avatarPath = encodeURIComponent(avatarPath);
+        option.setAttribute('aria-label', 'Выбрать аватар');
+        option.addEventListener('click', () => selectAvatarByPath(option.dataset.avatarPath));
+        grid.appendChild(option);
+    }
     
     modal.classList.add('active');
 }
@@ -1347,24 +1425,41 @@ function renderAnimeFavoritesGrid(container, favorites, page) {
     const endIndex = startIndex + favoritesPerPage;
     const pageFavorites = favorites.slice(startIndex, endIndex);
     
-    container.innerHTML = pageFavorites.map(animeId => {
+    container.replaceChildren();
+    for (const animeId of pageFavorites) {
         const anime = getAnimeById(animeId);
-        if (!anime) return '';
+        if (!anime) continue;
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'favorite-mini-card';
+        card.title = String(anime.title || '');
+        card.addEventListener('click', () => openAnimePage(anime.id));
+        const poster = document.createElement('div');
+        poster.className = 'favorite-mini-poster';
         const gradient = generateGradient(anime.id);
-        return `
-            <div class="favorite-mini-card" onclick="openAnimePage(${anime.id})" title="${anime.title}">
-                <div class="favorite-mini-poster" style="background: ${gradient};">
-                    <div class="favorite-mini-year">${anime.year}</div>
-                </div>
-                <div class="favorite-mini-title">${anime.title.length > 15 ? anime.title.substring(0, 15) + '...' : anime.title}</div>
-            </div>
-        `;
-    }).join('');
+        poster.style.background =
+            typeof gradient === 'string' && /^linear-gradient\([^;{}]+\)$/i.test(gradient)
+                ? gradient
+                : 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
+        const year = document.createElement('div');
+        year.className = 'favorite-mini-year';
+        year.textContent = String(anime.year || '');
+        poster.appendChild(year);
+        const title = document.createElement('div');
+        title.className = 'favorite-mini-title';
+        const fullTitle = String(anime.title || '');
+        title.textContent = fullTitle.length > 15 ? `${fullTitle.substring(0, 15)}...` : fullTitle;
+        card.append(poster, title);
+        container.appendChild(card);
+    }
     
     // Заполняем пустые ячейки, если нужно
     const emptyCells = favoritesPerPage - pageFavorites.length;
     for (let i = 0; i < emptyCells; i++) {
-        container.innerHTML += '<div class="favorite-mini-card" style="visibility: hidden;"></div>';
+        const empty = document.createElement('div');
+        empty.className = 'favorite-mini-card';
+        empty.style.visibility = 'hidden';
+        container.appendChild(empty);
     }
 }
 
@@ -1374,24 +1469,41 @@ function renderMangaFavoritesGrid(container, mangaFavorites, page) {
     const endIndex = startIndex + mangaFavoritesPerPage;
     const pageFavorites = mangaFavorites.slice(startIndex, endIndex);
     
-    container.innerHTML = pageFavorites.map(mangaId => {
+    container.replaceChildren();
+    for (const mangaId of pageFavorites) {
         const manga = typeof getMangaById === 'function' ? getMangaById(mangaId) : null;
-        if (!manga) return '';
+        if (!manga) continue;
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'favorite-mini-card';
+        card.title = String(manga.title || '');
+        card.addEventListener('click', () => openMangaPage(manga.id));
+        const poster = document.createElement('div');
+        poster.className = 'favorite-mini-poster';
         const gradient = generateGradient(manga.id);
-        return `
-            <div class="favorite-mini-card" onclick="openMangaPage(${manga.id})" title="${manga.title}">
-                <div class="favorite-mini-poster" style="background: ${gradient};">
-                    <div class="favorite-mini-year">${manga.year}</div>
-                </div>
-                <div class="favorite-mini-title">${manga.title.length > 15 ? manga.title.substring(0, 15) + '...' : manga.title}</div>
-            </div>
-        `;
-    }).join('');
+        poster.style.background =
+            typeof gradient === 'string' && /^linear-gradient\([^;{}]+\)$/i.test(gradient)
+                ? gradient
+                : 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
+        const year = document.createElement('div');
+        year.className = 'favorite-mini-year';
+        year.textContent = String(manga.year || '');
+        poster.appendChild(year);
+        const title = document.createElement('div');
+        title.className = 'favorite-mini-title';
+        const fullTitle = String(manga.title || '');
+        title.textContent = fullTitle.length > 15 ? `${fullTitle.substring(0, 15)}...` : fullTitle;
+        card.append(poster, title);
+        container.appendChild(card);
+    }
     
     // Заполняем пустые ячейки, если нужно
     const emptyCells = mangaFavoritesPerPage - pageFavorites.length;
     for (let i = 0; i < emptyCells; i++) {
-        container.innerHTML += '<div class="favorite-mini-card" style="visibility: hidden;"></div>';
+        const empty = document.createElement('div');
+        empty.className = 'favorite-mini-card';
+        empty.style.visibility = 'hidden';
+        container.appendChild(empty);
     }
 }
 

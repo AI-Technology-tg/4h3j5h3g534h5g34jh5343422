@@ -36,7 +36,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0"
+    "@supabase/supabase-js": "2.94.0",
+    "lucide": "0.469.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",

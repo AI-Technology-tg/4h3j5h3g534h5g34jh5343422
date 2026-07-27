@@ -18,11 +18,13 @@ const ALLOWED_PARAMS = new Set([
     'page',
     'uhd'
 ]);
-const { corsHeaders: buildCorsHeaders } = require('./_cors');
+const { allowedOrigin, corsHeaders: buildCorsHeaders } = require('./_cors');
+const { consumeRateLimit, ipHash, recordSecurityEvent, safeText } = require('./_security');
 
 function corsHeaders(event) {
     return {
         ...buildCorsHeaders(event, 'GET, OPTIONS'),
+        'Cache-Control': 'public, max-age=60, stale-while-revalidate=120',
         'Content-Type': 'application/json; charset=utf-8'
     };
 }
@@ -41,6 +43,9 @@ exports.handler = async (event) => {
     }
     if (event.httpMethod !== 'GET') {
         return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+    }
+    if (!allowedOrigin(event)) {
+        return { statusCode: 403, headers, body: JSON.stringify({ error: 'Origin not allowed' }) };
     }
     if (!TOKEN) {
         return {
@@ -70,22 +75,52 @@ exports.handler = async (event) => {
     target.searchParams.set('token', TOKEN);
     Object.keys(q).forEach((key) => {
         if (!ALLOWED_PARAMS.has(key)) return;
-        const v = q[key];
-        if (v !== undefined && v !== null && String(v) !== '') {
-            target.searchParams.set(key, String(v));
+        let value = safeText(q[key], key === 'name' ? 160 : 64);
+        if (!value) return;
+        if (['mal', 'shikimori', 'kp', 'tmdb', 'wa_id', 'world_art', 'page'].includes(key)) {
+            if (!/^\d{1,12}$/.test(value)) return;
+            if (key === 'page') value = String(Math.min(100, Math.max(1, Number(value))));
         }
+        if (key === 'imdb' && !/^tt\d{1,12}$/i.test(value)) return;
+        if (key === 'uhd') value = /^(1|true)$/i.test(value) ? '1' : '0';
+        if (key === 'order' && !/^[a-z_]{1,30}$/i.test(value)) return;
+        if (key === 'list' && !/^[a-z0-9_-]{1,30}$/i.test(value)) return;
+        target.searchParams.set(key, value);
     });
 
+    if (!hasLookupId(Object.fromEntries(target.searchParams.entries()))) {
+        return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Некорректный идентификатор для поиска' })
+        }
+    }
+
     try {
+        const rate = await consumeRateLimit('proxy.alloha', ipHash(event), 90, 300);
+        if (!rate.allowed) {
+            console.warn('SECURITY_EVENT|alloha_proxy_rate_limited');
+            await recordSecurityEvent(event, {
+                eventType: 'api.alloha_proxy_rate_limited',
+                severity: 'medium',
+                source: 'netlify',
+                targetType: 'proxy',
+                targetId: 'alloha'
+            }).catch(() => {});
+            return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
+        }
         const res = await fetch(target.toString(), { method: 'GET' });
         const text = await res.text();
+        if (Buffer.byteLength(text, 'utf8') > 2 * 1024 * 1024) {
+            return { statusCode: 502, headers, body: JSON.stringify({ error: 'Upstream response too large' }) };
+        }
         return {
             statusCode: res.status,
             headers,
             body: text || '{}'
         };
     } catch (e) {
-        console.error('[alloha-proxy]', e);
+        console.error('[alloha-proxy]', safeText(e?.message, 200));
         return {
             statusCode: 502,
             headers,

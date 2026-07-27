@@ -27,15 +27,18 @@
     }
 
     async function trackPageView() {
-        if (!window.supabaseClient) return;
+        if (window.__reminkoSiteVisitPageviewSent) return;
         const now = Date.now();
         if (now - lastSent < DEDUP_MS) return;
         lastSent = now;
+        window.__reminkoSiteVisitPageviewSent = true;
 
-        let userId = null;
+        let accessToken = '';
         try {
-            const { data } = await window.supabaseClient.auth.getUser();
-            userId = data?.user?.id || null;
+            if (window.supabaseClient) {
+                const { data } = await window.supabaseClient.auth.getSession();
+                accessToken = data?.session?.access_token || '';
+            }
         } catch (_) {}
 
         const row = {
@@ -43,15 +46,21 @@
             path: path || '/',
             page_title: document.title || '',
             referrer: document.referrer ? String(document.referrer).slice(0, 512) : null,
-            event_kind: 'pageview',
-            user_id: userId,
-            user_agent: navigator.userAgent ? String(navigator.userAgent).slice(0, 512) : null,
+            event_kind: 'pageview'
         };
 
         try {
-            await window.supabaseClient.from('site_visit_events').insert(row);
+            const headers = { 'Content-Type': 'application/json' };
+            if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+            await fetch('/.netlify/functions/site-visit-ingest', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(row),
+                keepalive: true,
+                credentials: 'omit'
+            });
         } catch (_) {
-            /* таблица/RPC может отсутствовать */
+            /* аналитика не должна мешать странице */
         }
     }
 

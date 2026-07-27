@@ -159,8 +159,11 @@ class FriendsService {
                 return { success: false, message: 'Не удалось отправить заявку' };
             }
 
-            const { data: senderProfile } = await supabaseClient
-                .from('profiles').select('username').eq('id', userId).maybeSingle();
+            const senderProfiles =
+                typeof window.reminkoFetchProfilesIn === 'function'
+                    ? await window.reminkoFetchProfilesIn(supabaseClient, [userId])
+                    : [];
+            const senderProfile = senderProfiles[0] || null;
             const senderName = senderProfile?.username || 'Кто-то';
             await this.sendNotificationWithLink(
                 friendId, 'friend_request',
@@ -276,24 +279,24 @@ class FriendsService {
         if (!supabaseClient || !query || query.length < 2) return [];
 
         try {
-            let queryBuilder = supabaseClient
-                .from('profiles')
-                .select('id, username, avatar, last_online, is_site_creator')
-                .ilike('username', `%${query}%`)
-                .limit(20);
+            let lastError = null;
+            for (const source of ['profile_directory', 'profiles']) {
+                let queryBuilder = supabaseClient
+                    .from(source)
+                    .select('id, username, avatar, last_online, is_site_creator')
+                    .ilike('username', `%${query}%`)
+                    .limit(20);
 
-            if (excludeUserId) {
-                queryBuilder = queryBuilder.neq('id', excludeUserId);
+                if (excludeUserId) {
+                    queryBuilder = queryBuilder.neq('id', excludeUserId);
+                }
+
+                const { data, error } = await queryBuilder;
+                if (!error) return data || [];
+                lastError = error;
             }
-
-            const { data, error } = await queryBuilder;
-
-            if (error) {
-                console.error('Ошибка поиска пользователей:', error);
-                return [];
-            }
-
-            return data || [];
+            console.error('Ошибка поиска пользователей:', lastError);
+            return [];
         } catch (error) {
             console.error('Ошибка поиска пользователей:', error);
             return [];
@@ -378,8 +381,11 @@ class FriendsService {
         }
 
         try {
-            const { data: senderProfile } = await supabaseClient
-                .from('profiles').select('username').eq('id', userId).maybeSingle();
+            const senderProfiles =
+                typeof window.reminkoFetchProfilesIn === 'function'
+                    ? await window.reminkoFetchProfilesIn(supabaseClient, [userId])
+                    : [];
+            const senderProfile = senderProfiles[0] || null;
             const senderName = senderProfile?.username || 'Друг';
             const title = '🎬 Приглашение смотреть вместе';
             const message = animeTitle 

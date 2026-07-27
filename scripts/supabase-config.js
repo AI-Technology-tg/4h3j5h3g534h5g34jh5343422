@@ -527,9 +527,37 @@ if (!window.__reminkoMaintNavClickBound) {
         }
     }
 
+    async function sendVisitPayload(payload) {
+        let accessToken = '';
+        try {
+            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+                const {
+                    data: { session }
+                } = await supabaseClient.auth.getSession();
+                accessToken = session?.access_token || '';
+            }
+        } catch (_) {
+            /* anonymous event */
+        }
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+        try {
+            await fetch('/.netlify/functions/site-visit-ingest', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload),
+                keepalive: true,
+                credentials: 'omit'
+            });
+        } catch (_) {
+            /* аналитика не должна мешать странице */
+        }
+    }
+
     async function sendPageView() {
         if (skipPage()) return;
-        if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
+        if (window.__reminkoSiteVisitPageviewSent) return;
         const path = String(window.location.pathname || '') + String(window.location.search || '');
         if (!path || path.length > 2048) return;
 
@@ -545,40 +573,18 @@ if (!window.__reminkoMaintNavClickBound) {
             /* ignore */
         }
 
-        let user_id = null;
-        try {
-            const {
-                data: { session }
-            } = await supabaseClient.auth.getSession();
-            user_id = session && session.user ? session.user.id : null;
-        } catch (_) {
-            /* ignore */
-        }
-
-        let ua = '';
-        try {
-            ua = String(navigator.userAgent || '').slice(0, 400);
-        } catch (_) {
-            /* ignore */
-        }
-
+        window.__reminkoSiteVisitPageviewSent = true;
         const payload = {
             visitor_id: getVisitorId(),
-            user_id,
             path: path.slice(0, 2048),
             page_title: String(document.title || '').slice(0, 300) || null,
             referrer: String(document.referrer || '').slice(0, 1000) || null,
-            user_agent: ua || null,
             event_kind: 'pageview',
             event_label: null,
             meta: null
         };
 
-        try {
-            await supabaseClient.from('site_visit_events').insert(payload);
-        } catch (_) {
-            /* ignore */
-        }
+        await sendVisitPayload(payload);
     }
 
     /**
@@ -586,64 +592,32 @@ if (!window.__reminkoMaintNavClickBound) {
      */
     window.reminkoTrackSiteEvent = async function reminkoTrackSiteEvent(label, meta) {
         if (skipPage()) return;
-        if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
         const path = String(window.location.pathname || '') + String(window.location.search || '');
-        let user_id = null;
-        try {
-            const {
-                data: { session }
-            } = await supabaseClient.auth.getSession();
-            user_id = session && session.user ? session.user.id : null;
-        } catch (_) {
-            /* ignore */
-        }
         const payload = {
             visitor_id: getVisitorId(),
-            user_id,
             path: path.slice(0, 2048),
             page_title: String(document.title || '').slice(0, 300) || null,
             referrer: null,
-            user_agent: String(navigator.userAgent || '').slice(0, 400) || null,
             event_kind: 'action',
             event_label: label ? String(label).slice(0, 200) : null,
             meta: meta && typeof meta === 'object' ? meta : null
         };
-        try {
-            await supabaseClient.from('site_visit_events').insert(payload);
-        } catch (_) {
-            /* ignore */
-        }
+        await sendVisitPayload(payload);
     };
 
     async function sendHeartbeat() {
         if (skipPage()) return;
-        if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
         const path = String(window.location.pathname || '') + String(window.location.search || '');
-        let user_id = null;
-        try {
-            const {
-                data: { session }
-            } = await supabaseClient.auth.getSession();
-            user_id = session && session.user ? session.user.id : null;
-        } catch (_) {
-            /* ignore */
-        }
         const payload = {
             visitor_id: getVisitorId(),
-            user_id,
             path: path.slice(0, 2048),
             page_title: String(document.title || '').slice(0, 300) || null,
             referrer: null,
-            user_agent: String(navigator.userAgent || '').slice(0, 400) || null,
             event_kind: 'action',
             event_label: 'heartbeat',
             meta: { ts: Date.now() }
         };
-        try {
-            await supabaseClient.from('site_visit_events').insert(payload);
-        } catch (_) {
-            /* ignore */
-        }
+        await sendVisitPayload(payload);
     }
 
     window.reminkoSendSiteHeartbeat = sendHeartbeat;

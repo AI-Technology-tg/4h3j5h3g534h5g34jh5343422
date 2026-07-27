@@ -30,6 +30,30 @@ class WatchTogetherService {
         this._roomActivityFallback = false;
     }
 
+    async _fetchPublicProfilesMap(userIds) {
+        const ids = [...new Set((userIds || []).filter(Boolean))];
+        const map = {};
+        if (!ids.length || !supabaseClient) return map;
+
+        let rows = [];
+        if (typeof window.reminkoFetchProfilesIn === 'function') {
+            rows = await window.reminkoFetchProfilesIn(supabaseClient, ids);
+        } else {
+            for (const source of ['profile_directory', 'profiles']) {
+                const result = await supabaseClient
+                    .from(source)
+                    .select('id, username, avatar')
+                    .in('id', ids);
+                if (!result.error) {
+                    rows = result.data || [];
+                    break;
+                }
+            }
+        }
+        for (const row of rows || []) map[row.id] = row;
+        return map;
+    }
+
     // Проверить VIP подписку
     async checkVIPSubscription(userId) {
         if (!userId || !supabaseClient) return false;
@@ -141,69 +165,36 @@ class WatchTogetherService {
         }
 
         try {
-            // Генерируем код сессии
-            const sessionCode = this.generateSessionCode();
-
-            const now = new Date().toISOString();
-            const sessionData = {
-                host_id: userId,
-                session_code: sessionCode,
-                type: type,
-                is_active: true,
-                is_playing: false,
-                playback_time: 0,
-                max_participants: 4,
-                last_room_activity_at: now,
-                updated_at: now
-            };
-
-            if (type === 'anime' && animeId) {
-                sessionData.anime_id = animeId;
-                sessionData.current_episode = 1;
-            } else if (type === 'manga' && mangaId) {
-                sessionData.manga_id = mangaId;
-                sessionData.current_chapter = 1;
-            }
-
-            let { data, error } = await supabaseClient
-                .from('watch_together_sessions')
-                .insert(sessionData)
-                .select()
-                .single();
-
-            if (error && (error.message || '').toLowerCase().includes('last_room_activity')) {
-                this._roomActivityFallback = true;
-                const { last_room_activity_at, updated_at, ...rest } = sessionData;
-                const retry = await supabaseClient.from('watch_together_sessions').insert(rest).select().single();
-                data = retry.data;
-                error = retry.error;
-            }
+            const { data: rpcData, error } = await supabaseClient.rpc('wt_create_session', {
+                p_type: type,
+                p_anime_id: type === 'anime' ? animeId : null,
+                p_manga_id: type === 'manga' ? mangaId : null
+            });
+            const data = Array.isArray(rpcData) ? rpcData[0] : rpcData;
 
             if (error) {
                 console.error('Ошибка создания сессии:', error);
+                const message = String(error.message || '');
+                if (/vip_required/i.test(message)) {
+                    return { success: false, message: 'Для создания комнаты нужна активная VIP-подписка' };
+                }
+                if (/rate_limited/i.test(message)) {
+                    return { success: false, message: 'Слишком много комнат. Попробуйте позже.' };
+                }
                 return { success: false, message: 'Не удалось создать сессию' };
+            }
+            if (!data?.id) {
+                return { success: false, message: 'Сервер не вернул созданную комнату' };
             }
 
             this.currentSession = data;
             this.isHost = true;
 
-            // Добавляем хоста как участника с VIP (нужно для RLS чата и списка участников)
-            const { error: hostPartErr } = await supabaseClient
-                .from('watch_together_participants')
-                .insert({
-                    session_id: data.id,
-                    user_id: userId,
-                    has_vip: true
-                });
-            if (hostPartErr) {
-                console.error('[WT] Не удалось записать хоста в участники:', hostPartErr);
-            }
-
             // Начинаем синхронизацию
             this.startSync(userId);
             this.startChatPolling();
 
-            return { success: true, session: data, code: sessionCode };
+            return { success: true, session: data, code: data.session_code };
         } catch (error) {
             console.error('Ошибка создания сессии:', error);
             return { success: false, message: 'Ошибка создания сессии' };
@@ -215,36 +206,20 @@ class WatchTogetherService {
         if (!userId || !sessionId || !supabaseClient) return { success: false, message: 'Ошибка данных' };
 
         try {
-            await this._closeIdleSessionViaRpc(sessionId);
-            const { data: session, error: sessionError } = await supabaseClient
-                .from('watch_together_sessions')
-                .select('*')
-                .eq('id', sessionId)
-                .eq('is_active', true)
-                .maybeSingle();
-
-            if (sessionError || !session) {
-                return { success: false, message: 'Комната не найдена или уже закрыта' };
-            }
-
-            const canJoinResult = await this.canJoinSession(userId, session.id);
-            if (!canJoinResult.canJoin) {
-                return { success: false, message: canJoinResult.reason };
-            }
-
-            const hasVIP = await this.checkVIPSubscription(userId);
-
-            const { error: joinError } = await supabaseClient
-                .from('watch_together_participants')
-                .insert({
-                    session_id: session.id,
-                    user_id: userId,
-                    has_vip: hasVIP
-                });
-
-            if (joinError && joinError.code !== '23505') {
-                console.error('Ошибка присоединения:', joinError);
-                return { success: false, message: 'Не удалось присоединиться' };
+            const { data: rpcData, error } = await supabaseClient.rpc('wt_join_session', {
+                p_session_id: sessionId,
+                p_session_code: null
+            });
+            const session = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+            if (error || !session?.id) {
+                const message = String(error?.message || '');
+                if (/room_full/i.test(message)) {
+                    return { success: false, message: 'Сессия заполнена (максимум 4 участника)' };
+                }
+                if (/vip_required|guest_slot/i.test(message)) {
+                    return { success: false, message: 'Гостевое место занято — нужна VIP-подписка' };
+                }
+                return { success: false, message: 'Комната не найдена, закрыта или приглашение недействительно' };
             }
 
             this.currentSession = session;
@@ -265,65 +240,33 @@ class WatchTogetherService {
         if (!userId || !sessionCode || !supabaseClient) return { success: false };
 
         try {
-            await this.sweepIdleRooms();
-            const { data: session, error: sessionError } = await supabaseClient
-                .from('watch_together_sessions')
-                .select('*')
-                .eq('session_code', sessionCode.toUpperCase())
-                .eq('is_active', true)
-                .maybeSingle();
-
-            if (sessionError || !session) {
-                return { success: false, message: 'Сессия не найдена или уже завершена' };
-            }
-
-            if (session.id) {
-                const closed = await this._closeIdleSessionViaRpc(session.id);
-                if (closed) {
-                    return { success: false, message: 'Комната закрыта: 30 минут без активности' };
+            const { data: rpcData, error } = await supabaseClient.rpc('wt_join_session', {
+                p_session_id: null,
+                p_session_code: String(sessionCode).toUpperCase()
+            });
+            const session = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+            if (error || !session?.id) {
+                const message = String(error?.message || '');
+                if (/room_full/i.test(message)) {
+                    return { success: false, message: 'Сессия заполнена (максимум 4 участника)' };
                 }
-            }
-
-            const { data: liveSession } = await supabaseClient
-                .from('watch_together_sessions')
-                .select('*')
-                .eq('id', session.id)
-                .eq('is_active', true)
-                .maybeSingle();
-            if (!liveSession) {
+                if (/vip_required|guest_slot/i.test(message)) {
+                    return { success: false, message: 'Гостевое место занято — нужна VIP-подписка' };
+                }
+                if (/rate_limited/i.test(message)) {
+                    return { success: false, message: 'Слишком много попыток. Попробуйте через несколько минут.' };
+                }
                 return { success: false, message: 'Сессия не найдена или уже завершена' };
             }
 
-            // Проверяем, может ли присоединиться
-            const canJoinResult = await this.canJoinSession(userId, liveSession.id);
-            if (!canJoinResult.canJoin) {
-                return { success: false, message: canJoinResult.reason };
-            }
-
-            const hasVIP = await this.checkVIPSubscription(userId);
-
-            // Добавляем участника
-            const { error: joinError } = await supabaseClient
-                .from('watch_together_participants')
-                .insert({
-                    session_id: liveSession.id,
-                    user_id: userId,
-                    has_vip: hasVIP
-                });
-
-            if (joinError && joinError.code !== '23505') { // Игнорируем если уже участник
-                console.error('Ошибка присоединения:', joinError);
-                return { success: false, message: 'Не удалось присоединиться' };
-            }
-
-            this.currentSession = liveSession;
-            this.isHost = liveSession.host_id === userId;
+            this.currentSession = session;
+            this.isHost = session.host_id === userId;
 
             // Начинаем синхронизацию
             this.startSync(userId);
             this.startChatPolling();
 
-            return { success: true, session: liveSession };
+            return { success: true, session };
         } catch (error) {
             console.error('Ошибка присоединения:', error);
             return { success: false, message: 'Ошибка присоединения' };
@@ -1068,13 +1011,11 @@ class WatchTogetherService {
                 .eq('session_id', this.currentSession.id);
 
             if (!error && data) {
+                const profileMap = await this._fetchPublicProfilesMap(data.map((p) => p.user_id));
                 for (const p of data) {
-                    const { data: prof } = await supabaseClient
-                        .from('profiles')
-                        .select('id, username, avatar')
-                        .eq('id', p.user_id)
-                        .maybeSingle();
-                    p.profile = prof || { id: p.user_id, username: 'Аноним', avatar: null };
+                    p.profile =
+                        profileMap[p.user_id] ||
+                        { id: p.user_id, username: 'Аноним', avatar: null };
                 }
                 this.participants = data;
                 window.dispatchEvent(new CustomEvent('watchTogetherParticipantsUpdate', { 
@@ -1112,12 +1053,11 @@ class WatchTogetherService {
 
             let row = data;
             if (row) {
-                const { data: prof } = await supabaseClient
-                    .from('profiles')
-                    .select('id, username, avatar')
-                    .eq('id', userId)
-                    .maybeSingle();
-                row = { ...row, profile: prof || { id: userId, username: 'Вы', avatar: null } };
+                const profileMap = await this._fetchPublicProfilesMap([userId]);
+                row = {
+                    ...row,
+                    profile: profileMap[userId] || { id: userId, username: 'Вы', avatar: null }
+                };
                 const seen = this.chatMessages.some((m) => m.id === row.id);
                 if (!seen) {
                     this.chatMessages = [...this.chatMessages, row];
@@ -1152,15 +1092,11 @@ class WatchTogetherService {
             }
 
             const msgs = data || [];
-            const profileCache = {};
+            const profileCache = await this._fetchPublicProfilesMap(msgs.map((m) => m.user_id));
             for (const m of msgs) {
-                if (!profileCache[m.user_id]) {
-                    const { data: prof } = await supabaseClient
-                        .from('profiles').select('id, username, avatar')
-                        .eq('id', m.user_id).maybeSingle();
-                    profileCache[m.user_id] = prof || { id: m.user_id, username: 'Аноним', avatar: null };
-                }
-                m.profile = profileCache[m.user_id];
+                m.profile =
+                    profileCache[m.user_id] ||
+                    { id: m.user_id, username: 'Аноним', avatar: null };
             }
             this.chatMessages = msgs;
             if (msgs.length > 0) {
@@ -1212,18 +1148,24 @@ class WatchTogetherService {
                     const existingIds = new Set(this.chatMessages.map((m) => m.id));
                     const fresh = data.filter((m) => !existingIds.has(m.id));
                     if (!fresh.length) return;
+                    const missingIds = fresh
+                        .filter(
+                            (m) =>
+                                !this.chatMessages.some(
+                                    (c) => c.user_id === m.user_id && c.profile
+                                )
+                        )
+                        .map((m) => m.user_id);
+                    const profileMap = await this._fetchPublicProfilesMap(missingIds);
 
                     for (const m of fresh) {
                         const cached = this.chatMessages.find((c) => c.user_id === m.user_id && c.profile);
                         if (cached) {
                             m.profile = cached.profile;
                         } else {
-                            const { data: prof } = await supabaseClient
-                                .from('profiles')
-                                .select('id, username, avatar')
-                                .eq('id', m.user_id)
-                                .maybeSingle();
-                            m.profile = prof || { id: m.user_id, username: 'Аноним', avatar: null };
+                            m.profile =
+                                profileMap[m.user_id] ||
+                                { id: m.user_id, username: 'Аноним', avatar: null };
                         }
                     }
                     this.chatMessages = [...this.chatMessages, ...fresh];
@@ -1271,11 +1213,11 @@ class WatchTogetherService {
             }
 
             const result = data || [];
+            const profileMap = await this._fetchPublicProfilesMap(result.map((p) => p.user_id));
             for (const p of result) {
-                const { data: prof } = await supabaseClient
-                    .from('profiles').select('id, username, avatar')
-                    .eq('id', p.user_id).maybeSingle();
-                p.profile = prof || { id: p.user_id, username: 'Аноним', avatar: null };
+                p.profile =
+                    profileMap[p.user_id] ||
+                    { id: p.user_id, username: 'Аноним', avatar: null };
             }
             return result;
         } catch (error) {
@@ -1370,8 +1312,8 @@ class WatchTogetherService {
 
         try {
             const sessionId = this.currentSession.id;
-            const { data: profile } = await supabaseClient
-                .from('profiles').select('username').eq('id', userId).maybeSingle();
+            const profileMap = await this._fetchPublicProfilesMap([userId]);
+            const profile = profileMap[userId];
             const username = profile?.username || 'Кто-то';
 
             await supabaseClient.from('notifications').insert({
@@ -1427,11 +1369,8 @@ class WatchTogetherService {
             return { success: false, message: 'Это ваша комната' };
         }
         try {
-            const { data: profile } = await supabaseClient
-                .from('profiles')
-                .select('username')
-                .eq('id', requesterId)
-                .maybeSingle();
+            const profileMap = await this._fetchPublicProfilesMap([requesterId]);
+            const profile = profileMap[requesterId];
             const name = profile?.username || 'Кто-то';
             const { error } = await supabaseClient.from('notifications').insert({
                 user_id: hostId,

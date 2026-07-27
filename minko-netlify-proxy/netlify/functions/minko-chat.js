@@ -50,7 +50,14 @@ function isGpt5Family(model) {
     return /^gpt-5/i.test(String(model || '')) || /^o[0-9]/i.test(String(model || ''));
 }
 
-const { corsHeaders: buildCorsHeaders, clientIp } = require('./_cors');
+const { allowedOrigin, corsHeaders: buildCorsHeaders } = require('./_cors');
+const {
+    consumeRateLimit,
+    getAuthenticatedUser,
+    ipHash,
+    recordSecurityEvent,
+    safeText
+} = require('./_security');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
@@ -1661,14 +1668,39 @@ async function openaiAnswerWithSources(
 
 /** Каталог-факты vs кнопки из researchContext клиента */
 function splitClientResearch(clientResearch) {
-    const raw = String(clientResearch || '').trim();
+    const raw = String(clientResearch || '')
+        .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ')
+        .trim()
+        .slice(0, 7500);
     if (!raw) return { catalogFacts: '', watchButtons: '' };
-    const factMatch = raw.match(
-        /=== ФАКТЫ ИЗ КАТАЛОГА[\s\S]*?(?=\nАниме в каталоге Re-Minko|\n=== |\n\[\[watch:|$)/i
-    );
-    const catalogFacts = factMatch ? factMatch[0].trim() : /ФАКТЫ ИЗ КАТАЛОГА/i.test(raw) ? raw.slice(0, 3500) : '';
-    const watchButtons = raw;
-    return { catalogFacts, watchButtons };
+    const safeFactLines = [];
+    const watchButtons = [];
+    for (const lineRaw of raw.split(/\r?\n/).slice(0, 80)) {
+        const line = lineRaw.trim().slice(0, 600);
+        if (!line) continue;
+        if (
+            /^=== (?:ФАКТЫ ИЗ КАТАЛОГА|КАЛЕНДАРЬ Re-Minko)/i.test(line) ||
+            /^• «[^»\r\n]{1,180}»/u.test(line) ||
+            /^«[^»\r\n]{1,180}» \(mal \d+\):/u.test(line) ||
+            /^Манга Re-Minko \(справочно/u.test(line) ||
+            /^В каталоге Re-Minko по запросу совпадений не найдено\.$/u.test(line) ||
+            /^Пользователь спрашивает про сезон \d{1,3}/u.test(line)
+        ) {
+            safeFactLines.push(line);
+        }
+
+        const item = line.match(
+            /^-\s*id=([a-zA-Z0-9_-]{1,64})(?:\s+mal=\d+)?\s+«([^»\r\n]{1,120})»/
+        );
+        if (item) {
+            const label = item[2].replace(/[\[\]|]/g, '').trim().slice(0, 100);
+            if (label) watchButtons.push(`[[watch:${item[1]}|${label}]]`);
+        }
+    }
+    return {
+        catalogFacts: safeFactLines.join('\n').slice(0, 3500),
+        watchButtons: [...new Set(watchButtons)].slice(0, 8).join(' ')
+    };
 }
 
 function extractResponsesText(data) {
@@ -1776,6 +1808,7 @@ exports.handler = async (event) => {
     const headers = corsHeaders(event);
     if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
     if (event.httpMethod !== 'POST') return { statusCode: 404, headers, body: JSON.stringify({ error: 'Not found' }) };
+    if (!allowedOrigin(event)) return err(403, 'Origin not allowed', headers);
 
     const gate = await checkChatEnabledFromSupabase();
     if (!gate.ok) {
@@ -1801,26 +1834,49 @@ exports.handler = async (event) => {
         return err(400, 'Invalid JSON', headers);
     }
 
-    const messagesIn = Array.isArray(json.messages) ? json.messages.slice(-MAX_MESSAGES) : [];
-    messagesIn.forEach((m) => {
-        if (m && typeof m.content === 'string' && m.content.length > MAX_MESSAGE_CHARS) {
-            m.content = m.content.slice(0, MAX_MESSAGE_CHARS);
-        }
-    });
-    const clientResearch = String(json.researchContext || '').trim();
-    const sessionKey = String(json.sessionKey || '').trim().slice(0, 128);
-    const authUser = await verifySupabaseUser(event);
+    const rawMessages = Array.isArray(json.messages) ? json.messages.slice(-MAX_MESSAGES) : [];
+    const systemMsg = String(
+        (rawMessages.find((m) => m && m.role === 'system') || {}).content || ''
+    ).slice(0, MAX_MESSAGE_CHARS);
+    const messagesIn = rawMessages
+        .filter(
+            (m) =>
+                m &&
+                (m.role === 'user' || m.role === 'assistant') &&
+                typeof m.content === 'string'
+        )
+        .map((m) => ({
+            role: m.role,
+            content: m.content.slice(0, MAX_MESSAGE_CHARS)
+        }));
+    const clientResearch = String(json.researchContext || '').trim().slice(0, 7500);
+    const authUser = await getAuthenticatedUser(event);
     const isVip = authUser ? await resolveIsVip(authUser.id) : false;
-    const ip = clientIp(event);
-    const rateKey = `${ip}:${authUser?.id || sessionKey || 'anon'}`;
+    const rateKey = authUser?.id || ipHash(event);
     const rateLimit = isVip ? RATE_LIMIT_VIP : authUser ? RATE_LIMIT_USER : RATE_LIMIT_GUEST;
-    if (!checkRateLimit(rateKey, rateLimit)) {
+    let rateAllowed = false;
+    try {
+        const rate = await consumeRateLimit('api.minko_chat', rateKey, rateLimit, 60);
+        rateAllowed = rate.allowed;
+    } catch (error) {
+        console.warn('[minko-chat] distributed rate limit unavailable', safeText(error?.message, 120));
+        rateAllowed = checkRateLimit(rateKey, rateLimit);
+    }
+    if (!rateAllowed) {
+        console.warn('SECURITY_EVENT|minko_chat_rate_limited|actor=%s', authUser?.id || 'guest');
+        await recordSecurityEvent(event, {
+            eventType: 'api.minko_chat_rate_limited',
+            severity: 'medium',
+            source: 'netlify',
+            actorUserId: authUser?.id || null,
+            targetType: 'minko_chat',
+            details: { authenticated: Boolean(authUser), vip: isVip }
+        }).catch(() => {});
         return err(429, 'Слишком много сообщений. Подожди минуту и попробуй снова.', headers);
     }
     const nonSystem = messagesIn.filter((m) => m.role !== 'system');
     // Раньше пол брали regex'ом из system («о себе в женском роде») — всегда получалась «девушка».
     // Клиент передаёт userGender явно; fallback только по маркеру USER_GENDER=.
-    const systemMsg = (messagesIn.find((m) => m.role === 'system') || {}).content || '';
     const marker = systemMsg.match(/USER_GENDER\s*=\s*(female|male)/i);
     const userGender = normalizeUserGender(
         json.userGender || (marker && marker[1]) || 'male'

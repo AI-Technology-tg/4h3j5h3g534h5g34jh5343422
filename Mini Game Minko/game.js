@@ -9589,7 +9589,7 @@
                     window.parent.postMessage({
                         type: 'minkoGame',
                         action: 'wakeMinko', // = победа, разбудить Минко
-                    }, '*');
+                    }, window.location.origin === 'null' ? '*' : window.location.origin);
                     return;
                 }
             } catch (_) {}
@@ -9670,7 +9670,7 @@
                         type: 'minkoGame',
                         action: 'leaveCorridor',
                         sleepUntil,
-                    }, '*');
+                    }, window.location.origin === 'null' ? '*' : window.location.origin);
                     return;
                 }
             } catch (_) {}

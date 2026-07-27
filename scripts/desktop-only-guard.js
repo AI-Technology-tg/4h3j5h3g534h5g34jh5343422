@@ -6,7 +6,7 @@
     if (typeof window === 'undefined' || window.__reminkoAssetVersionGate) return;
     window.__reminkoAssetVersionGate = true;
 
-    var V = '20260724s';
+    var V = '20260727security2';
     window.REMINKO_ASSET_VERSION = V;
     var KEY = 'reminko_asset_v';
 
@@ -33,6 +33,17 @@
         /* ignore */
     }
 })();
+
+(function reminkoSecurityMonitorBoot(w, d) {
+    if (!w || w.__reminkoSecurityMonitorBoot) return;
+    w.__reminkoSecurityMonitorBoot = true;
+    var path = w.location.pathname || '';
+    var root = /\/(catalog|manga|anime)\//i.test(path) ? '../' : '';
+    var script = d.createElement('script');
+    script.src = root + 'scripts/security-monitor.js?v=20260727security2';
+    script.defer = true;
+    (d.head || d.documentElement).appendChild(script);
+})(window, document);
 
 /** ?????? AniList ? ???????? (???? ?? ?????? ?????????????? ????????). */
 (function reminkoBlockAniListFetch() {

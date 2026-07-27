@@ -444,7 +444,12 @@ class NavigationManager {
                         img.className = 'search-item-poster-img';
                         img.alt = '';
                         img.loading = 'lazy';
-                        img.src = url;
+                        const safeUrl =
+                            typeof window.reminkoSafeImageUrl === 'function'
+                                ? window.reminkoSafeImageUrl(url, '')
+                                : url;
+                        if (!safeUrl) continue;
+                        img.src = safeUrl;
                         img.onerror = () => img.remove();
                         slot.appendChild(img);
                     }
@@ -496,39 +501,92 @@ class NavigationManager {
                 return;
             }
             
-            dropdown.innerHTML = results.map(item => {
+            dropdown.replaceChildren();
+            for (const item of results) {
                 const isManga = item._isManga;
                 const is4k = item._isAnime4k || item.isAnime4k;
                 let href;
                 if (isManga) {
-                    href = `${basePath}manga/view.html?id=${item.id}`;
+                    href = `${basePath}manga/view.html?id=${encodeURIComponent(item.id || '')}`;
                 } else if (is4k) {
-                    href = `${basePath}anime/view-4k.html?id=${item.id}`;
+                    href = `${basePath}anime/view-4k.html?id=${encodeURIComponent(item.id || '')}`;
                 } else {
-                    href = `${basePath}anime/view.html?id=${item.id}`;
+                    href = `${basePath}anime/view.html?id=${encodeURIComponent(item.id || '')}`;
                 }
-                const gradient = typeof generateGradient === 'function' ? generateGradient(item.id) : 'linear-gradient(135deg, #6366f1, #8b5cf6)';
-                let badge = '';
-                if (isManga) badge = '<span class="search-item-badge badge-manga">Манга</span>';
-                else if (is4k) badge = '<span class="search-item-badge badge-4k">≈4K</span>';
-                else badge = '<span class="search-item-badge badge-anime">Каталог</span>';
-                const year = item.year || '';
+                const generatedGradient =
+                    typeof generateGradient === 'function' ? generateGradient(item.id) : '';
+                const gradient =
+                    typeof generatedGradient === 'string' &&
+                    /^linear-gradient\([^;{}]+\)$/i.test(generatedGradient)
+                        ? generatedGradient
+                        : 'linear-gradient(135deg, #6366f1, #8b5cf6)';
                 const cached = searchPosterFromCache(item, isManga);
-                const posterInner = cached
-                    ? `<img class="search-item-poster-img" src="${cached.replace(/"/g, '&quot;')}" alt="" loading="lazy">`
-                    : (item.posterUrl ? `<img class="search-item-poster-img" src="${String(item.posterUrl).replace(/"/g, '&quot;')}" alt="" loading="lazy">` : '');
-                return `<a href="${href}" class="search-dropdown-item">
-                    <div class="search-item-poster" style="background: ${gradient};">${posterInner}</div>
-                    <div class="search-item-info">
-                        <div class="search-item-title">${item.title}${badge}</div>
-                        <div class="search-item-meta">${year}${item.type ? ' · ' + item.type : ''}${item.genres ? ' · ' + item.genres.slice(0, 2).join(', ') : ''}</div>
-                    </div>
-                </a>`;
-            }).join('') +
-                (anime4kHits.length
-                    ? `<a href="${basePath}catalog/anime-4k.html?search=${encodeURIComponent(query)}" class="search-dropdown-footer">Все в каталоге ≈4K</a>`
-                    : '') +
-                `<a href="${basePath}catalog/anime.html?search=${encodeURIComponent(query)}" class="search-dropdown-footer">Все в каталоге аниме</a>`;
+
+                const link = document.createElement('a');
+                link.href = href;
+                link.className = 'search-dropdown-item';
+
+                const poster = document.createElement('div');
+                poster.className = 'search-item-poster';
+                poster.style.background = gradient;
+                const posterUrl = cached || item.posterUrl || '';
+                const safePoster =
+                    typeof window.reminkoSafeImageUrl === 'function'
+                        ? window.reminkoSafeImageUrl(posterUrl, '')
+                        : posterUrl;
+                if (safePoster) {
+                    const img = document.createElement('img');
+                    img.className = 'search-item-poster-img';
+                    img.src = safePoster;
+                    img.alt = '';
+                    img.loading = 'lazy';
+                    img.onerror = () => img.remove();
+                    poster.appendChild(img);
+                }
+
+                const info = document.createElement('div');
+                info.className = 'search-item-info';
+                const title = document.createElement('div');
+                title.className = 'search-item-title';
+                title.appendChild(document.createTextNode(String(item.title || 'Без названия')));
+                const badge = document.createElement('span');
+                badge.className = `search-item-badge ${
+                    isManga ? 'badge-manga' : is4k ? 'badge-4k' : 'badge-anime'
+                }`;
+                badge.textContent = isManga ? 'Манга' : is4k ? '≈4K' : 'Каталог';
+                title.appendChild(badge);
+
+                const meta = document.createElement('div');
+                meta.className = 'search-item-meta';
+                const metaParts = [];
+                if (item.year) metaParts.push(String(item.year));
+                if (item.type) metaParts.push(String(item.type));
+                if (Array.isArray(item.genres) && item.genres.length) {
+                    metaParts.push(item.genres.slice(0, 2).map(String).join(', '));
+                }
+                meta.textContent = metaParts.join(' · ');
+                info.append(title, meta);
+                link.append(poster, info);
+                dropdown.appendChild(link);
+            }
+
+            const appendFooter = (href, label) => {
+                const footer = document.createElement('a');
+                footer.href = href;
+                footer.className = 'search-dropdown-footer';
+                footer.textContent = label;
+                dropdown.appendChild(footer);
+            };
+            if (anime4kHits.length) {
+                appendFooter(
+                    `${basePath}catalog/anime-4k.html?search=${encodeURIComponent(query)}`,
+                    'Все в каталоге ≈4K'
+                );
+            }
+            appendFooter(
+                `${basePath}catalog/anime.html?search=${encodeURIComponent(query)}`,
+                'Все в каталоге аниме'
+            );
             dropdown.style.display = 'block';
             hydrateNavSearchPosters(dropdown, results);
         };
