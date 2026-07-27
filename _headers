@@ -53,3 +53,13 @@
 
 /data/remanga-manga-catalog.json
   X-Robots-Tag: noindex, nofollow, noarchive
+
+# Юридические: на сайте есть, в Google/Яндекс не индексируем
+/privacy-policy.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/terms-of-service.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/account-deletion.html
+  X-Robots-Tag: noindex, nofollow, noarchive
