@@ -1461,75 +1461,72 @@ window.reminkoProfileAvatarImageUrl = reminkoProfileAvatarImageUrl;
 window.reminkoProfileListAvatarSrc = reminkoProfileListAvatarSrc;
 
 /**
- * Колесо над вложенной панелью (фильтры, сайдбар, модалки…) не «пробрасывает» скролл на страницу
- * при достижении верха/низа списка.
+ * Вложенные панели (фильтры, сайдбар, модалки): не пробрасывать скролл на страницу.
+ * Без document-level wheel + passive:false (Violation в Chrome) — только CSS overscroll-behavior.
  */
 (function reminkoInitNestedPanelWheelTrap() {
     if (typeof document === 'undefined' || window.__reminkoNestedPanelWheelTrap) return;
     window.__reminkoNestedPanelWheelTrap = true;
-
-    function reminkoWheelDeltaY(e) {
-        let dy = e.deltaY;
-        if (e.deltaMode === 1) dy *= 16;
-        else if (e.deltaMode === 2) dy *= window.innerHeight || 800;
-        return dy;
-    }
 
     function reminkoIsRootScrollEl(el) {
         return el === document.body || el === document.documentElement;
     }
 
     function reminkoCanScrollVertically(el) {
+        if (!(el instanceof Element)) return false;
         const st = getComputedStyle(el);
         const oy = st.overflowY;
         const o = st.overflow;
         const allowed =
-            oy === 'auto' || oy === 'scroll' || oy === 'overlay' ||
-            o === 'auto' || o === 'scroll' || o === 'overlay';
+            oy === 'auto' ||
+            oy === 'scroll' ||
+            oy === 'overlay' ||
+            o === 'auto' ||
+            o === 'scroll' ||
+            o === 'overlay';
         return allowed && el.scrollHeight > el.clientHeight + 1;
     }
 
-    function reminkoFindNestedVerticalScroller(from) {
-        let el = from;
-        while (el && el instanceof Element) {
-            if (reminkoCanScrollVertically(el) && !reminkoIsRootScrollEl(el)) return el;
-            el = el.parentElement;
+    function reminkoStampContain(el) {
+        if (!el || el.dataset.reminkoOverscrollContain === '1') return;
+        el.dataset.reminkoOverscrollContain = '1';
+        try {
+            el.style.overscrollBehaviorY = 'contain';
+        } catch (_) {
+            /* ignore */
         }
-        return null;
     }
 
-    /** Горизонтальные ленты без вертикального скролла — не перехватываем. */
-    function reminkoSkipHorizontalOnlyScroller(scroller, e) {
-        const st = getComputedStyle(scroller);
-        const ox = st.overflowX;
-        const scrollsX =
-            (ox === 'auto' || ox === 'scroll' || ox === 'overlay') &&
-            scroller.scrollWidth > scroller.clientWidth + 1;
-        const scrollsY = scroller.scrollHeight > scroller.clientHeight + 1;
-        return scrollsX && !scrollsY && Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+    function reminkoStampFromTarget(from) {
+        let el = from instanceof Element ? from : from && from.parentElement;
+        let hops = 0;
+        while (el && hops < 12) {
+            if (reminkoCanScrollVertically(el) && !reminkoIsRootScrollEl(el)) {
+                reminkoStampContain(el);
+                return;
+            }
+            el = el.parentElement;
+            hops += 1;
+        }
     }
 
+    // Passive: не блокирует скролл и не даёт [Violation] wheel / main thread.
     document.addEventListener(
         'wheel',
         (e) => {
-            if (e.defaultPrevented || e.ctrlKey) return;
-
-            const scroller = reminkoFindNestedVerticalScroller(e.target);
-            if (!scroller || reminkoSkipHorizontalOnlyScroller(scroller, e)) return;
-
-            const dy = reminkoWheelDeltaY(e);
-            if (!dy) return;
-
-            e.preventDefault();
-            e.stopPropagation();
-
-            const maxTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
-            let next = scroller.scrollTop + dy;
-            if (next < 0) next = 0;
-            else if (next > maxTop) next = maxTop;
-            scroller.scrollTop = next;
+            if (e.ctrlKey) return;
+            reminkoStampFromTarget(e.target);
         },
-        { capture: true, passive: false }
+        { capture: true, passive: true }
+    );
+
+    document.addEventListener(
+        'touchstart',
+        (e) => {
+            const t = e.touches && e.touches[0] && e.touches[0].target;
+            if (t) reminkoStampFromTarget(t);
+        },
+        { capture: true, passive: true }
     );
 })();
 
