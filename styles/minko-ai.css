@@ -276,6 +276,11 @@
     box-sizing: border-box;
 }
 
+/* Пока не ясен онлайн/офлайн — не мигаем историей («ку» + ответ) */
+#chatMessages.minko-chat-boot-pending {
+    visibility: hidden !important;
+}
+
 .minko-ai-chat::-webkit-scrollbar {
     width: 8px;
 }

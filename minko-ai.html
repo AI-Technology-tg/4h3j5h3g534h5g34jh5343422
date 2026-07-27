@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <style id="reminko-critical-first-paint">
-      /* РџРµСЂРІС‹Р№ РєР°РґСЂ РґРѕ Р·Р°РіСЂСѓР·РєРё РІРЅРµС€РЅРёС… CSS: С‚С‘РјРЅС‹Р№ С„РѕРЅ Рё РїРѕР»РЅРѕСЌРєСЂР°РЅРЅС‹Р№ Р»РѕР°РґРµСЂ (Р°РЅС‚РёРјРёРіР°РЅРёРµ FOUC) */
+      /* Первый кадр до загрузки внешних CSS: тёмный фон и полноэкранный лоадер (антимигание FOUC) */
       html { background-color: #0b0b12; }
       body { margin: 0; background-color: #0b0b12; color: #e5e7eb; }
       #loadingScreen {
@@ -27,7 +27,7 @@
     </style>
     <script src="scripts/desktop-only-guard.js?v=20260727consist1"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <!-- Р”Рѕ Р·Р°РіСЂСѓР·РєРё РІРЅРµС€РЅРёС… CSS: С‚С‘РјРЅС‹Р№ С„РѕРЅ Рё Р±Р°Р·РѕРІР°СЏ СЃРµС‚РєР° (СѓР±РёСЂР°РµС‚ В«Р±РµР»СѓСЋ РєР°С€СѓВ» Рё РѕРіСЂРѕРјРЅС‹Рµ РєР°СЂС‚РёРЅРєРё/Live2D РїСЂРё F5) -->
+    <!-- До загрузки внешних CSS: тёмный фон и базовая сетка (убирает «белую кашу» и огромные картинки/Live2D при F5) -->
     <style id="minko-ai-critical">
         html {
             background: #0d0d14;
@@ -142,21 +142,21 @@
             box-shadow: none !important;
         }
     </style>
-    <title>РњРёРЅРєРѕ AI, Minko AI вЂ” РР-РїРѕРјРѕС‰РЅРёРє РїРѕ Р°РЅРёРјРµ | Re-Minko</title>
+    <title>Минко AI, Minko AI — ИИ-помощник по аниме | Re-Minko</title>
     <meta
         name="description"
-        content="РњРёРЅРєРѕ AI (Minko AI) РЅР° Re-Minko: С‡Р°С‚-Р±РѕС‚ РїСЂРѕ Р°РЅРёРјРµ, РїРѕРґР±РѕСЂ С‚Р°Р№С‚Р»РѕРІ, РѕС‚РІРµС‚С‹ Рё РїРѕРјРѕС‰СЊ РїРѕ СЃР°Р№С‚Сѓ re-minko-anime.com."
+        content="Минко AI (Minko AI) на Re-Minko: чат-бот про аниме, подбор тайтлов, ответы и помощь по сайту re-minko-anime.com."
     />
     <meta
         name="keywords"
-        content="РњРёРЅРєРѕ AI, Minko AI, РјРёРЅРєРѕ РёРё, РёРё Р°РЅРёРјРµ, С‡Р°С‚ Р±РѕС‚ Р°РЅРёРјРµ, РїРѕРјРѕС‰РЅРёРє РїРѕ Р°РЅРёРјРµ, СЃР°Р№С‚ Re-Minko"
+        content="Минко AI, Minko AI, минко ии, ии аниме, чат бот аниме, помощник по аниме, сайт Re-Minko"
     />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://re-minko-anime.com/minko-ai.html" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="РњРёРЅРєРѕ AI вЂ” РїРѕРјРѕС‰РЅРёРє РїРѕ Р°РЅРёРјРµ" />
+    <meta property="og:title" content="Минко AI — помощник по аниме" />
     <meta property="og:url" content="https://re-minko-anime.com/minko-ai.html" />
-    <meta property="og:description" content="РР-РїРѕРјРѕС‰РЅРёРє РњРёРЅРєРѕ AI: РІРѕРїСЂРѕСЃС‹ РїСЂРѕ Р°РЅРёРјРµ Рё СЃР°Р№С‚ Re-Minko." />
+    <meta property="og:description" content="ИИ-помощник Минко AI: вопросы про аниме и сайт Re-Minko." />
     <meta property="og:image" content="https://re-minko-anime.com/Fons/fonG.jpg" />
     <link rel="apple-touch-icon" sizes="180x180" href="Fons/vavo/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="Fons/vavo/favicon-32x32.png">
@@ -166,7 +166,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" href="styles/main.css?v=20260727consist1" as="style" />
     <link rel="preload" href="styles/sidebar-layout.css?v=20260727consist1" as="style" />
-    <link rel="preload" href="styles/minko-ai.css?v=20260727wires2" as="style" />
+    <link rel="preload" href="styles/minko-ai.css?v=20260727boot1" as="style" />
     <link
         href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap"
         rel="stylesheet"
@@ -181,7 +181,7 @@
     </noscript>
     <link rel="stylesheet" href="styles/main.css?v=20260727consist1">
     <link rel="stylesheet" href="styles/sidebar-layout.css?v=20260727consist1">
-    <link rel="stylesheet" href="styles/minko-ai.css?v=20260727wires2">
+    <link rel="stylesheet" href="styles/minko-ai.css?v=20260727boot1">
     <link rel="stylesheet" href="styles/loading.css">
     <link rel="stylesheet" href="styles/register-flow.css?v=20260726mobile1">
     <link rel="stylesheet" href="styles/notifications.css?v=20260726mobile1">
@@ -189,12 +189,12 @@
 <body class="minko-ai-page">
     <div class="loading-screen" id="loadingScreen">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Р—Р°РіСЂСѓР·РєР°<span class="loading-dots"></span></div>
+        <div class="loading-text">Загрузка<span class="loading-dots"></span></div>
     </div>
 
     <div class="main-layout">
         <main class="main-content-wrapper minko-ai-main">
-            <section class="minko-ai-wrap minko-chat-app" aria-label="Р§Р°С‚ СЃ Minko AI">
+            <section class="minko-ai-wrap minko-chat-app" aria-label="Чат с Minko AI">
                 <div class="minko-chat-panel">
                 <header class="minko-ai-head minko-chat-topbar">
                     <div class="minko-ai-head-avatar minko-ai-head-avatar--video">
@@ -206,13 +206,13 @@
                     <div class="minko-ai-head-text">
                         <h1 class="minko-ai-head-title">Minko AI</h1>
                         <div class="minko-ai-head-meta">
-                            <p class="minko-ai-head-status">РџСЂРѕРІРµСЂРєР° РїРѕРґРєР»СЋС‡РµРЅРёСЏ...</p>
+                            <p class="minko-ai-head-status">Проверка подключения...</p>
                         </div>
                     </div>
                 </header>
 
                 <div class="minko-chat-body">
-                    <div class="minko-ai-chat chat-messages" id="chatMessages" role="log" aria-live="polite" aria-relevant="additions">
+                    <div class="minko-ai-chat chat-messages minko-chat-boot-pending" id="chatMessages" role="log" aria-live="polite" aria-relevant="additions">
                         <div class="minko-msg message message-assistant">
                             <div class="minko-msg-avatar message-avatar minko-msg-avatar--video">
                                 <video class="minko-chat-ava" width="40" height="40" playsinline muted loop autoplay poster="Fons/AI-ICON.jpg?v=4" preload="metadata">
@@ -224,8 +224,8 @@
                                     <span class="minko-msg-name">Minko</span>
                                 </div>
                                 <div class="minko-msg-bubble message-bubble">
-                                    <p>*Р·РµРІР°РµС‚* РџСЂРёРІРµС‚вЂ¦ РЇ <strong>Minko</strong> вЂ” СЃРѕРЅРЅР°СЏ РїРѕРјРѕС‰РЅРёС†Р° РїРѕ Р°РЅРёРјРµ Рё СЃР°Р№С‚Сѓ рџґвњЁ</p>
-                                    <p>РЎРїСЂР°С€РёРІР°Р№ РїСЂРѕ С‚Р°Р№С‚Р»С‹ Рё Re-Minko вЂ” РѕС‚РІРµС‡Сѓ, РґР°Р¶Рµ РµСЃР»Рё РєР»СЋСЋ РЅРѕСЃРѕРј~ рџ’¤</p>
+                                    <p>*зевает* Привет… Я <strong>Minko</strong> — сонная помощница по аниме и сайту ???</p>
+                                    <p>Спрашивай про тайтлы и Re-Minko — отвечу, даже если клюю носом~ ??</p>
                                 </div>
                             </div>
                         </div>
@@ -233,17 +233,17 @@
                 </div>
 
                 <div id="minkoThrottleWarn" class="minko-throttle-warn" hidden aria-hidden="true">
-                    РЎР»РёС€РєРѕРј Р±С‹СЃС‚СЂРѕ вЂ” РїРѕРґРѕР¶РґРёС‚Рµ РїРµСЂРµРґ СЃР»РµРґСѓСЋС‰РёРј СЃРѕРѕР±С‰РµРЅРёРµРј
+                    Слишком быстро — подождите перед следующим сообщением
                 </div>
 
                 <footer class="minko-ai-foot minko-chat-composer">
                     <form class="minko-ai-form minko-chat-form" id="chatForm" onsubmit="event.preventDefault(); if(window.sendMessage) window.sendMessage(); return false;">
                         <div class="minko-chat-compose-row chat-input-area" id="chatInputArea">
                             <div class="minko-input-field-wrap">
-                                <textarea id="chatInput" class="minko-ai-input chat-input" rows="1" placeholder="РЎРѕРѕР±С‰РµРЅРёРµ..." autocomplete="off"></textarea>
+                                <textarea id="chatInput" class="minko-ai-input chat-input" rows="1" placeholder="Сообщение..." autocomplete="off"></textarea>
                                 <div id="minkoSleepInputTimer" class="minko-sleep-input-infield" hidden aria-live="polite"></div>
                             </div>
-                            <button type="submit" id="sendButton" class="minko-ai-send send-button" title="РћС‚РїСЂР°РІРёС‚СЊ" aria-label="РћС‚РїСЂР°РІРёС‚СЊ">
+                            <button type="submit" id="sendButton" class="minko-ai-send send-button" title="Отправить" aria-label="Отправить">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                     <line x1="22" y1="2" x2="11" y2="13"></line>
                                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -259,40 +259,40 @@
         </main>
     </div>
 
-    <!-- РџСЂРѕРєР»СЏС‚РёРµ: 3-Р№ СѓРґР°СЂ вЂ” С‚РѕР»СЊРєРѕ РґС‹Рј (1вЂ“2: РіР»РёС‚С‡ + Р·РІСѓРє, Р±РµР· РІРёРґРµРѕ) -->
+    <!-- Проклятие: 3-й удар — только дым (1–2: глитч + звук, без видео) -->
     <div id="minkoCurseOverlay" class="minko-curse-overlay hidden" aria-hidden="true">
         <div class="minko-curse-smoke minko-curse-smoke-left" aria-hidden="true"></div>
         <div class="minko-curse-smoke minko-curse-smoke-right" aria-hidden="true"></div>
     </div>
 
-    <!-- РњРѕРґР°Р»СЊРЅС‹Рµ РѕРєРЅР° РІС…РѕРґР°/СЂРµРіРёСЃС‚СЂР°С†РёРё (Р±РµР· РёР·РјРµРЅРµРЅРёР№ СЃС‚СЂСѓРєС‚СѓСЂС‹ РґР»СЏ auth.js) -->
+    <!-- Модальные окна входа/регистрации (без изменений структуры для auth.js) -->
     <div class="modal" id="loginModal">
         <div class="modal-content auth-modal">
             <span class="close" id="closeLoginModal">&times;</span>
-            <h2 class="modal-title">Р’С…РѕРґ РЅР° СЃР°Р№С‚</h2>
+            <h2 class="modal-title">Вход на сайт</h2>
             <div class="login-form">
                 <div class="form-group">
-                    <label for="loginEmail">РџРѕС‡С‚Р°:</label>
-                    <input type="email" id="loginEmail" placeholder="Р’РІРµРґРёС‚Рµ РІР°С€Сѓ РїРѕС‡С‚Сѓ" required autocomplete="email">
+                    <label for="loginEmail">Почта:</label>
+                    <input type="email" id="loginEmail" placeholder="Введите вашу почту" required autocomplete="email">
                 </div>
                 <div class="form-group">
-                    <label for="loginPassword">РџР°СЂРѕР»СЊ:</label>
+                    <label for="loginPassword">Пароль:</label>
                     <div class="password-input-wrapper">
-                        <input type="password" id="loginPassword" class="password-input" placeholder="Р’РІРµРґРёС‚Рµ РїР°СЂРѕР»СЊ" required autocomplete="current-password">
-                        <button type="button" id="toggleLoginPassword" class="password-toggle-btn" title="РџРѕРєР°Р·Р°С‚СЊ/СЃРєСЂС‹С‚СЊ РїР°СЂРѕР»СЊ" aria-label="РџРѕРєР°Р·Р°С‚СЊ/СЃРєСЂС‹С‚СЊ РїР°СЂРѕР»СЊ">
+                        <input type="password" id="loginPassword" class="password-input" placeholder="Введите пароль" required autocomplete="current-password">
+                        <button type="button" id="toggleLoginPassword" class="password-toggle-btn" title="Показать/скрыть пароль" aria-label="Показать/скрыть пароль">
                             <svg id="loginPasswordEyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                         </button>
                     </div>
                 </div>
                 <div class="form-options">
-                    <label class="checkbox-label"><input type="checkbox"> РќРµ Р·Р°РїРѕРјРёРЅР°С‚СЊ РјРµРЅСЏ</label>
-                    <a href="#" class="forgot-password">Р—Р°Р±С‹Р»Рё РїР°СЂРѕР»СЊ?</a>
+                    <label class="checkbox-label"><input type="checkbox"> Не запоминать меня</label>
+                    <a href="#" class="forgot-password">Забыли пароль?</a>
                 </div>
                 <div id="loginError" class="error-message"></div>
-                <button class="btn btn-primary btn-block" id="loginSubmit">Р’РѕР№С‚Рё РЅР° СЃР°Р№С‚</button>
-                <div class="divider"><span>РёР»Рё</span></div>
-                <button class="btn btn-google" id="googleLogin">Р’РѕР№С‚Рё С‡РµСЂРµР· Google</button>
-                <div class="register-link"><p>РќРµС‚ Р°РєРєР°СѓРЅС‚Р°? <a href="#" id="switchToRegister" data-maint-lock="register">Р РµРіРёСЃС‚СЂР°С†РёСЏ</a></p></div>
+                <button class="btn btn-primary btn-block" id="loginSubmit">Войти на сайт</button>
+                <div class="divider"><span>или</span></div>
+                <button class="btn btn-google" id="googleLogin">Войти через Google</button>
+                <div class="register-link"><p>Нет аккаунта? <a href="#" id="switchToRegister" data-maint-lock="register">Регистрация</a></p></div>
             </div>
         </div>
     </div>
@@ -300,45 +300,45 @@
     <div class="modal" id="registerModal">
         <div class="modal-content auth-modal">
             <span class="close" id="closeRegisterModal">&times;</span>
-            <h2 class="modal-title">Р РµРіРёСЃС‚СЂР°С†РёСЏ</h2>
+            <h2 class="modal-title">Регистрация</h2>
             <div class="login-form">
                 <div class="form-group">
-                    <label for="registerEmail">РџРѕС‡С‚Р°:</label>
-                    <input type="email" id="registerEmail" placeholder="Р’РІРµРґРёС‚Рµ РІР°С€Сѓ РїРѕС‡С‚Сѓ" required autocomplete="email">
+                    <label for="registerEmail">Почта:</label>
+                    <input type="email" id="registerEmail" placeholder="Введите вашу почту" required autocomplete="email">
                 </div>
                 <div class="form-group">
-                    <label for="registerPassword">РџР°СЂРѕР»СЊ:</label>
-                    <input type="password" id="registerPassword" placeholder="Р’РІРµРґРёС‚Рµ РїР°СЂРѕР»СЊ (РјРёРЅРёРјСѓРј 6 СЃРёРјРІРѕР»РѕРІ)" required autocomplete="new-password">
+                    <label for="registerPassword">Пароль:</label>
+                    <input type="password" id="registerPassword" placeholder="Введите пароль (минимум 6 символов)" required autocomplete="new-password">
                 </div>
                 <div class="form-group">
-                    <label for="registerUsername">РРјСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ:</label>
-                    <input type="text" id="registerUsername" placeholder="Р’РІРµРґРёС‚Рµ РёРјСЏ" required autocomplete="username">
+                    <label for="registerUsername">Имя пользователя:</label>
+                    <input type="text" id="registerUsername" placeholder="Введите имя" required autocomplete="username">
                 </div>
                 <div class="form-group">
-                    <span class="form-label">Р’Р°С€ РїРѕР»:</span>
+                    <span class="form-label">Ваш пол:</span>
                     <div class="gender-selection">
                         <label class="gender-label">
                             <input type="radio" name="registerGender" value="male" checked class="gender-radio">
-                            РњСѓР¶СЃРєРѕР№
+                            Мужской
                         </label>
                         <label class="gender-label">
                             <input type="radio" name="registerGender" value="female" class="gender-radio">
-                            Р–РµРЅСЃРєРёР№
+                            Женский
                         </label>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Р’С‹Р±РµСЂРёС‚Рµ Р°РІР°С‚Р°СЂ:</label>
+                    <label>Выберите аватар:</label>
                     <div class="avatar-selection-grid" id="avatarSelectionGrid"></div>
                 </div>
                 <div id="registerError" class="error-message"></div>
-                <button type="button" class="btn btn-primary btn-block" id="registerSubmit" data-maint-lock="register">Р—Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊСЃСЏ</button>
-                <div class="register-link"><p>РЈР¶Рµ РµСЃС‚СЊ Р°РєРєР°СѓРЅС‚? <a href="#" id="switchToLogin">Р’РѕР№С‚Рё</a></p></div>
+                <button type="button" class="btn btn-primary btn-block" id="registerSubmit" data-maint-lock="register">Зарегистрироваться</button>
+                <div class="register-link"><p>Уже есть аккаунт? <a href="#" id="switchToLogin">Войти</a></p></div>
             </div>
         </div>
     </div>
 
-    <!-- РљР°Рє РЅР° РіР»Р°РІРЅРѕР№: РёРЅР°С‡Рµ minkoChatProxy РѕСЃС‚Р°С‘С‚СЃСЏ localhost:3334 Рё РЅР° СЃР°Р№С‚Рµ Minko РІСЃРµРіРґР° В«РѕС„Р»Р°Р№РЅВ» -->
+    <!-- Как на главной: иначе minkoChatProxy остаётся localhost:3334 и на сайте Minko всегда «офлайн» -->
     <script src="config.local.js" onerror="window.__reminkoNoLocalConfig=true"></script>
     <script src="scripts/config.js?v=20260720h"></script>
     <script src="scripts/kodik-catalog-store.js?v=20260724t"></script>
@@ -365,7 +365,7 @@
     <script src="scripts/oauth-profile-setup.js?v=20260727security3"></script>
     <script src="scripts/navigation.js?v=20260727calLock1"></script>
     <script src="scripts/loading.js"></script>
-    <script src="scripts/minko-ai.js?v=20260727wires12"></script>
+    <script src="scripts/minko-ai.js?v=20260727boot1"></script>
     <script src="scripts/apply-navigation.js?v=20260727nav2"></script>
     <script src="scripts/site-visit-tracker.js"></script>
 </body>

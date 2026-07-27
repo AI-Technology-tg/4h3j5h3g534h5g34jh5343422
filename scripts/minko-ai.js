@@ -394,6 +394,32 @@ const MINKO_CHAT_OFFLINE_PLACEHOLDERS = [
 ];
 
 let _minkoOfflinePlaceholderTimer = null;
+const MINKO_OFFLINE_BOOT_KEY = 'minko_chat_last_offline_v1';
+let _minkoChatBootDone = false;
+
+function _minkoRememberOfflineBoot(offline) {
+    try {
+        sessionStorage.setItem(MINKO_OFFLINE_BOOT_KEY, offline ? '1' : '0');
+    } catch (_) {
+        /* ignore */
+    }
+}
+
+function _minkoWasOfflineBoot() {
+    try {
+        return sessionStorage.getItem(MINKO_OFFLINE_BOOT_KEY) === '1';
+    } catch (_) {
+        return false;
+    }
+}
+
+function _minkoFinishChatBoot() {
+    if (_minkoChatBootDone) return;
+    const el = document.getElementById('chatMessages');
+    if (!el) return;
+    _minkoChatBootDone = true;
+    el.classList.remove('minko-chat-boot-pending');
+}
 
 function _pickOfflinePlaceholder() {
     return _pickRandom(MINKO_CHAT_OFFLINE_PLACEHOLDERS);
@@ -1901,6 +1927,7 @@ function _syncSleepyOnlinePresentation() {
 
 function _applyChatServerOfflineUi() {
     _minkoSetOfflineFlags(true, undefined);
+    _minkoRememberOfflineBoot(true);
     _setMinkoHeadStatus(MINKO_CHAT_OFFLINE_STATUS);
     try {
         if (typeof window.reminkoMinkoMarkVisitedOffline === 'function') {
@@ -1975,6 +2002,7 @@ function _applyChatServerOfflineUi() {
 function _clearChatServerOfflineUi() {
     if (!_minkoChatOfflineUiActive) return;
     _minkoSetOfflineFlags(false, undefined);
+    _minkoRememberOfflineBoot(false);
     _stopOfflinePlaceholderCycle();
     document.getElementById('minkoOfflineServerRow')?.remove();
     const chatMessagesEl = document.getElementById('chatMessages');
@@ -2135,49 +2163,59 @@ async function _syncMinkoRemoteGate() {
 
 async function checkMinkoOnlineStatus() {
     const dotEl = _minkoPrimaryDot();
-    if (!_minkoAllStatusEls().length || !dotEl) return;
-
-    const myGen = ++_minkoOnlineCheckGen;
-
-    const gateOpen = await _syncMinkoRemoteGate();
-    if (myGen !== _minkoOnlineCheckGen) return;
-
-    if (!gateOpen) {
-        if (typeof window._updateMinkoMsgCounter === 'function') window._updateMinkoMsgCounter();
+    if (!_minkoAllStatusEls().length || !dotEl) {
+        if (document.getElementById('chatMessages')) _minkoFinishChatBoot();
         return;
     }
 
-    const probeMs = 4500;
+    const myGen = ++_minkoOnlineCheckGen;
 
-    const grokPromise = _shouldProbeLocalGrok()
-        ? _probeProxy(_grokHealthUrl(), probeMs)
-        : Promise.resolve(false);
+    try {
+        const gateOpen = await _syncMinkoRemoteGate();
+        if (myGen !== _minkoOnlineCheckGen) return;
 
-    const [chatOk, grokImgOk] = await Promise.all([
-        _probeProxy(getMinkoChatProxyUrl(), probeMs),
-        grokPromise
-    ]);
+        if (!gateOpen) {
+            if (typeof window._updateMinkoMsgCounter === 'function') window._updateMinkoMsgCounter();
+            return;
+        }
 
-    if (myGen !== _minkoOnlineCheckGen) return;
+        const probeMs = 4500;
 
-    freeOnline = chatOk;
-    grokOnline = grokImgOk;
+        const grokPromise = _shouldProbeLocalGrok()
+            ? _probeProxy(_grokHealthUrl(), probeMs)
+            : Promise.resolve(false);
 
-    if (chatOk) {
-        _minkoAllDotEls().forEach((d) => {
-            d.classList.add('online');
-            d.classList.remove('offline');
-        });
-        _clearChatServerOfflineUi();
-        _syncSleepyOnlinePresentation();
-        if (typeof window._updateMinkoMsgCounter === 'function') window._updateMinkoMsgCounter();
-    } else {
-        _minkoAllDotEls().forEach((d) => {
-            d.classList.add('offline');
-            d.classList.remove('online');
-        });
-        _applyChatServerOfflineUi();
-        if (typeof window._updateMinkoMsgCounter === 'function') window._updateMinkoMsgCounter();
+        const [chatOk, grokImgOk] = await Promise.all([
+            _probeProxy(getMinkoChatProxyUrl(), probeMs),
+            grokPromise
+        ]);
+
+        if (myGen !== _minkoOnlineCheckGen) return;
+
+        freeOnline = chatOk;
+        grokOnline = grokImgOk;
+
+        if (chatOk) {
+            _minkoAllDotEls().forEach((d) => {
+                d.classList.add('online');
+                d.classList.remove('offline');
+            });
+            _clearChatServerOfflineUi();
+            _syncSleepyOnlinePresentation();
+            if (typeof window._updateMinkoMsgCounter === 'function') window._updateMinkoMsgCounter();
+        } else {
+            _minkoAllDotEls().forEach((d) => {
+                d.classList.add('offline');
+                d.classList.remove('online');
+            });
+            _applyChatServerOfflineUi();
+            if (typeof window._updateMinkoMsgCounter === 'function') window._updateMinkoMsgCounter();
+        }
+    } finally {
+        // Только актуальная проверка открывает чат — иначе мигнёт история до офлайн-UI
+        if (myGen === _minkoOnlineCheckGen && document.getElementById('chatMessages')) {
+            _minkoFinishChatBoot();
+        }
     }
 }
 
@@ -2891,6 +2929,10 @@ document.addEventListener('DOMContentLoaded', () => {
         _renderSavedMessages();
         _syncMinkoAssistantReplyCountFromHistory();
     }
+    // Если в прошлый раз были «без проводов» — сразу офлайн-UI (под boot-pending, без мигания истории)
+    if (_minkoWasOfflineBoot()) {
+        _applyChatServerOfflineUi();
+    }
     _minkoForceChatToEnd('init');
     window.addEventListener('load', () => _minkoForceChatToEnd('load'), { once: true });
 
@@ -2903,8 +2945,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (welcomeMessage && welcomeMessage.textContent.includes('Привет! Я Minko AI')) {
                 welcomeMessage.remove();
             }
-        } else {
-            // Если не обижена - убеждаемся, что поле ввода доступно
+        } else if (!_minkoChatOfflineUiActive && !_minkoRemoteOffActive) {
+            // Если не обижена - убеждаемся, что поле ввода доступно (не в офлайне)
             if (chatInput) {
                 chatInput.disabled = false;
             }
