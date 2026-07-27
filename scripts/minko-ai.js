@@ -352,7 +352,7 @@ function _hideSleepyHeaderBadge() {
     if (badge) badge.hidden = true;
 }
 
-/** Текст «сервер сна выключен» — HTML и ответ в чате при отправке (дословно). */
+/** Офлайн-чат: реплика от Minko (не про «сервер» — пользовательский тон). */
 const MINKO_CHAT_SERVER_OFFLINE_PARAGRAPHS = [
     'Создатель дубина перегрыз провода и оставил меня без сети 💔',
     '*поправляет плюшевую подушку* Я схожу и ******* ему по *******  и попрошу меня снова включить~ Подожди чуток, ладно?'
@@ -362,8 +362,23 @@ const MINKO_CHAT_SERVER_OFFLINE_HTML = MINKO_CHAT_SERVER_OFFLINE_PARAGRAPHS.map(
 
 const MINKO_CHAT_SERVER_OFFLINE_MESSAGE = MINKO_CHAT_SERVER_OFFLINE_PARAGRAPHS.join('\n\n');
 
+const MINKO_CHAT_OFFLINE_STATUS = 'Сейчас без сети 💤';
+const MINKO_CHAT_OFFLINE_PLACEHOLDER = 'Сейчас без сети… подожди чуть-чуть~';
+
 let _minkoChatOfflineUiActive = false;
 let _minkoRemoteOffNoticeShown = false;
+
+/** Только пузырь ассистента — никогда не трогаем сообщения «Вы». */
+function _minkoAssistantBubbles() {
+    return document.querySelectorAll(
+        '#chatMessages .message-assistant .minko-msg-bubble.message-bubble, #chatMessages .message-assistant .message-bubble'
+    );
+}
+
+function _minkoPrimaryAssistantBubble() {
+    const list = _minkoAssistantBubbles();
+    return list.length ? list[0] : null;
+}
 
 /** Убирает из ответа модели упоминания внешних ИИ-брендов (модель иногда игнорирует системный промпт). */
 function _minkoRedactTechBrandsInReply(text) {
@@ -1758,10 +1773,12 @@ function _showDeepSleepOverlay(remainMs, opts) {
 let _greetingUpdated = false;
 
 function _applyWelcomeBubbleSleepyState() {
-    const bubble = document.querySelector('.minko-ai-chat .minko-msg-bubble.message-bubble');
+    if (_minkoChatOfflineUiActive || _minkoRemoteOffActive) return;
+    const bubble = _minkoPrimaryAssistantBubble();
     if (!bubble) return;
     // Не затираем офлайн-бэкап и уже начатый чат с историей
     if (bubble.dataset.reminkoOfflineBackup) return;
+    if (bubble.closest('#minkoOfflineServerRow')) return;
     const chatMessagesEl = document.getElementById('chatMessages');
     const msgs = chatMessagesEl ? chatMessagesEl.querySelectorAll('.minko-msg') : [];
     if (msgs.length > 1) return;
@@ -1770,15 +1787,16 @@ function _applyWelcomeBubbleSleepyState() {
 
 function _updateGreeting() {
     if (_greetingUpdated) return;
-    const bubble = document.querySelector('.minko-msg-bubble.message-bubble');
+    if (_minkoChatOfflineUiActive || _minkoRemoteOffActive) return;
+    const bubble = _minkoPrimaryAssistantBubble();
     if (!bubble) return;
     _greetingUpdated = true;
     _applyWelcomeBubbleSleepyState();
 }
 
-/** Сонная Minko — единственный режим при работающем сервере чата */
+/** Сонная Minko — единственный режим при работающем чате */
 function _syncSleepyOnlinePresentation() {
-    if (!freeOnline) return;
+    if (!freeOnline || _minkoChatOfflineUiActive || _minkoRemoteOffActive) return;
     if (_syncHeaderSleepPresentation()) {
         _updateDeepSleepInputUi(_isMinkoDeepAsleep());
         return;
@@ -1804,33 +1822,48 @@ function _syncSleepyOnlinePresentation() {
 
 function _applyChatServerOfflineUi() {
     _minkoChatOfflineUiActive = true;
-    _setMinkoHeadStatus(
-        grokOnline ? 'Чат сна недоступен (сервер выключен) 💤' : 'Сервер сна не отвечает 💤'
-    );
+    _setMinkoHeadStatus(MINKO_CHAT_OFFLINE_STATUS);
     const chatMessagesEl = document.getElementById('chatMessages');
-    let bubble = document.querySelector('.minko-ai-chat .minko-msg-bubble.message-bubble');
+    if (!chatMessagesEl) return;
 
-    if (bubble) {
-        if (!bubble.dataset.reminkoOfflineBackup) {
-            bubble.dataset.reminkoOfflineBackup = bubble.innerHTML;
+    // Убрать офлайн-текст, если раньше ошибочно попал в пузырь «Вы»
+    chatMessagesEl.querySelectorAll('.message-user .message-bubble[data-reminko-offline-backup]').forEach((b) => {
+        if (b.dataset.reminkoOfflineBackup) {
+            b.innerHTML = b.dataset.reminkoOfflineBackup;
+            delete b.dataset.reminkoOfflineBackup;
         }
-        bubble.innerHTML = MINKO_CHAT_SERVER_OFFLINE_HTML;
-    } else if (chatMessagesEl) {
-        let row = document.getElementById('minkoOfflineServerRow');
-        if (!row) {
-            row = document.createElement('div');
-            row.id = 'minkoOfflineServerRow';
-            row.className = 'minko-msg message message-assistant';
-            row.innerHTML =
+    });
+
+    const hasConversation =
+        chatMessagesEl.querySelectorAll('.minko-msg.message-user, .message-user').length > 0 ||
+        chatMessagesEl.querySelectorAll('.message-assistant').length > 1;
+
+    let offlineRow = document.getElementById('minkoOfflineServerRow');
+    const welcomeBubble = !hasConversation ? _minkoPrimaryAssistantBubble() : null;
+
+    if (welcomeBubble && !welcomeBubble.closest('#minkoOfflineServerRow')) {
+        if (!welcomeBubble.dataset.reminkoOfflineBackup) {
+            welcomeBubble.dataset.reminkoOfflineBackup = welcomeBubble.innerHTML;
+        }
+        welcomeBubble.innerHTML = MINKO_CHAT_SERVER_OFFLINE_HTML;
+        offlineRow?.remove();
+    } else {
+        if (!offlineRow) {
+            offlineRow = document.createElement('div');
+            offlineRow.id = 'minkoOfflineServerRow';
+            offlineRow.className = 'minko-msg message message-assistant';
+            offlineRow.setAttribute('data-minko-offline-notice', '1');
+            offlineRow.innerHTML =
                 '<div class="minko-msg-avatar message-avatar minko-msg-avatar--video">' +
                 _minkoAvatarHtml('36') +
                 '</div>' +
                 '<div class="minko-msg-body message-content">' +
+                '<div class="minko-msg-meta"><span class="minko-msg-name">Minko</span></div>' +
                 '<div class="minko-msg-bubble message-bubble"></div>' +
                 '</div>';
-            chatMessagesEl.insertBefore(row, chatMessagesEl.firstChild);
+            chatMessagesEl.insertBefore(offlineRow, chatMessagesEl.firstChild);
         }
-        const innerBubble = row.querySelector('.minko-msg-bubble');
+        const innerBubble = offlineRow.querySelector('.minko-msg-bubble');
         if (innerBubble) innerBubble.innerHTML = MINKO_CHAT_SERVER_OFFLINE_HTML;
     }
 
@@ -1838,7 +1871,7 @@ function _applyChatServerOfflineUi() {
     const sendButton = document.getElementById('sendButton');
     if (chatInput) {
         chatInput.disabled = true;
-        chatInput.placeholder = 'Сервер сна выключен — я без сети…';
+        chatInput.placeholder = MINKO_CHAT_OFFLINE_PLACEHOLDER;
     }
     if (sendButton) sendButton.disabled = true;
 
@@ -1857,11 +1890,12 @@ function _clearChatServerOfflineUi() {
     if (!_minkoChatOfflineUiActive) return;
     _minkoChatOfflineUiActive = false;
     document.getElementById('minkoOfflineServerRow')?.remove();
-    const bubble = document.querySelector('.minko-ai-chat .minko-msg-bubble.message-bubble');
-    if (bubble && bubble.dataset.reminkoOfflineBackup) {
-        bubble.innerHTML = bubble.dataset.reminkoOfflineBackup;
-        delete bubble.dataset.reminkoOfflineBackup;
-    }
+    _minkoAssistantBubbles().forEach((bubble) => {
+        if (bubble.dataset.reminkoOfflineBackup) {
+            bubble.innerHTML = bubble.dataset.reminkoOfflineBackup;
+            delete bubble.dataset.reminkoOfflineBackup;
+        }
+    });
     const chatInput = document.getElementById('chatInput');
     const sendButton = document.getElementById('sendButton');
     if (chatInput) {
@@ -3564,7 +3598,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (error.message?.includes('Failed to fetch') || error.message?.includes('fetch') || error.message?.includes('ERR_CONNECTION')) {
                 errorMsg =
-                    'Ммм... *зевает* ...не достучалась до сервера сна — наверняка опять провода… 😴 Попробуй чуть позже~';
+                    'Ммм... *зевает* ...опять без сети — наверняка Дубина провода погрыз… 😴 Попробуй чуть позже~';
             } else {
                 errorMsg = 'Ой... что-то пошло не так (´;ω;`) Попробуй ещё раз~';
             }
