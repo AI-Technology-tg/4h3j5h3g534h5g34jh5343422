@@ -1,12 +1,74 @@
+(function reminkoQuietProductionConsole() {
+    if (typeof window === 'undefined' || window.__reminkoQuietConsole) return;
+    window.__reminkoQuietConsole = true;
+
+    var host = '';
+    try {
+        host = String(window.location.hostname || '');
+    } catch (_) {
+        host = '';
+    }
+    var isDev =
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        (window.location.search || '').indexOf('debug=true') !== -1;
+    if (isDev) return;
+
+    var NOISE =
+        /IN_PAGE_CHANNEL|in-page-channel|EthereumAdapter|SolanaAdapter|CosmosAdapter|TonAdapter|TronAdapter|BitcoinAdapter|BinanceWeb3|ProvidersManager|ExtendedBroadcastMessage|inpage\.js|chrome-extension:\/\//i;
+
+    function shouldDrop(args) {
+        try {
+            for (var i = 0; i < args.length; i++) {
+                var a = args[i];
+                if (a == null) continue;
+                var text =
+                    typeof a === 'string'
+                        ? a
+                        : a && a.message
+                          ? String(a.message)
+                          : a && a.stack
+                            ? String(a.stack)
+                            : String(a);
+                if (NOISE.test(text)) return true;
+            }
+        } catch (_) {
+            /* ignore */
+        }
+        return false;
+    }
+
+    var c = window.console;
+    if (!c) return;
+    var orig = {
+        log: c.log && c.log.bind(c),
+        info: c.info && c.info.bind(c),
+        debug: c.debug && c.debug.bind(c),
+        warn: c.warn && c.warn.bind(c),
+        error: c.error && c.error.bind(c)
+    };
+    c.log = function () {};
+    c.info = function () {};
+    c.debug = function () {};
+    c.warn = function () {
+        if (shouldDrop(arguments)) return;
+        /* production: hide routine warns; keep ?debug=true for full console */
+    };
+    c.error = function () {
+        if (shouldDrop(arguments)) return;
+        if (orig.error) orig.error.apply(c, arguments);
+    };
+})();
+
 /**
- * ????????? ??????? ???????? ??? ???? ????????? ? ????? ??????? (?900px).
- * REMINKO_ASSET_VERSION ? ??????? ??? ?????? ?????? (??. APP_CONFIG.assetVersion).
+ * Cache-buster / early boot helpers for Re-Minko.
+ * REMINKO_ASSET_VERSION — принудительный сброс клиентского кэша.
  */
 (function reminkoAssetVersionGate() {
     if (typeof window === 'undefined' || window.__reminkoAssetVersionGate) return;
     window.__reminkoAssetVersionGate = true;
 
-    var V = '20260727security2';
+    var V = '20260727console1';
     window.REMINKO_ASSET_VERSION = V;
     var KEY = 'reminko_asset_v';
 
@@ -40,7 +102,7 @@
     var path = w.location.pathname || '';
     var root = /\/(catalog|manga|anime)\//i.test(path) ? '../' : '';
     var script = d.createElement('script');
-    script.src = root + 'scripts/security-monitor.js?v=20260727security2';
+    script.src = root + 'scripts/security-monitor.js?v=20260727console1';
     script.defer = true;
     (d.head || d.documentElement).appendChild(script);
 })(window, document);

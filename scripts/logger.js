@@ -14,8 +14,9 @@ const logger = {
     },
     
     error: (...args) => {
-        // Ошибки всегда логируем
-        console.error(...args);
+        if (IS_DEV) {
+            console.error(...args);
+        }
     },
     
     warn: (...args) => {

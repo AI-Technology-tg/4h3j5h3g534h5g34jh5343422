@@ -317,9 +317,10 @@ const DirectMessagesService = {
         try {
             const { count, error } = await supabaseClient
                 .from('direct_messages')
-                .select('*', { count: 'exact', head: true })
+                .select('id', { count: 'exact' })
                 .eq('receiver_id', userId)
-                .eq('read', false);
+                .eq('read', false)
+                .limit(1);
 
             if (error) return 0;
             return typeof count === 'number' ? count : 0;
@@ -627,8 +628,9 @@ const DirectMessagesService = {
             if (error) return { ok: false, error: error.message };
             const { count } = await supabaseClient
                 .from('dm_group_members')
-                .select('*', { count: 'exact', head: true })
-                .eq('group_id', groupId);
+                .select('id', { count: 'exact' })
+                .eq('group_id', groupId)
+                .limit(1);
             if (!count) {
                 await supabaseClient.from('dm_groups').delete().eq('id', groupId);
             }
