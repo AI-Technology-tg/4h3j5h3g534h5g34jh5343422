@@ -1471,12 +1471,75 @@ const REMINKO_GENRE_CANON = {
     Магия: 'Фэнтези',
     Полиция: 'Детектив',
     Мелодрама: 'Драма',
-    Криминал: 'Организованная преступность',
-    Семейный: 'Детское'
+    Криминал: 'Детектив',
+    Семейный: 'Детское',
+    'Сёдзё-ай': 'Юри',
+    'Сёнен-ай': 'Яой'
 };
 
 /** Мусор/мета-теги — не показываем в фильтре жанров. */
-const REMINKO_GENRE_FILTER_SKIP = new Set(['Аниме', 'Мультфильм', 'Короткометражка', '']);
+const REMINKO_GENRE_FILTER_SKIP = new Set([
+    'Аниме',
+    'Мультфильм',
+    'Короткометражка',
+    'Образовательное',
+    'Удостоено наград',
+    ''
+]);
+
+/**
+ * Популярные жанры для UI-фильтра (остальное — шлак/микро-темы Kodik).
+ * На карточках аниме редкие жанры могут остаться, в пикере их нет.
+ */
+const REMINKO_GENRE_FILTER_ALLOW = new Set([
+    'Экшен',
+    'Комедия',
+    'Фэнтези',
+    'Приключения',
+    'Фантастика',
+    'Драма',
+    'Романтика',
+    'Сёнен',
+    'Сэйнэн',
+    'Сёдзё',
+    'Дзёсей',
+    'Школа',
+    'Сверхъестественное',
+    'Исторический',
+    'Тайна',
+    'Меха',
+    'Боевые искусства',
+    'Военное',
+    'Повседневность',
+    'Гарем',
+    'Исэкай',
+    'Музыка',
+    'Спорт',
+    'Триллер',
+    'Ужасы',
+    'Психологическое',
+    'Детектив',
+    'Вампиры',
+    'Реинкарнация',
+    'Гурман',
+    'Видеоигры',
+    'Гонки',
+    'Выживание',
+    'Махо-сёдзё',
+    'Космос',
+    'Мифология',
+    'Супер сила',
+    'Пародия',
+    'Городское фэнтези',
+    'Самураи',
+    'Путешествие во времени',
+    // 18+ — в пикере отдельно, когда разблокированы
+    'Этти',
+    'Хентай',
+    'Эротика',
+    'Яой',
+    'Юри'
+]);
 
 function reminkoCanonicalGenre(genre) {
     const g = String(genre || '').trim();
@@ -1500,15 +1563,17 @@ if (typeof window !== 'undefined') {
     window.reminkoCanonicalGenre = reminkoCanonicalGenre;
     window.reminkoGenresMatch = reminkoGenresMatch;
     window.reminkoAnimeHasGenre = reminkoAnimeHasGenre;
+    window.REMINKO_GENRE_FILTER_ALLOW = REMINKO_GENRE_FILTER_ALLOW;
 }
 
-// Получить все уникальные жанры (только реальный каталог Kodik + кастом, без Jikan-виртуалок)
+// Получить популярные жанры для фильтра (Kodik + кастом, без микро-тем)
 function getAllGenres() {
-    const genres = new Set();
+    const counts = new Map();
     const push = (genre) => {
         const c = reminkoCanonicalGenre(genre);
         if (!c || REMINKO_GENRE_FILTER_SKIP.has(c)) return;
-        genres.add(c);
+        if (!REMINKO_GENRE_FILTER_ALLOW.has(c)) return;
+        counts.set(c, (counts.get(c) || 0) + 1);
     };
 
     const kodik =
@@ -1531,7 +1596,11 @@ function getAllGenres() {
         }
     }
 
-    return Array.from(genres).sort((a, b) => a.localeCompare(b, 'ru'));
+    return Array.from(counts.keys()).sort((a, b) => {
+        const diff = (counts.get(b) || 0) - (counts.get(a) || 0);
+        if (diff !== 0) return diff;
+        return a.localeCompare(b, 'ru');
+    });
 }
 
 // Удаление дубликатов и объединение сезонов
