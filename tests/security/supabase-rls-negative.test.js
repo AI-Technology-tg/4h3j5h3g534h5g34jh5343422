@@ -106,6 +106,10 @@ describe('live Supabase anon negative permissions', () => {
 
     it('does not leak DM rows to anonymous selects', async () => {
         const dm = await rest('direct_messages?select=*&limit=5');
+        if ([401, 403].includes(dm.status)) {
+            assert.match(String(dm.json?.message || ''), /permission denied|row-level security/i);
+            return;
+        }
         assert.ok([200, 206].includes(dm.status), `unexpected status ${dm.status}`);
         assert.ok(Array.isArray(dm.json));
         assert.equal(dm.json.length, 0);

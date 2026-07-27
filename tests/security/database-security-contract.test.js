@@ -5,17 +5,10 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
-const pendingPath = path.join(
-    __dirname,
-    '..',
-    '..',
-    'sql',
-    'pending',
-    '20260727_security_observability_and_access_hardening.sql'
-);
-const sql = fs.readFileSync(pendingPath, 'utf8');
+const databasePath = path.join(__dirname, '..', '..', 'database.sql');
+const sql = fs.readFileSync(databasePath, 'utf8');
 
-describe('pending security SQL contract', () => {
+describe('database security contract', () => {
     it('creates observability tables with anon/authenticated revoke', () => {
         assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.security_events/);
         assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.security_rate_limits/);
@@ -54,5 +47,20 @@ describe('pending security SQL contract', () => {
         assert.ok((sql.match(/DROP POLICY IF EXISTS/g) || []).length >= 20);
         assert.match(sql, /CREATE TABLE IF NOT EXISTS/);
         assert.match(sql, /CREATE OR REPLACE FUNCTION/);
+    });
+
+    it('preserves security tables and hides trigger functions from RPC roles', () => {
+        assert.match(
+            sql,
+            /'security_events',\s*'security_rate_limits',\s*'site_visit_events'/
+        );
+        assert.match(
+            sql,
+            /REVOKE ALL ON FUNCTION public\.security_audit_sensitive_change\(\)\s+FROM PUBLIC,\s*anon,\s*authenticated/
+        );
+        assert.match(
+            sql,
+            /REVOKE ALL ON FUNCTION public\.protect_notification_write\(\)\s+FROM PUBLIC,\s*anon,\s*authenticated/
+        );
     });
 });
