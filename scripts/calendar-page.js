@@ -114,22 +114,48 @@
         if (typeof global.reminkoIsKidsCartoonCalendarRow === 'function') {
             if (global.reminkoIsKidsCartoonCalendarRow(row, meta)) return false;
         }
-        const t = Date.parse(row.next_at || row.nextAt);
-        return Number.isFinite(t) && t > Date.now();
+        if (rowHasFutureDate(row)) return true;
+        // Анонсы из каталога/Shikimori без даты премьеры — только вкладка «Анонсы»
+        return !!(row && row._fromExtraAnnounced && _activeTab === 'announced');
     }
 
     function filterRowsByTab(rows, tab) {
-        if (tab === 'all') return rows;
+        if (tab === 'all') {
+            // «Все» — только с реальной будущей датой (без TBA-анонсов)
+            return rows.filter(rowHasFutureDate);
+        }
         if (typeof global.reminkoSplitCalendarRows !== 'function') return rows;
-        const { airing, announced } = global.reminkoSplitCalendarRows(rows, _catalogByMal);
+        const dated = rows.filter(rowHasFutureDate);
+        const { airing, announced } = global.reminkoSplitCalendarRows(dated, _catalogByMal);
         if (tab === 'airing') return airing;
-        if (tab === 'announced') return announced;
+        if (tab === 'announced') {
+            const seen = new Set(
+                announced
+                    .map((r) => parseInt(r && r.mal_id, 10))
+                    .filter((n) => Number.isFinite(n) && n > 0)
+            );
+            const extras = [];
+            for (const row of rows) {
+                if (!row || !row._fromExtraAnnounced) continue;
+                const mal = parseInt(row.mal_id, 10);
+                if (!Number.isFinite(mal) || mal <= 0 || seen.has(mal)) continue;
+                seen.add(mal);
+                extras.push(row);
+            }
+            return [...announced, ...extras].sort((a, b) => {
+                const at = Date.parse(a.next_at || a.nextAt) || Infinity;
+                const bt = Date.parse(b.next_at || b.nextAt) || Infinity;
+                if (at !== bt) return at - bt;
+                return String(a.title_ru || '').localeCompare(String(b.title_ru || ''), 'ru');
+            });
+        }
         return rows;
     }
 
     function dayKeyFromIso(iso) {
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return '';
+        const t = Date.parse(iso);
+        if (!Number.isFinite(t)) return 'tba';
+        const d = new Date(t);
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
@@ -137,8 +163,9 @@
     }
 
     function formatDayHeading(iso) {
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return 'Без даты';
+        const t = Date.parse(iso);
+        if (!Number.isFinite(t)) return 'Дата уточняется';
+        const d = new Date(t);
         const now = new Date();
         const todayKey = dayKeyFromIso(now.toISOString());
         const tomorrow = new Date(now);
@@ -152,6 +179,94 @@
             day: 'numeric',
             month: 'long'
         });
+    }
+
+    function rowHasFutureDate(row) {
+        const t = Date.parse(row && (row.next_at || row.nextAt));
+        return Number.isFinite(t) && t > Date.now();
+    }
+
+    function calendarRowFromExtraAnnounced(a) {
+        if (!a) return null;
+        const mal = parseInt(a.mal_id, 10);
+        if (!Number.isFinite(mal) || mal <= 0) return null;
+        const meta = _catalogByMal.get(mal);
+        if (meta) {
+            const cst = String(meta.status || '');
+            const last = parseInt(meta._kodik && meta._kodik.lastEpisode, 10);
+            const released = Number.isFinite(last) ? Math.max(0, last) : 0;
+            if (cst === 'Онгоинг' || cst === 'Завершён' || cst === 'Вышел') return null;
+            if (released >= 1) return null;
+            if (meta._kodik && meta._kodik.link) return null;
+        }
+        const titleRu = String(a.title_russian || '').trim();
+        const titleEn = String(a.title_english || a.title || '').trim();
+        const poster =
+            (typeof global.jikanPosterFromAnime === 'function'
+                ? global.jikanPosterFromAnime(a)
+                : '') ||
+            a.images?.jpg?.large_image_url ||
+            a.images?.jpg?.image_url ||
+            a.posterUrl ||
+            '';
+        const nextAt = (a.aired && a.aired.from) || a.next_at || '';
+        const nextT = Date.parse(nextAt);
+        return {
+            mal_id: mal,
+            next_episode: 1,
+            // Без будущей даты — пусто: попадёт в «Дата уточняется» на вкладке Анонсы
+            next_at: Number.isFinite(nextT) && nextT > Date.now() ? nextAt : '',
+            title_ru: titleRu || titleEn || `MAL #${mal}`,
+            title_en: titleEn || titleRu || '',
+            kind: a.type === 'Movie' || a.type === 'Фильм' ? 'movie' : 'tv',
+            status: 'anons',
+            score: a.score || 0,
+            posterUrl: poster,
+            source: 'shikimori-anons',
+            _fromExtraAnnounced: true,
+            _jikan: a
+        };
+    }
+
+    async function mergeCatalogAnnouncedIntoCalendarRows() {
+        let list = [];
+        try {
+            if (typeof global.fetchShikimoriAnnouncedAsJikan === 'function') {
+                list = await global.fetchShikimoriAnnouncedAsJikan();
+            } else if (typeof global.fetchJikanAnnouncedList === 'function') {
+                list = await global.fetchJikanAnnouncedList();
+            }
+        } catch (e) {
+            console.warn('[calendar] extra announced:', e);
+            return;
+        }
+        if (!Array.isArray(list) || !list.length) return;
+
+        try {
+            global.__reminkoExtraAnnouncedJikan = list;
+        } catch (_) {
+            /* ignore */
+        }
+
+        const seen = new Set();
+        for (const row of _allRows) {
+            const mal = parseInt(row && row.mal_id, 10);
+            if (Number.isFinite(mal) && mal > 0) seen.add(mal);
+        }
+        for (const a of list) {
+            const row = calendarRowFromExtraAnnounced(a);
+            if (!row) continue;
+            const mal = parseInt(row.mal_id, 10);
+            if (!Number.isFinite(mal) || seen.has(mal)) continue;
+            if (
+                typeof global.reminkoIsKidsCartoonCalendarRow === 'function' &&
+                global.reminkoIsKidsCartoonCalendarRow(row, _catalogByMal.get(mal))
+            ) {
+                continue;
+            }
+            seen.add(mal);
+            _allRows.push(row);
+        }
     }
 
     function navigateToAnime(row) {
@@ -179,13 +294,16 @@
             (catalogAnime && (catalogAnime.title || catalogAnime.titleAlt)) ||
             row.title_ru ||
             '—';
-        const iso = row.next_at || row.nextAt;
+        const iso = row.next_at || row.nextAt || '';
         const ep = parseInt(row.next_episode, 10) || 1;
-        const isAnnounced = ep <= 1 || row.status === 'anons';
-        const timeStr = new Date(iso).toLocaleTimeString('ru-RU', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        const isAnnounced = ep <= 1 || row.status === 'anons' || !!row._fromExtraAnnounced;
+        const hasDate = rowHasFutureDate(row);
+        const timeStr = hasDate
+            ? new Date(iso).toLocaleTimeString('ru-RU', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+              })
+            : 'TBA';
         const poster = reminkoSafeImageUrl(pickInitialPoster(row, catalogAnime), '');
         const inCatalog = !!catalogAnime;
 
@@ -204,7 +322,7 @@
                     ${inCatalog ? '<span class="calendar-item__badge calendar-item__badge--kodik">Kodik</span>' : ''}
                 </div>
                 <h3 class="calendar-item__title"></h3>
-                <div class="calendar-item__countdown" data-countdown-iso="${reminkoEscapeHtml(iso)}"></div>
+                <div class="calendar-item__countdown" ${hasDate ? `data-countdown-iso="${reminkoEscapeHtml(iso)}"` : ''}>${hasDate ? '' : 'дата уточняется'}</div>
             </div>
         `;
         const titleEl = item.querySelector('.calendar-item__title');
@@ -227,13 +345,20 @@
     function groupRowsByDay(rows) {
         const groups = new Map();
         for (const row of rows) {
-            const iso = row.next_at || row.nextAt;
+            const iso = row.next_at || row.nextAt || '';
             const key = dayKeyFromIso(iso);
             if (!key) continue;
-            if (!groups.has(key)) groups.set(key, { iso, rows: [] });
+            if (!groups.has(key)) groups.set(key, { iso: iso || '', rows: [] });
             groups.get(key).rows.push(row);
         }
-        return [...groups.values()].sort((a, b) => Date.parse(a.iso) - Date.parse(b.iso));
+        return [...groups.values()].sort((a, b) => {
+            const at = Date.parse(a.iso);
+            const bt = Date.parse(b.iso);
+            if (!Number.isFinite(at) && !Number.isFinite(bt)) return 0;
+            if (!Number.isFinite(at)) return 1;
+            if (!Number.isFinite(bt)) return -1;
+            return at - bt;
+        });
     }
 
     function renderCalendar() {
@@ -335,6 +460,9 @@
         } else {
             _allRows = [];
         }
+
+        // Те же анонсы, что в фильтре каталога «Анонс» (Shikimori), которых нет в calendar dump
+        await mergeCatalogAnnouncedIntoCalendarRows();
 
         renderCalendar();
     }

@@ -825,8 +825,7 @@
         for (const card of extra || []) {
             const mal = parseInt(card && card.mal_id, 10);
             if (!Number.isFinite(mal) || mal <= 0 || seen.has(mal)) continue;
-            // Без постера не тащим в ленту — Shikimori часто отдаёт missing_original
-            if (!animeHasUsablePoster(card)) continue;
+            // Без постера тоже берём — hydrateAnnouncedPosterForCard дотянет по mal_id
             seen.add(mal);
             out.push(card);
         }

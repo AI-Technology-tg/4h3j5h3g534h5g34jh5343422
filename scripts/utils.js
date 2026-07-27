@@ -739,19 +739,18 @@ function createAnimeCard(anime, clickHandler) {
     const malForPoster = anime.mal_id != null ? parseInt(anime.mal_id, 10) : NaN;
     const posterWeak =
         typeof isWeakPosterSource === 'function' ? isWeakPosterSource(posterUrl) : !posterUrl;
-
-    // Сеть только для пустых/слабых постеров — иначе лавина API и лаги
-    if (
-        (!posterUrl || posterWeak) &&
-        !anime.isJikanVirtual &&
+    // Виртуальные анонсы (Shikimori/Jikan) тоже тянем по mal_id — иначе в каталоге градиент + «Перейти»
+    const canFetchPosterByMal =
         Number.isFinite(malForPoster) &&
         malForPoster > 0 &&
-        typeof fetchPosterUrlForMal === 'function'
-    ) {
+        typeof fetchPosterUrlForMal === 'function';
+
+    // Сеть только для пустых/слабых постеров — иначе лавина API и лаги
+    if ((!posterUrl || posterWeak) && canFetchPosterByMal) {
         card.dataset.posterDisplayTitle = stats.title;
         card.dataset.posterMalId = String(malForPoster);
         loadAnimePosterLazy(card, stats.titleAlt ? [stats.titleAlt, stats.title] : stats.title, gradient);
-    } else if (!posterUrl && !anime.isJikanVirtual && typeof getAnimePoster === 'function' && stats.title) {
+    } else if (!posterUrl && typeof getAnimePoster === 'function' && stats.title) {
         const searchTitles = stats.titleAlt ? [stats.titleAlt, stats.title] : stats.title;
         card.dataset.posterDisplayTitle = stats.title;
         loadAnimePosterLazy(card, searchTitles, gradient);

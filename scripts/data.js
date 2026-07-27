@@ -1281,7 +1281,13 @@ function filterAnime(filters) {
     
     if (filters.status && filters.status.length > 0) {
         const statusAliases = (sel, animeSt) => {
-            if (sel === 'Вышел' && (animeSt === 'Завершён' || animeSt === 'Вышел')) return true;
+            // «Вышел» — устаревший синоним «Завершён» (старые URL / закладки)
+            if (
+                (sel === 'Вышел' || sel === 'Завершён') &&
+                (animeSt === 'Завершён' || animeSt === 'Вышел')
+            ) {
+                return true;
+            }
             return animeSt === sel;
         };
         const effectiveStatus =
