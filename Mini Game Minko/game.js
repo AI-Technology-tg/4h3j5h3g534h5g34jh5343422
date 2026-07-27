@@ -71,10 +71,6 @@
         sMp4.src = reminkoMinkoAiMediaUrl('AI%20ICON.mp4');
         sMp4.type = 'video/mp4';
         v.appendChild(sMp4);
-        const sWebm = document.createElement('source');
-        sWebm.src = reminkoMinkoAiMediaUrl('AI%20ICON.webm');
-        sWebm.type = 'video/webm';
-        v.appendChild(sWebm);
         try {
             v.load();
         } catch (_) {

@@ -6,6 +6,7 @@
   "scripts": {
     "start": "npx http-server -p 8080 -c-1",
     "build": "npm run minify",
+    "build:public": "node scripts/build/build-public.js",
     "build:kodik": "node scripts/build/kodik-build-catalog.js",
     "build:home-strips": "node scripts/build/kodik-build-home-strips.js",
     "build:remanga": "node scripts/build/remanga-build-catalog.js",

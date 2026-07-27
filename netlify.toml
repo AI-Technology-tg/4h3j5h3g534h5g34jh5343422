@@ -1,9 +1,9 @@
-# Один деплой: весь фронт Re-Minko + функция Minko AI на том же домене (POST /chat).
-# В Netlify: корень репозитория = эта папка (где лежит index.html).
+# Один деплой: allowlist-сборка фронта + функции на том же домене.
 # Переменные окружения — как в minko-netlify-proxy/README.md (MINKO_*, OPENAI_*, XAI_*, SUPABASE_*).
 
 [build]
-  publish = "."
+  command = "npm run build:public"
+  publish = "public-build"
   functions = "minko-netlify-proxy/netlify/functions"
 
 [build.environment]
