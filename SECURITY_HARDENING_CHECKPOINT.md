@@ -4,6 +4,7 @@
 
 - WIP branch: `wip/security-hardening-20260727`
 - Base commit: `5dbd3e2`
+- WIP snapshot commit: `544604a`
 - Production incident fix at the base is already deployed.
 - Everything after the base is unfinished WIP: it has not been applied to Supabase, tested, reviewed, merged into `main`, or deployed.
 
@@ -47,7 +48,7 @@ The last change replaced the client-controlled giveaway identity with a server-d
 4. Applying the migration before deploying compatible frontend/serverless code can temporarily break profiles, analytics and Watch Together.
 5. `security_events` and `security_rate_limits` must be added to the `_allowed` list in `database.sql` before final synchronization.
 6. `SECURITY_LOG_SALT` still needs to be configured in Netlify.
-7. No lint, Node syntax checks, Playwright tests, negative DB tests, or final Security Review have been run.
+7. `node --check` passed for all changed JavaScript files and `git diff --check` passed. ESLint, Playwright, negative DB tests, SQL validation and final Security Review have not been run.
 
 ## Next work, strictly in small stages
 
