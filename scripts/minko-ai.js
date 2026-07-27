@@ -415,7 +415,7 @@ function _startOfflinePlaceholderCycle() {
             return;
         }
         _applyOfflineInputPlaceholder();
-    }, 4500);
+    }, 3000);
 }
 
 function _stopOfflinePlaceholderCycle() {
