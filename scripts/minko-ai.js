@@ -3378,9 +3378,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const useFreeTier = freeOnline;
 
         if (!useFreeTier) {
-            addMessage('assistant', MINKO_CHAT_SERVER_OFFLINE_MESSAGE);
-            chatInput.disabled = false;
-            sendButton.disabled = false;
+            // Уже показали офлайн от Minko в шапке/приветствии — не дублируем и не открываем ввод
+            if (!_minkoChatOfflineUiActive) {
+                _applyChatServerOfflineUi();
+            }
             return;
         }
 
