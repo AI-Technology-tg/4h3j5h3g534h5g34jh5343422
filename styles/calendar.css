@@ -219,6 +219,157 @@
     font-size: 0.92rem;
 }
 
+/* Анонсы: чипы месяцев + горизонтальные ленты */
+.calendar-month-chips {
+    display: flex;
+    gap: 0.45rem;
+    margin: 0 0 1rem;
+    padding: 0.15rem 0 0.35rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: linear-gradient(180deg, rgba(11, 11, 18, 0.96) 70%, rgba(11, 11, 18, 0));
+}
+
+.calendar-month-chips::-webkit-scrollbar {
+    display: none;
+}
+
+.calendar-month-chip {
+    flex: 0 0 auto;
+    border: 1px solid rgba(168, 85, 247, 0.28);
+    background: rgba(15, 23, 42, 0.72);
+    color: rgba(255, 255, 255, 0.72);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.42rem 0.85rem;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.calendar-month-chip.is-active,
+.calendar-month-chip:hover {
+    color: #fff;
+    border-color: rgba(168, 85, 247, 0.55);
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.85), rgba(168, 85, 247, 0.75));
+}
+
+.calendar-month-lane {
+    margin-bottom: 1.35rem;
+}
+
+.calendar-month-lane__head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    margin: 0 0 0.65rem;
+}
+
+.calendar-month-lane__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 750;
+    color: #c4b5fd;
+}
+
+.calendar-month-lane__count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.calendar-month-lane__track {
+    display: flex;
+    gap: 0.65rem;
+    overflow-x: auto;
+    padding: 0.15rem 0.1rem 0.55rem;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+}
+
+.calendar-ann-card {
+    position: relative;
+    flex: 0 0 auto;
+    width: min(42vw, 148px);
+    aspect-ratio: 2 / 3;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(168, 85, 247, 0.22);
+    background: rgba(15, 23, 42, 0.55);
+    cursor: pointer;
+    scroll-snap-align: start;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.calendar-ann-card:hover {
+    transform: translateY(-3px) scale(1.02);
+    border-color: rgba(168, 85, 247, 0.55);
+    box-shadow: 0 12px 28px rgba(124, 58, 237, 0.22);
+}
+
+.calendar-ann-card__poster,
+.calendar-ann-card__poster img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.calendar-ann-card__poster {
+    background:
+        linear-gradient(145deg, rgba(124, 58, 237, 0.35), rgba(15, 23, 42, 0.92)),
+        rgba(255, 255, 255, 0.06);
+}
+
+.calendar-ann-card__poster img.is-poster-missing {
+    opacity: 0;
+}
+
+.calendar-ann-card__shade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 42%, rgba(7, 8, 16, 0.88) 100%);
+    pointer-events: none;
+}
+
+.calendar-ann-card__date {
+    position: absolute;
+    top: 0.4rem;
+    left: 0.4rem;
+    z-index: 1;
+    padding: 0.14rem 0.42rem;
+    border-radius: 8px;
+    font-size: 0.64rem;
+    font-weight: 800;
+    color: #fff;
+    background: rgba(7, 8, 16, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.calendar-ann-card__title {
+    position: absolute;
+    left: 0.45rem;
+    right: 0.45rem;
+    bottom: 0.45rem;
+    z-index: 1;
+    margin: 0;
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #f8fafc;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 @media (max-width: 900px) {
     .calendar-main {
         width: 100%;
@@ -262,16 +413,32 @@
     .calendar-item__countdown {
         font-size: 0.68rem;
     }
+
+    .calendar-ann-card {
+        width: min(46vw, 150px);
+    }
+
+    .calendar-month-chips {
+        top: env(safe-area-inset-top, 0);
+    }
 }
 
 @media (min-width: 901px) and (max-width: 1100px) {
     .calendar-day__list {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     }
+
+    .calendar-ann-card {
+        width: 136px;
+    }
 }
 
 @media (min-width: 1101px) {
     .calendar-day__list {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
+
+    .calendar-ann-card {
+        width: 148px;
     }
 }

@@ -520,6 +520,54 @@ body.theme-dark .calendar-item__poster {
         rgba(8, 6, 17, 0.65) !important;
 }
 
+body.theme-dark .calendar-ann-card {
+    background: rgba(18, 8, 31, 0.62) !important;
+    border-color: rgba(157, 77, 255, 0.38) !important;
+}
+
+body.theme-dark .calendar-ann-card:hover {
+    border-color: rgba(255, 45, 85, 0.55) !important;
+}
+
+body.theme-dark .calendar-ann-card__poster {
+    background:
+        linear-gradient(145deg, rgba(255, 45, 85, 0.22), rgba(18, 8, 31, 0.92)),
+        rgba(8, 6, 17, 0.65) !important;
+}
+
+body.theme-dark .calendar-month-chip {
+    background: rgba(18, 8, 31, 0.75) !important;
+    border-color: rgba(157, 77, 255, 0.35) !important;
+    color: rgba(231, 224, 255, 0.78) !important;
+}
+
+body.theme-dark .calendar-month-chip.is-active,
+body.theme-dark .calendar-month-chip:hover {
+    background: linear-gradient(135deg, rgba(157, 77, 255, 0.9), rgba(255, 45, 85, 0.75)) !important;
+    color: #fff !important;
+}
+
+body.theme-dark .calendar-month-chips {
+    background: linear-gradient(180deg, rgba(11, 11, 18, 0.96) 70%, rgba(11, 11, 18, 0)) !important;
+}
+
+body.theme-dark .genre-watch-stage {
+    background:
+        radial-gradient(circle at 50% 45%, rgba(255, 45, 85, 0.16), transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(18, 8, 31, 0.25), rgba(7, 8, 16, 0.94) 72%) !important;
+    border-color: rgba(157, 77, 255, 0.32) !important;
+}
+
+body.theme-dark .genre-watch-bubble {
+    background: rgba(18, 8, 31, 0.9) !important;
+    border-color: rgba(157, 77, 255, 0.28) !important;
+}
+
+body.theme-dark .genre-watch-bubble.is-checked,
+body.theme-dark .genre-watch-bubble:has(input:checked) {
+    background: linear-gradient(135deg, rgba(255, 45, 85, 0.92), rgba(157, 77, 255, 0.88)) !important;
+}
+
 body.theme-dark .calendar-item__media {
     background: rgba(8, 6, 17, 0.5) !important;
 }

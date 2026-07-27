@@ -497,9 +497,10 @@
         if (!anime) return '';
         const jpg = anime.images?.jpg;
         const webp = anime.images?.webp;
-        if (jpg) return jpg.large_image_url || jpg.image_url || jpg.small_image_url || '';
-        if (webp) return webp.large_image_url || webp.image_url || webp.small_image_url || '';
-        return '';
+        let url = '';
+        if (jpg) url = jpg.large_image_url || jpg.image_url || jpg.small_image_url || '';
+        else if (webp) url = webp.large_image_url || webp.image_url || webp.small_image_url || '';
+        return upgradeMalCdnPosterUrl(url);
     }
 
     function isShikimoriPlaceholderPoster(url) {
@@ -519,12 +520,27 @@
         return /shikimori\.(one|me)\/system\/animes\/\d+\/original\.jpg/i.test(String(url || ''));
     }
 
-    /** Слабые/общие постеры: плейсхолдеры, «общий» KP на все сезоны, шаблонный Shiki. */
+    /** Tiny MAL CDN (`…/158940t.jpg`) → large (`…l.jpg`). */
+    function upgradeMalCdnPosterUrl(url) {
+        const s = String(url || '').trim();
+        if (!/cdn\.myanimelist\.net\/images\/anime\//i.test(s)) return s;
+        return s.replace(
+            /(\/\d+)([tl]?)(\.(?:jpe?g|webp))(\?[^#]*)?(#.*)?$/i,
+            (_, id, _sz, ext, q, hash) => `${id}l${ext}${q || ''}${hash || ''}`
+        );
+    }
+
+    function isMalCdnTinyPoster(url) {
+        return /cdn\.myanimelist\.net\/images\/anime\/.+\d+t\.(?:jpe?g|webp)/i.test(String(url || ''));
+    }
+
+    /** Слабые/общие постеры: плейсхолдеры, tiny MAL, «общий» KP, шаблонный Shiki. */
     function isWeakPosterSource(url) {
         const s = String(url || '').toLowerCase();
         if (!s || s.startsWith('data:')) return true;
         if (isShikimoriPlaceholderPoster(s)) return true;
         if (isShikimoriDirectMalPoster(s)) return true;
+        if (isMalCdnTinyPoster(s)) return true;
         if (s.includes('st.kp.yandex.net') || s.includes('kinopoisk')) return true;
         return false;
     }
@@ -588,13 +604,13 @@
             shikimoriPosterUrlFromPath(anime.image?.original),
             calPoster,
             anime.posterUrl,
-        ];
+        ].map((u) => upgradeMalCdnPosterUrl(u));
         // Сначала сильные (не KP / не missing), потом любые непустые
         for (const url of candidates) {
             if (url && !isWeakPosterSource(url)) return url;
         }
         for (const url of candidates) {
-            if (url && !isShikimoriPlaceholderPoster(url)) return url;
+            if (url && !isShikimoriPlaceholderPoster(url)) return upgradeMalCdnPosterUrl(url);
         }
         return '';
     }
@@ -787,17 +803,43 @@
                 }
             }
 
-            // 3) Jikan по MAL (свой rate-limit)
-            try {
-                if (typeof global.jikanFetchPosterByMalId === 'function') {
-                    const u = await global.jikanFetchPosterByMalId(mal);
-                    if (u && !isWeakPosterSource(u)) {
-                        writeMalPosterCache(mal, u);
-                        return u;
+            // 3) Прямой Shikimori CDN по MAL (без Jikan 504)
+            const shikiDirect = `https://shikimori.one/system/animes/original/${mal}.jpg`;
+            if (!isWeakPosterSource(shikiDirect)) {
+                try {
+                    const ok = await new Promise((resolve) => {
+                        const img = new Image();
+                        img.referrerPolicy = 'no-referrer';
+                        img.onload = () => resolve(img.naturalWidth > 8);
+                        img.onerror = () => resolve(false);
+                        img.src = shikiDirect;
+                        setTimeout(() => resolve(false), 4500);
+                    });
+                    if (ok) {
+                        writeMalPosterCache(mal, shikiDirect);
+                        return shikiDirect;
                     }
+                } catch (_) {
+                    /* ignore */
                 }
-            } catch (_) {
-                /* ignore */
+            }
+
+            // 4) Jikan — только если circuit закрыт (иначе 504 спам)
+            const jikanBlocked =
+                typeof global.reminkoJikanIsCircuitOpen === 'function' &&
+                global.reminkoJikanIsCircuitOpen();
+            if (!jikanBlocked) {
+                try {
+                    if (typeof global.jikanFetchPosterByMalId === 'function') {
+                        const u = upgradeMalCdnPosterUrl(await global.jikanFetchPosterByMalId(mal));
+                        if (u && !isWeakPosterSource(u)) {
+                            writeMalPosterCache(mal, u);
+                            return u;
+                        }
+                    }
+                } catch (_) {
+                    /* ignore */
+                }
             }
 
             return '';
@@ -843,7 +885,12 @@
         img.referrerPolicy = 'no-referrer';
         img.decoding = 'async';
 
-        const initial = String(img.getAttribute('src') || img.src || '');
+        let initial = String(img.getAttribute('src') || img.src || '');
+        const upgradedInitial = upgradeMalCdnPosterUrl(initial);
+        if (upgradedInitial && upgradedInitial !== initial) {
+            initial = upgradedInitial;
+            img.src = upgradedInitial;
+        }
         const initialOk = initial && !isWeakPosterSource(initial) && !initial.startsWith('data:');
 
         // Уже нормальный постер: только sync-апгрейд из кэша Shiki/MAL, без сетевого шторма
@@ -939,6 +986,7 @@
     global.jikanAnnouncedToCalendarRow = jikanAnnouncedToCalendarRow;
     global.jikanAnnouncedToCalendarRows = jikanAnnouncedToCalendarRows;
     global.jikanPosterFromAnime = jikanPosterFromAnime;
+    global.upgradeMalCdnPosterUrl = upgradeMalCdnPosterUrl;
     global.isShikimoriPlaceholderPoster = isShikimoriPlaceholderPoster;
     global.isShikimoriDirectMalPoster = isShikimoriDirectMalPoster;
     global.isWeakPosterSource = isWeakPosterSource;

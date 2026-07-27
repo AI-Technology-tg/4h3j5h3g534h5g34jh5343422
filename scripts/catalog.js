@@ -1043,6 +1043,11 @@ function reminkoBindCatalogFilterDelegation() {
         const checked = panel.querySelectorAll('input[type="checkbox"]:checked');
         const values = Array.from(checked).map((cb) => cb.value);
         updateFilterButtonText(btnId, values);
+        if (panelId === 'filterGenrePanel') {
+            const bubble = el.closest('.genre-watch-bubble');
+            if (bubble) bubble.classList.toggle('is-checked', !!el.checked);
+            updateGenreWatchSelectedLabel();
+        }
         applyFilters(false);
     });
 }
@@ -1060,8 +1065,13 @@ function resetFilters(e) {
     updateFilterButtonText('filterTypeBtn', []);
     
     // Сброс чекбоксов жанров
-    document.querySelectorAll('#filterGenrePanel input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('#filterGenrePanel input[type="checkbox"]').forEach((cb) => {
+        cb.checked = false;
+        const bubble = cb.closest('.genre-watch-bubble');
+        if (bubble) bubble.classList.remove('is-checked');
+    });
     updateFilterButtonText('filterGenreBtn', []);
+    updateGenreWatchSelectedLabel();
     
     // Сброс чекбоксов статусов
     document.querySelectorAll('#filterStatusPanel input[type="checkbox"]').forEach(cb => cb.checked = false);
@@ -1116,6 +1126,179 @@ function escGenreAttr(text) {
         .replace(/</g, '&lt;');
 }
 
+function updateGenreWatchSelectedLabel() {
+    const el = document.getElementById('genreWatchSelected');
+    if (!el) return;
+    const checked = document.querySelectorAll('#genreWatchCloud input[type="checkbox"]:checked');
+    if (!checked.length) {
+        el.textContent = 'Все';
+        return;
+    }
+    if (checked.length === 1) {
+        el.textContent = checked[0].value;
+        return;
+    }
+    el.textContent = `${checked.length} выбрано`;
+}
+
+function layoutGenreWatchBubbles() {
+    const cloud = document.getElementById('genreWatchCloud');
+    const stage = document.getElementById('genreWatchStage');
+    if (!cloud || !stage) return;
+    const bubbles = [...cloud.querySelectorAll('.genre-watch-bubble')];
+    if (!bubbles.length) return;
+
+    const n = bubbles.length;
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    const radiusStep = 38;
+    bubbles.forEach((bubble, i) => {
+        const r = 8 + radiusStep * Math.sqrt(i + 0.35);
+        const a = i * golden;
+        const x = Math.cos(a) * r;
+        const y = Math.sin(a) * r;
+        bubble.dataset.wx = String(x);
+        bubble.dataset.wy = String(y);
+        const len = String(bubble.dataset.label || '').length;
+        const size = len > 12 ? 'sm' : len > 8 ? 'md' : 'lg';
+        bubble.dataset.size = size;
+    });
+    applyGenreWatchTransforms();
+}
+
+function applyGenreWatchTransforms() {
+    const cloud = document.getElementById('genreWatchCloud');
+    const stage = document.getElementById('genreWatchStage');
+    if (!cloud || !stage) return;
+    const panX = parseFloat(cloud.dataset.panX || '0') || 0;
+    const panY = parseFloat(cloud.dataset.panY || '0') || 0;
+    const cx = stage.clientWidth / 2;
+    const cy = stage.clientHeight / 2;
+    const maxDist = Math.max(120, Math.min(cx, cy) * 0.92);
+
+    cloud.querySelectorAll('.genre-watch-bubble').forEach((bubble) => {
+        const wx = parseFloat(bubble.dataset.wx || '0') || 0;
+        const wy = parseFloat(bubble.dataset.wy || '0') || 0;
+        const x = cx + wx + panX;
+        const y = cy + wy + panY;
+        const dx = x - cx;
+        const dy = y - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const t = Math.min(1, dist / maxDist);
+        const scale = Math.max(0.42, 1.18 - t * 0.9);
+        const opacity = Math.max(0.28, 1 - t * 0.75);
+        const z = Math.round(1000 - dist);
+        bubble.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${scale})`;
+        bubble.style.opacity = String(opacity);
+        bubble.style.zIndex = String(z);
+    });
+}
+
+function bindGenreWatchInteractionOnce() {
+    const stage = document.getElementById('genreWatchStage');
+    const cloud = document.getElementById('genreWatchCloud');
+    if (!stage || !cloud || stage.dataset.watchBound === '1') return;
+    stage.dataset.watchBound = '1';
+
+    let dragging = false;
+    let moved = false;
+    let startX = 0;
+    let startY = 0;
+    let basePanX = 0;
+    let basePanY = 0;
+    let raf = 0;
+
+    const onMove = (clientX, clientY) => {
+        if (!dragging) return;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+        if (Math.abs(dx) + Math.abs(dy) > 6) moved = true;
+        cloud.dataset.panX = String(basePanX + dx);
+        cloud.dataset.panY = String(basePanY + dy);
+        if (!raf) {
+            raf = requestAnimationFrame(() => {
+                raf = 0;
+                applyGenreWatchTransforms();
+            });
+        }
+    };
+
+    stage.addEventListener(
+        'pointerdown',
+        (e) => {
+            if (e.button != null && e.button !== 0) return;
+            dragging = true;
+            moved = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            basePanX = parseFloat(cloud.dataset.panX || '0') || 0;
+            basePanY = parseFloat(cloud.dataset.panY || '0') || 0;
+            stage.setPointerCapture?.(e.pointerId);
+            stage.classList.add('is-dragging');
+        },
+        { passive: true }
+    );
+
+    stage.addEventListener(
+        'pointermove',
+        (e) => {
+            onMove(e.clientX, e.clientY);
+        },
+        { passive: true }
+    );
+
+    const endDrag = () => {
+        dragging = false;
+        stage.classList.remove('is-dragging');
+    };
+    stage.addEventListener('pointerup', endDrag);
+    stage.addEventListener('pointercancel', endDrag);
+
+    cloud.addEventListener('click', (e) => {
+        if (moved) {
+            e.preventDefault();
+            e.stopPropagation();
+            moved = false;
+            return;
+        }
+        const bubble = e.target.closest('.genre-watch-bubble');
+        if (!bubble || bubble.classList.contains('genre-adult-locked')) return;
+        const input = bubble.querySelector('input[type="checkbox"]');
+        if (!input || input.disabled) return;
+        // label handles toggle; sync UI after tick
+        setTimeout(() => {
+            bubble.classList.toggle('is-checked', !!input.checked);
+            updateGenreWatchSelectedLabel();
+            if (typeof applyFilters === 'function') applyFilters(false);
+            if (typeof updateFilterButtonText === 'function') {
+                const selected = [
+                    ...document.querySelectorAll('#genreWatchCloud input[type="checkbox"]:checked')
+                ].map((cb) => cb.value);
+                updateFilterButtonText('filterGenreBtn', selected);
+            }
+        }, 0);
+    });
+
+    // Keep transforms fresh when panel opens / resizes
+    const panel = document.getElementById('filterGenrePanel');
+    if (panel && typeof MutationObserver !== 'undefined') {
+        const mo = new MutationObserver(() => {
+            if (panel.classList.contains('active')) {
+                requestAnimationFrame(() => {
+                    layoutGenreWatchBubbles();
+                });
+            }
+        });
+        mo.observe(panel, { attributes: true, attributeFilter: ['class'] });
+    }
+    window.addEventListener(
+        'resize',
+        () => {
+            if (panel && panel.classList.contains('active')) applyGenreWatchTransforms();
+        },
+        { passive: true }
+    );
+}
+
 function bindGenreAdultPanelOnce() {
     const panel = document.getElementById('filterGenrePanel');
     if (!panel || panel.dataset.adultGenreBound === '1') return;
@@ -1130,12 +1313,14 @@ function bindGenreAdultPanelOnce() {
     });
 }
 
-// Загрузка жанров в фильтры
+// Загрузка жанров в фильтры (Apple Watch–style облако)
 function loadGenres() {
     const panel = document.getElementById('filterGenrePanel');
     if (!panel) return;
 
-    const container = panel.querySelector('.filter-dropdown-inner, .filter-genres-grid') || panel;
+    const cloud = document.getElementById('genreWatchCloud') || panel.querySelector('.filter-dropdown-inner, .filter-genres-grid');
+    if (!cloud) return;
+
     const adultLabels =
         (typeof window.reminkoAdultGenreLabels !== 'undefined' && window.reminkoAdultGenreLabels) || [
             'Хентай',
@@ -1144,47 +1329,52 @@ function loadGenres() {
     const genres = getAllGenres().filter((g) => !adultLabels.includes(g));
     const unlocked = typeof isAdultContentEnabled === 'function' && isAdultContentEnabled();
 
-    const normalHtml = genres
-        .map((genre) => {
-            const v = escGenreAttr(genre);
-            const id = `genre_${String(genre).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100)}`;
-            return `
-        <label class="filter-option filter-checkbox-item">
-            <input type="checkbox" value="${v}" id="${id}">
-            <span>${reminkoEscapeHtml(genre)}</span>
+    const makeBubble = (genre, opts = {}) => {
+        const v = escGenreAttr(genre);
+        const id = `genre_${String(genre).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100)}`;
+        const locked = !!opts.locked;
+        const adult = !!opts.adult;
+        const cls = [
+            'genre-watch-bubble',
+            'filter-option',
+            'filter-checkbox-item',
+            adult ? 'genre-adult-row' : '',
+            locked ? 'genre-adult-locked' : ''
+        ]
+            .filter(Boolean)
+            .join(' ');
+        return `
+        <label class="${cls}" data-label="${v}" ${adult ? 'data-adult-genre="1"' : ''}>
+            <input type="checkbox" value="${v}" id="${id}" ${locked ? 'disabled aria-disabled="true"' : ''}>
+            <span class="genre-watch-bubble__text">${reminkoEscapeHtml(genre)}</span>
+            ${locked ? '<span class="genre-adult-lock" title="Включите отображение жанров 18+ в настройках профиля">🔒</span>' : ''}
         </label>`;
-        })
-        .join('');
+    };
 
+    const normalHtml = genres.map((genre) => makeBubble(genre)).join('');
     const adultHtml = adultLabels
-        .map((genre) => {
-            const v = escGenreAttr(genre);
-            const id = `genre_${String(genre).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100)}`;
-            if (unlocked) {
-                return `
-        <label class="filter-option filter-checkbox-item genre-adult-row" data-adult-genre="1">
-            <input type="checkbox" value="${v}" id="${id}">
-            <span>${reminkoEscapeHtml(genre)}</span>
-        </label>`;
-            }
-            return `
-        <label class="filter-option filter-checkbox-item genre-adult-row genre-adult-locked" data-adult-genre="1">
-            <input type="checkbox" value="${v}" id="${id}" disabled aria-disabled="true">
-            <span>${reminkoEscapeHtml(genre)}</span>
-            <span class="genre-adult-lock" title="Включите отображение жанров 18+ в настройках профиля">🔒</span>
-        </label>`;
-        })
+        .map((genre) => makeBubble(genre, { adult: true, locked: !unlocked }))
         .join('');
 
-    container.innerHTML = normalHtml + adultHtml;
+    cloud.innerHTML = normalHtml + adultHtml;
+    cloud.dataset.panX = '0';
+    cloud.dataset.panY = '0';
 
     bindGenreAdultPanelOnce();
+    bindGenreWatchInteractionOnce();
+    layoutGenreWatchBubbles();
+    updateGenreWatchSelectedLabel();
 
     // После загрузки жанров применяем фильтры из URL и инициализируем события
     loadFilters();
     initFilterEvents();
     // Применяем фильтры после загрузки (с небольшой задержкой, чтобы все элементы были готовы)
     setTimeout(() => {
+        document.querySelectorAll('#genreWatchCloud input[type="checkbox"]').forEach((cb) => {
+            const bubble = cb.closest('.genre-watch-bubble');
+            if (bubble) bubble.classList.toggle('is-checked', !!cb.checked);
+        });
+        updateGenreWatchSelectedLabel();
         applyFilters(false);
     }, 100);
 }

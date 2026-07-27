@@ -5,7 +5,7 @@
     'use strict';
 
     let _catalogByMal = new Map();
-    let _activeTab = 'all';
+    let _activeTab = 'airing';
     let _allRows = [];
 
     const POSTER_PLACEHOLDER_SRC =
@@ -32,7 +32,11 @@
         const meta = posterMetaForRow(row, catalogAnime);
         if (typeof global.pickKnownPosterUrl === 'function') {
             const known = global.pickKnownPosterUrl(meta);
-            if (known) return known;
+            if (known) {
+                return typeof global.upgradeMalCdnPosterUrl === 'function'
+                    ? global.upgradeMalCdnPosterUrl(known)
+                    : known;
+            }
         }
         const candidates = [row.posterUrl, catalogAnime && catalogAnime.posterUrl];
         for (const url of candidates) {
@@ -49,14 +53,20 @@
             ) {
                 continue;
             }
-            return url;
+            return typeof global.upgradeMalCdnPosterUrl === 'function'
+                ? global.upgradeMalCdnPosterUrl(url)
+                : url;
         }
         return POSTER_PLACEHOLDER_SRC;
     }
 
     function hydrateCalendarPosters(container) {
         if (!container) return;
-        container.querySelectorAll('.calendar-item__poster img[data-mal-id]').forEach((img) => {
+        container
+            .querySelectorAll(
+                '.calendar-item__poster img[data-mal-id], .calendar-ann-card__poster img[data-mal-id]'
+            )
+            .forEach((img) => {
             const mal = parseInt(img.dataset.malId, 10);
             if (!Number.isFinite(mal) || mal <= 0) return;
             if (typeof global.attachJikanPosterFallback !== 'function') return;
@@ -287,7 +297,39 @@
         }
     }
 
-    function renderRow(row) {
+    function monthKeyFromIso(iso) {
+        const t = Date.parse(iso);
+        if (!Number.isFinite(t)) return 'tba';
+        const d = new Date(t);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function formatMonthHeading(key, iso) {
+        if (key === 'tba' || !iso) return 'Дата уточняется';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return 'Дата уточняется';
+        const label = d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        return label.charAt(0).toUpperCase() + label.slice(1);
+    }
+
+    function groupRowsByMonth(rows) {
+        const groups = new Map();
+        for (const row of rows) {
+            const iso = row.next_at || row.nextAt || '';
+            const key = monthKeyFromIso(iso);
+            if (!groups.has(key)) {
+                groups.set(key, { key, iso: iso || '', rows: [] });
+            }
+            groups.get(key).rows.push(row);
+        }
+        return [...groups.values()].sort((a, b) => {
+            if (a.key === 'tba') return 1;
+            if (b.key === 'tba') return -1;
+            return String(a.key).localeCompare(String(b.key));
+        });
+    }
+
+    function renderAiringRow(row) {
         const mal = parseInt(row.mal_id, 10);
         const catalogAnime = Number.isFinite(mal) ? _catalogByMal.get(mal) : null;
         const title =
@@ -296,7 +338,6 @@
             '—';
         const iso = row.next_at || row.nextAt || '';
         const ep = parseInt(row.next_episode, 10) || 1;
-        const isAnnounced = ep <= 1 || row.status === 'anons' || !!row._fromExtraAnnounced;
         const hasDate = rowHasFutureDate(row);
         const timeStr = hasDate
             ? new Date(iso).toLocaleTimeString('ru-RU', {
@@ -318,11 +359,11 @@
             </div>
             <div class="calendar-item__body">
                 <div class="calendar-item__badges">
-                    <span class="calendar-item__badge calendar-item__badge--${isAnnounced ? 'ann' : 'ep'}">${isAnnounced ? 'Анонс' : 'Серия ' + ep}</span>
+                    <span class="calendar-item__badge calendar-item__badge--ep">Серия ${ep}</span>
                     ${inCatalog ? '<span class="calendar-item__badge calendar-item__badge--kodik">Kodik</span>' : ''}
                 </div>
                 <h3 class="calendar-item__title"></h3>
-                <div class="calendar-item__countdown" ${hasDate ? `data-countdown-iso="${reminkoEscapeHtml(iso)}"` : ''}>${hasDate ? '' : 'дата уточняется'}</div>
+                <div class="calendar-item__countdown" ${hasDate ? `data-countdown-iso="${reminkoEscapeHtml(iso)}"` : ''}></div>
             </div>
         `;
         const titleEl = item.querySelector('.calendar-item__title');
@@ -332,6 +373,48 @@
         }
         item.addEventListener('click', () => navigateToAnime(row));
         const posterImg = item.querySelector('.calendar-item__poster img');
+        if (posterImg && Number.isFinite(mal) && mal > 0 && typeof global.attachJikanPosterFallback === 'function') {
+            global.attachJikanPosterFallback(
+                posterImg,
+                mal,
+                posterMetaForRow(row, catalogAnime)
+            );
+        }
+        return item;
+    }
+
+    /** Компактная карточка анонса для горизонтальной ленты. */
+    function renderAnnouncedCard(row) {
+        const mal = parseInt(row.mal_id, 10);
+        const catalogAnime = Number.isFinite(mal) ? _catalogByMal.get(mal) : null;
+        const title =
+            (catalogAnime && (catalogAnime.title || catalogAnime.titleAlt)) ||
+            row.title_ru ||
+            '—';
+        const iso = row.next_at || row.nextAt || '';
+        const hasDate = rowHasFutureDate(row);
+        const dateShort = hasDate
+            ? new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+            : 'TBA';
+        const poster = reminkoSafeImageUrl(pickInitialPoster(row, catalogAnime), '');
+
+        const item = document.createElement('article');
+        item.className = 'calendar-ann-card';
+        item.innerHTML = `
+            <div class="calendar-ann-card__poster">
+                <img src="${reminkoEscapeHtml(poster)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-mal-id="${mal}" data-row-mal="${mal}">
+            </div>
+            <div class="calendar-ann-card__shade" aria-hidden="true"></div>
+            <span class="calendar-ann-card__date">${reminkoEscapeHtml(dateShort)}</span>
+            <h3 class="calendar-ann-card__title"></h3>
+        `;
+        const titleEl = item.querySelector('.calendar-ann-card__title');
+        if (titleEl) {
+            titleEl.textContent = title;
+            titleEl.title = title;
+        }
+        item.addEventListener('click', () => navigateToAnime(row));
+        const posterImg = item.querySelector('.calendar-ann-card__poster img');
         if (posterImg && Number.isFinite(mal) && mal > 0 && typeof global.attachJikanPosterFallback === 'function') {
             global.attachJikanPosterFallback(
                 posterImg,
@@ -361,30 +444,53 @@
         });
     }
 
-    function renderCalendar() {
-        const container = document.getElementById('calendarDays');
-        const metaEl = document.getElementById('calendarMeta');
-        if (!container) return;
+    function renderAnnouncedCalendar(container, visible) {
+        const monthGroups = groupRowsByMonth(visible);
+        const chips = document.createElement('div');
+        chips.className = 'calendar-month-chips reminko-mobile-scroll-x';
+        chips.setAttribute('role', 'tablist');
+        chips.setAttribute('aria-label', 'Месяцы анонсов');
 
-        const visible = filterRowsByTab(
-            _allRows.filter(shouldShowRow),
-            _activeTab
-        );
+        monthGroups.forEach((group, idx) => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'calendar-month-chip' + (idx === 0 ? ' is-active' : '');
+            chip.dataset.monthTarget = group.key;
+            chip.textContent = formatMonthHeading(group.key, group.iso);
+            chip.addEventListener('click', () => {
+                chips.querySelectorAll('.calendar-month-chip').forEach((c) => {
+                    c.classList.toggle('is-active', c === chip);
+                });
+                const section = container.querySelector(`[data-month-key="${group.key}"]`);
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+            chips.appendChild(chip);
+        });
+        container.appendChild(chips);
 
-        if (metaEl) {
-            metaEl.textContent =
-                visible.length > 0
-                    ? `${visible.length} ${visible.length === 1 ? 'тайтл' : visible.length < 5 ? 'тайтла' : 'тайтлов'} · обновлено из Shikimori`
-                    : 'Нет предстоящих дат в этом разделе';
+        for (const group of monthGroups) {
+            const section = document.createElement('section');
+            section.className = 'calendar-month-lane';
+            section.dataset.monthKey = group.key;
+            section.innerHTML = `
+                <div class="calendar-month-lane__head">
+                    <h2 class="calendar-month-lane__title">${reminkoEscapeHtml(formatMonthHeading(group.key, group.iso))}</h2>
+                    <span class="calendar-month-lane__count">${group.rows.length}</span>
+                </div>
+            `;
+            const track = document.createElement('div');
+            track.className = 'calendar-month-lane__track reminko-mobile-scroll-x';
+            for (const row of group.rows) {
+                track.appendChild(renderAnnouncedCard(row));
+            }
+            section.appendChild(track);
+            container.appendChild(section);
         }
+    }
 
-        container.innerHTML = '';
-        if (!visible.length) {
-            container.innerHTML =
-                '<div class="calendar-empty">Пока нет предстоящих дат. Загляните позже — расписание обновляется из Shikimori.</div>';
-            return;
-        }
-
+    function renderAiringCalendar(container, visible) {
         const dayGroups = groupRowsByDay(visible);
         for (const group of dayGroups) {
             const section = document.createElement('section');
@@ -393,10 +499,39 @@
             const list = document.createElement('div');
             list.className = 'calendar-day__list';
             for (const row of group.rows) {
-                list.appendChild(renderRow(row));
+                list.appendChild(renderAiringRow(row));
             }
             section.appendChild(list);
             container.appendChild(section);
+        }
+    }
+
+    function renderCalendar() {
+        const container = document.getElementById('calendarDays');
+        const metaEl = document.getElementById('calendarMeta');
+        if (!container) return;
+
+        const visible = filterRowsByTab(_allRows.filter(shouldShowRow), _activeTab);
+
+        if (metaEl) {
+            metaEl.textContent =
+                visible.length > 0
+                    ? `${visible.length} ${visible.length === 1 ? 'тайтл' : visible.length < 5 ? 'тайтла' : 'тайтлов'} · Shikimori + Kodik`
+                    : 'Нет предстоящих дат в этом разделе';
+        }
+
+        container.innerHTML = '';
+        container.classList.toggle('calendar-days--announced', _activeTab === 'announced');
+        if (!visible.length) {
+            container.innerHTML =
+                '<div class="calendar-empty">Пока нет предстоящих дат. Загляните позже — расписание обновляется из Shikimori.</div>';
+            return;
+        }
+
+        if (_activeTab === 'announced') {
+            renderAnnouncedCalendar(container, visible);
+        } else {
+            renderAiringCalendar(container, visible);
         }
 
         if (typeof global.reminkoStartLiveCountdown === 'function') {
@@ -418,10 +553,10 @@
     function bindTabs() {
         document.querySelectorAll('[data-calendar-tab]').forEach((btn) => {
             btn.addEventListener('click', () => {
-                const tab = btn.getAttribute('data-calendar-tab') || 'all';
-                _activeTab = tab;
+                const tab = btn.getAttribute('data-calendar-tab') || 'airing';
+                _activeTab = tab === 'announced' ? 'announced' : 'airing';
                 document.querySelectorAll('[data-calendar-tab]').forEach((b) => {
-                    const active = b.getAttribute('data-calendar-tab') === tab;
+                    const active = b.getAttribute('data-calendar-tab') === _activeTab;
                     b.classList.toggle('is-active', active);
                     b.setAttribute('aria-selected', active ? 'true' : 'false');
                 });

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -48,7 +48,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../styles/main.css?v=20260726mobile2">
     <link rel="stylesheet" href="../styles/sidebar-layout.css?v=20260726mobile1">
-    <link rel="stylesheet" href="../styles/catalog.css?v=20260726mobile3">
+    <link rel="stylesheet" href="../styles/catalog.css?v=20260727ann2">
     <link rel="stylesheet" href="../styles/home.css?v=20260726mobile2">
     <link rel="stylesheet" href="../styles/loading.css">
     <link rel="stylesheet" href="../styles/notifications.css?v=20260726mobile1">
@@ -92,12 +92,18 @@
                             <span class="filter-chip-value">Все</span>
                             <svg class="filter-chip-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
-                        <div class="filter-dropdown filter-select-panel anime-fb-dropdown anime-fb-dropdown--wide" id="filterGenrePanel">
+                        <div class="filter-dropdown filter-select-panel anime-fb-dropdown anime-fb-dropdown--wide genre-watch-panel" id="filterGenrePanel">
                             <div class="filter-mobile-panel-head">
                                 <strong>Жанры</strong>
                                 <button type="button" class="filter-panel-close" data-filter-panel-close="filterGenrePanel" aria-label="Закрыть жанры">×</button>
                             </div>
-                            <div class="filter-dropdown-inner filter-genres-grid"></div>
+                            <div class="genre-watch-stage" id="genreWatchStage">
+                                <div class="genre-watch-cloud" id="genreWatchCloud"></div>
+                            </div>
+                            <div class="genre-watch-footer">
+                                <span class="genre-watch-hint">Тяни облако · тап по жанру</span>
+                                <span class="genre-watch-selected" id="genreWatchSelected">Все</span>
+                            </div>
                         </div>
                     </div>
                     <div class="filter-chip-wrap filter-multi-select" data-panel="filterStatusPanel">
@@ -276,9 +282,9 @@
     <script src="../scripts/jikan-api.js"></script>
     <script src="../scripts/anilist-api.js"></script>
     <script src="../scripts/poster-api.js?v=20260724s"></script>
-    <script src="../scripts/jikan-announced.js?v=20260725x"></script>
+    <script src="../scripts/jikan-announced.js?v=20260727ann2"></script>
     <script src="../scripts/api.js"></script>
-    <script src="../scripts/utils.js?v=20260727ann1"></script>
+    <script src="../scripts/utils.js?v=20260727ann2"></script>
     <script src="../scripts/utils-notifications.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.94.0"></script>
     <script src="../scripts/supabase-config.js"></script>
@@ -296,7 +302,7 @@
     <script src="../scripts/loading-phrases.js"></script>
     <script src="../scripts/loading.js"></script>
     <script src="../scripts/release-countdown.js?v=20260725q"></script>
-    <script src="../scripts/catalog.js?v=20260727security3"></script>
+    <script src="../scripts/catalog.js?v=20260727ann2"></script>
     <script src="../scripts/apply-navigation.js?v=20260726mobile1"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
