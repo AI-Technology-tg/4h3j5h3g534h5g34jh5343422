@@ -8,7 +8,9 @@ const ALLOWED_PATHS = new Set(['/search', '/list', '/translations/v2', '/qualiti
 const { allowedOrigin, corsHeaders: buildCorsHeaders } = require('./_cors');
 const {
     consumeRateLimit,
+    fetchWithTimeout,
     ipHash,
+    readTextWithLimit,
     recordSecurityEvent,
     safeText
 } = require('./_security');
@@ -132,18 +134,20 @@ exports.handler = async (event) => {
                 );
             }
             form.set('token', TOKEN);
-            res = await fetch(target.toString(), {
+            res = await fetchWithTimeout(target.toString(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: form.toString()
-            });
+                body: form.toString(),
+                redirect: 'error'
+            }, 12000);
         } else {
-            res = await fetch(target.toString(), { method: 'GET' });
+            res = await fetchWithTimeout(
+                target.toString(),
+                { method: 'GET', redirect: 'error' },
+                12000
+            );
         }
-        const text = await res.text();
-        if (Buffer.byteLength(text, 'utf8') > 2 * 1024 * 1024) {
-            return { statusCode: 502, headers, body: JSON.stringify({ error: 'Upstream response too large' }) };
-        }
+        const text = await readTextWithLimit(res, 2 * 1024 * 1024, 12000);
         return {
             statusCode: res.status,
             headers,

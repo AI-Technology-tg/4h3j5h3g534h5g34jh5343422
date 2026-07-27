@@ -20,7 +20,9 @@ const WINDOW_MS = 24 * 60 * 60 * 1000;
 const { corsHeaders: buildCorsHeaders } = require('./_cors');
 const {
     consumeRateLimit,
+    fetchWithTimeout,
     getAuthenticatedUser,
+    readJsonWithLimit,
     recordSecurityEvent,
     safeText,
     supabaseRequest
@@ -155,6 +157,9 @@ exports.handler = async (event) => {
 
     let body = event.body;
     if (event.isBase64Encoded && body) body = Buffer.from(body, 'base64').toString('utf8');
+    if (Buffer.byteLength(body || '', 'utf8') > 8192) {
+        return err(413, 'Запрос слишком большой.', event);
+    }
     let json;
     try {
         json = JSON.parse(body || '{}');
@@ -209,7 +214,7 @@ exports.handler = async (event) => {
 
     let xaiRes;
     try {
-        xaiRes = await fetch(XAI_URL, {
+        xaiRes = await fetchWithTimeout(XAI_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -220,15 +225,23 @@ exports.handler = async (event) => {
                 prompt,
                 n: 1,
                 response_format: 'b64_json'
-            })
-        });
+            }),
+            redirect: 'error'
+        }, 30000);
     } catch (e) {
         await finishGeneration(reservation.reservationId, false).catch(() => {});
         console.error('[minko-avatar-grok] xai fetch', safeText(e?.message, 160));
         return err(502, 'Не удалось связаться с сервисом генерации изображений.', event);
     }
 
-    const xaiData = await xaiRes.json().catch(() => ({}));
+    let xaiData;
+    try {
+        xaiData = (await readJsonWithLimit(xaiRes, 5 * 1024 * 1024, 30000)) || {};
+    } catch (error) {
+        await finishGeneration(reservation.reservationId, false).catch(() => {});
+        console.error('[minko-avatar-grok] invalid xai response', safeText(error?.message, 120));
+        return err(502, 'Некорректный ответ сервиса генерации.', event);
+    }
     if (!xaiRes.ok) {
         await finishGeneration(reservation.reservationId, false).catch(() => {});
         console.error(
@@ -238,8 +251,7 @@ exports.handler = async (event) => {
         );
         return err(
             502,
-            (xaiData && xaiData.error && (xaiData.error.message || xaiData.error)) ||
-                `Ошибка генерации (${xaiRes.status}). Проверьте модель в XAI_IMAGE_MODEL.`,
+            `Ошибка генерации (${xaiRes.status}). Попробуйте позже.`,
             event
         );
     }
@@ -247,7 +259,14 @@ exports.handler = async (event) => {
     const item = xaiData.data && xaiData.data[0];
     let url = item && item.url;
     if (!url && item && item.b64_json) {
+        if (item.b64_json.length > 4.5 * 1024 * 1024) {
+            await finishGeneration(reservation.reservationId, false).catch(() => {});
+            return err(502, 'Сгенерированное изображение слишком большое.', event);
+        }
         url = 'data:image/png;base64,' + item.b64_json;
+    }
+    if (url && !/^https:\/\//i.test(url) && !/^data:image\/png;base64,[a-z0-9+/=]+$/i.test(url)) {
+        url = '';
     }
     if (!url) {
         await finishGeneration(reservation.reservationId, false).catch(() => {});

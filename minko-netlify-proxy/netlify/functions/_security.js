@@ -89,6 +89,72 @@ function sanitizeDetails(input, depth = 0) {
     return output;
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs));
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function readTextWithLimit(response, maxBytes = 1024 * 1024, timeoutMs = 10000) {
+    const declared = Number(response?.headers?.get?.('content-length') || 0);
+    if (declared > maxBytes) throw new Error('upstream_response_too_large');
+
+    if (!response?.body?.getReader) {
+        let timeout;
+        const buffer = Buffer.from(
+            await Promise.race([
+                response.arrayBuffer(),
+                new Promise((_, reject) => {
+                    timeout = setTimeout(
+                        () => reject(new Error('upstream_response_timeout')),
+                        Math.max(1000, timeoutMs)
+                    );
+                })
+            ]).finally(() => clearTimeout(timeout))
+        );
+        if (buffer.length > maxBytes) throw new Error('upstream_response_too_large');
+        return buffer.toString('utf8');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let total = 0;
+    let text = '';
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+        timedOut = true;
+        void reader.cancel('upstream_response_timeout').catch(() => {});
+    }, Math.max(1000, timeoutMs));
+    try {
+        while (total <= maxBytes) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            total += value.byteLength;
+            if (total > maxBytes) {
+                await reader.cancel().catch(() => {});
+                throw new Error('upstream_response_too_large');
+            }
+            text += decoder.decode(value, { stream: true });
+        }
+        if (timedOut) throw new Error('upstream_response_timeout');
+        text += decoder.decode();
+        return text;
+    } finally {
+        clearTimeout(timeout);
+        reader.releaseLock();
+    }
+}
+
+async function readJsonWithLimit(response, maxBytes = 1024 * 1024, timeoutMs = 10000) {
+    const text = await readTextWithLimit(response, maxBytes, timeoutMs);
+    if (!text) return null;
+    return JSON.parse(text);
+}
+
 async function supabaseRequest(path, options = {}) {
     if (!isConfigured()) throw new Error('security_backend_not_configured');
     const headers = {
@@ -97,17 +163,16 @@ async function supabaseRequest(path, options = {}) {
         'Content-Type': 'application/json',
         ...(options.headers || {})
     };
-    const response = await fetch(`${SUPABASE_URL}${path}`, {
+    const response = await fetchWithTimeout(`${SUPABASE_URL}${path}`, {
         ...options,
         headers
-    });
+    }, 10000);
     if (!response.ok) {
-        const text = safeText(await response.text(), 400);
+        const text = safeText(await readTextWithLimit(response, 16384), 400);
         throw new Error(`supabase_${response.status}:${text}`);
     }
     if (response.status === 204) return null;
-    const text = await response.text();
-    return text ? JSON.parse(text) : null;
+    return readJsonWithLimit(response, 3 * 1024 * 1024);
 }
 
 async function getAuthenticatedUser(event) {
@@ -118,15 +183,15 @@ async function getAuthenticatedUser(event) {
     const match = String(header).match(/^Bearer\s+(.+)$/i);
     if (!match || !isConfigured()) return null;
 
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
         method: 'GET',
         headers: {
             apikey: SUPABASE_SERVICE_ROLE_KEY,
             Authorization: `Bearer ${match[1]}`
         }
-    });
+    }, 8000);
     if (!response.ok) return null;
-    const user = await response.json();
+    const user = await readJsonWithLimit(response, 128 * 1024);
     return user && typeof user.id === 'string' ? user : null;
 }
 
@@ -204,11 +269,14 @@ module.exports = {
     SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY,
     consumeRateLimit,
+    fetchWithTimeout,
     getAuthenticatedUser,
     hashValue,
     ipHash,
     isConfigured,
     recordSecurityEvent,
+    readJsonWithLimit,
+    readTextWithLimit,
     safeOrigin,
     safePath,
     safeText,

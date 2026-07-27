@@ -46,6 +46,19 @@ const ANIME_SEARCH_DOMAINS = [
     'animenewsnetwork.com'
 ];
 
+function isAllowedAnimeSourceUrl(value) {
+    try {
+        const url = new URL(String(value || ''));
+        if (url.protocol !== 'https:' || url.username || url.password || url.port) return false;
+        const hostname = url.hostname.toLowerCase();
+        return ANIME_SEARCH_DOMAINS.some(
+            (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
+        );
+    } catch (_) {
+        return false;
+    }
+}
+
 function isGpt5Family(model) {
     return /^gpt-5/i.test(String(model || '')) || /^o[0-9]/i.test(String(model || ''));
 }
@@ -53,10 +66,14 @@ function isGpt5Family(model) {
 const { allowedOrigin, corsHeaders: buildCorsHeaders } = require('./_cors');
 const {
     consumeRateLimit,
+    fetchWithTimeout,
     getAuthenticatedUser,
     ipHash,
+    readJsonWithLimit,
+    readTextWithLimit,
     recordSecurityEvent,
-    safeText
+    safeText,
+    sanitizeDetails
 } = require('./_security');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
@@ -65,34 +82,40 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const MAX_BODY_CHARS = 24000;
 const MAX_MESSAGES = 24;
 const MAX_MESSAGE_CHARS = 4000;
-const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_GUEST = 10;
 const RATE_LIMIT_USER = 18;
 const RATE_LIMIT_VIP = 30;
-const rateBuckets = new Map();
 
 async function fetchMinkoPublicState() {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
     try {
-        const r = await fetch(
+        const r = await fetchWithTimeout(
             `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/minko_ai_public_state?id=eq.1&select=chat_enabled,maintenance_message,search_provider`,
             {
                 headers: {
                     apikey: SUPABASE_ANON_KEY,
                     Authorization: `Bearer ${SUPABASE_ANON_KEY}`
                 }
-            }
+            },
+            8000
         );
-        const rows = await r.json();
+        if (!r.ok) return null;
+        const rows = await readJsonWithLimit(r, 128 * 1024);
         return Array.isArray(rows) ? rows[0] : null;
     } catch (e) {
-        console.warn('[minko-chat] supabase state', e.message);
+        console.warn('[minko-chat] supabase state', safeText(e?.message, 120));
         return null;
     }
 }
 
 async function checkChatEnabledFromSupabase() {
     const row = await fetchMinkoPublicState();
+    if (!row) {
+        return {
+            ok: false,
+            message: 'Minko AI временно недоступна: не удалось проверить состояние сервиса.'
+        };
+    }
     if (row && row.chat_enabled === false) {
         return {
             ok: false,
@@ -115,7 +138,7 @@ async function resolveSearchProviderMode() {
 async function remoteServerLog(level, message, details) {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return;
     try {
-        await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/minko_ai_server_logs`, {
+        await fetchWithTimeout(`${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/minko_ai_server_logs`, {
             method: 'POST',
             headers: {
                 apikey: SUPABASE_SERVICE_ROLE_KEY,
@@ -124,32 +147,13 @@ async function remoteServerLog(level, message, details) {
                 Prefer: 'return=minimal'
             },
             body: JSON.stringify({
-                level: String(level).slice(0, 32),
-                message: String(message).slice(0, 4000),
-                details: details && typeof details === 'object' ? details : null
+                level: safeText(level, 32),
+                message: safeText(message, 1000),
+                details: sanitizeDetails(details)
             })
-        });
+        }, 8000);
     } catch (e) {
-        console.warn('[minko-chat] remoteServerLog', e.message);
-    }
-}
-
-async function verifySupabaseUser(event) {
-    const auth = event.headers?.authorization || event.headers?.Authorization || '';
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    const jwt = m ? m[1].trim() : '';
-    const base = SUPABASE_URL.replace(/\/$/, '');
-    const anon = SUPABASE_ANON_KEY.trim();
-    if (!base || !anon || !jwt) return null;
-    try {
-        const r = await fetch(`${base}/auth/v1/user`, {
-            headers: { Authorization: `Bearer ${jwt}`, apikey: anon }
-        });
-        if (!r.ok) return null;
-        const j = await r.json().catch(() => null);
-        return j && j.id ? j : null;
-    } catch {
-        return null;
+        console.warn('[minko-chat] remoteServerLog', safeText(e?.message, 120));
     }
 }
 
@@ -160,33 +164,21 @@ async function resolveIsVip(userId) {
         const url =
             `${base}/rest/v1/vip_subscriptions?user_id=eq.${encodeURIComponent(userId)}` +
             '&select=is_active,expires_at&limit=1';
-        const r = await fetch(url, {
+        const r = await fetchWithTimeout(url, {
             headers: {
                 apikey: SUPABASE_SERVICE_ROLE_KEY,
                 Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
             }
-        });
-        const rows = await r.json().catch(() => []);
+        }, 8000);
+        const rows = await readJsonWithLimit(r, 128 * 1024).catch(() => []);
         const row = Array.isArray(rows) ? rows[0] : null;
         if (!row || row.is_active !== true) return false;
         if (row.expires_at && new Date(row.expires_at) <= new Date()) return false;
         return true;
     } catch (e) {
-        console.warn('[minko-chat] vip check', e.message);
+        console.warn('[minko-chat] vip check', safeText(e?.message, 120));
         return false;
     }
-}
-
-function checkRateLimit(key, limit) {
-    const now = Date.now();
-    const bucket = rateBuckets.get(key);
-    if (!bucket || now >= bucket.resetAt) {
-        rateBuckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
-        return true;
-    }
-    if (bucket.count >= limit) return false;
-    bucket.count += 1;
-    return true;
 }
 
 function corsHeaders(event) {
@@ -290,7 +282,7 @@ async function jikanGet(path, ms = 3500) {
     try {
         const r = await fetch(JIKAN + path, { signal: ac.signal });
         if (!r.ok) return null;
-        return await r.json();
+        return await readJsonWithLimit(r, 1024 * 1024);
     } catch {
         return null;
     } finally {
@@ -561,7 +553,7 @@ async function fetchDuckDuckGoHtmlAnime(query) {
             }
         });
         if (!r.ok) return '';
-        const html = await r.text();
+        const html = await readTextWithLimit(r, 1024 * 1024);
         const lines = [];
         const re =
             /class="result__a"[^>]*>([\s\S]*?)<\/a>[\s\S]*?class="result__snippet"[^>]*>([\s\S]*?)<\/(?:a|td|div)>/gi;
@@ -611,7 +603,7 @@ async function fetchDuckDuckGoSnippet(query) {
         const tid = setTimeout(() => ac.abort(), 4500);
         try {
             const r = await fetch(url, { signal: ac.signal });
-            const j = await r.json();
+            const j = await readJsonWithLimit(r, 1024 * 1024);
             const blob = `${j.Heading || ''} ${j.AbstractText || ''} ${j.AbstractURL || ''}`.toLowerCase();
             const animeish =
                 /anime|manga|аниме|манга|myanimelist|anilist|studio|эпизод|сезон|ova|ona/.test(blob) ||
@@ -663,7 +655,7 @@ async function fetchAniListResearch(userText) {
             })
         });
         if (!r.ok) return '';
-        const j = await r.json();
+        const j = await readJsonWithLimit(r, 1024 * 1024);
         const list = j?.data?.Page?.media;
         if (!Array.isArray(list) || !list.length) return '';
         return list
@@ -727,7 +719,7 @@ async function fetchWikipediaSnippet(query) {
                 headers: { Accept: 'application/json', 'Api-User-Agent': 'ReMinkoMinkoAI/1.0' }
             });
             if (!r.ok) continue;
-            const j = await r.json();
+            const j = await readJsonWithLimit(r, 1024 * 1024);
             if (j.type === 'disambiguation') continue;
             const extract = String(j.extract || '').trim();
             if (extract.length < 40) continue;
@@ -792,7 +784,7 @@ async function fetchGoogleCseHits(query) {
             '&num=8&hl=ru';
         const r = await fetch(url, { signal: ac.signal });
         if (!r.ok) return [];
-        const j = await r.json();
+        const j = await readJsonWithLimit(r, 1024 * 1024);
         return (Array.isArray(j.items) ? j.items : [])
             .map((it) => ({
                 title: String(it.title || '').slice(0, 180),
@@ -823,7 +815,7 @@ async function fetchGoogleHtmlHits(query) {
             }
         });
         if (!r.ok) return [];
-        const html = await r.text();
+        const html = await readTextWithLimit(r, 1024 * 1024);
         if (/unusual traffic|captcha|sorry\/index/i.test(html)) return [];
         const hits = [];
         const re =
@@ -880,7 +872,7 @@ async function fetchBingHtmlHits(query) {
             }
         });
         if (!r.ok) return [];
-        const html = await r.text();
+        const html = await readTextWithLimit(r, 1024 * 1024);
         const hits = [];
         const blocks = html.split(/class="b_algo"/i).slice(1, 10);
         for (const block of blocks) {
@@ -914,7 +906,7 @@ async function fetchDuckDuckGoHtmlHits(query) {
             }
         });
         if (!r.ok) return [];
-        const html = await r.text();
+        const html = await readTextWithLimit(r, 1024 * 1024);
         const hits = [];
         const re =
             /class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?class="result__snippet"[^>]*>([\s\S]*?)<\/(?:a|td|div)>/gi;
@@ -945,8 +937,7 @@ async function fetchDuckDuckGoHtmlHits(query) {
 /** Текст страницы через Jina Reader (без своих API-ключей) */
 async function fetchPageTextViaJina(pageUrl) {
     const u = String(pageUrl || '').trim();
-    if (!/^https?:\/\//i.test(u)) return '';
-    if (/google\.|bing\.|duckduckgo\.|youtube\.com\/watch/i.test(u)) return '';
+    if (!isAllowedAnimeSourceUrl(u)) return '';
     const ac = new AbortController();
     const tid = setTimeout(() => ac.abort(), 4500);
     try {
@@ -959,7 +950,7 @@ async function fetchPageTextViaJina(pageUrl) {
             }
         });
         if (!r.ok) return '';
-        const text = String((await r.text()) || '')
+        const text = String((await readTextWithLimit(r, 1024 * 1024)) || '')
             .replace(/\r/g, '')
             .replace(/\n{3,}/g, '\n\n')
             .trim();
@@ -1008,7 +999,7 @@ async function fetchSiteCalendarResearch(userText) {
             headers: { Accept: 'application/json', 'User-Agent': BROWSER_UA }
         });
         if (!r.ok) return '';
-        const j = await r.json();
+        const j = await readJsonWithLimit(r, 1024 * 1024);
         const items = Array.isArray(j.items) ? j.items : [];
         const t = String(userText || '');
         const wantRezero = /ре\s*[-:]?\s*зеро|резеро|re\s*[-:]?\s*zero|rezero/i.test(t);
@@ -1327,8 +1318,8 @@ async function searchTavily(query) {
             body: JSON.stringify(payload)
         });
         if (!r.ok) {
-            const errText = await r.text().catch(() => '');
-            console.error('[minko-chat] Tavily HTTP', r.status, errText.slice(0, 300));
+            const errText = await readTextWithLimit(r, 16384).catch(() => '');
+            console.error('[minko-chat] Tavily HTTP', r.status, safeText(errText, 300));
             // Повтор без include_domains (на случай ограничений тарифа)
             if (r.status === 400 || r.status === 422) {
                 const r2 = await fetch('https://api.tavily.com/search', {
@@ -1350,7 +1341,7 @@ async function searchTavily(query) {
                     console.error('[minko-chat] Tavily retry HTTP', r2.status);
                     return [];
                 }
-                const j2 = await r2.json();
+                const j2 = await readJsonWithLimit(r2, 1024 * 1024);
                 const rows2 = Array.isArray(j2.results) ? j2.results : [];
                 return rows2
                     .map((x) => ({
@@ -1362,7 +1353,7 @@ async function searchTavily(query) {
             }
             return [];
         }
-        const j = await r.json();
+        const j = await readJsonWithLimit(r, 1024 * 1024);
         const rows = Array.isArray(j.results) ? j.results : [];
         return rows
             .map((x) => ({
@@ -1372,7 +1363,7 @@ async function searchTavily(query) {
             }))
             .filter((x) => x.url || x.content);
     } catch (e) {
-        console.error('[minko-chat] Tavily error', e && e.message ? e.message : e);
+        console.error('[minko-chat] Tavily error', safeText(e?.message || e, 200));
         return [];
     } finally {
         clearTimeout(tid);
@@ -1392,7 +1383,7 @@ async function searchSerpApi(query) {
             encodeURIComponent(SERPAPI_KEY);
         const r = await fetch(url, { signal: ac.signal });
         if (!r.ok) return [];
-        const j = await r.json();
+        const j = await readJsonWithLimit(r, 1024 * 1024);
         const organic = Array.isArray(j.organic_results) ? j.organic_results : [];
         return organic
             .map((x) => ({
@@ -1434,7 +1425,7 @@ async function searchUnsearch(query) {
             console.error('[minko-chat] UnSearch HTTP', r.status);
             return [];
         }
-        const j = await r.json();
+        const j = await readJsonWithLimit(r, 1024 * 1024);
         const rows = Array.isArray(j.results) ? j.results : [];
         return rows
             .map((x) => ({
@@ -1444,7 +1435,7 @@ async function searchUnsearch(query) {
             }))
             .filter((x) => x.url || x.content);
     } catch (e) {
-        console.error('[minko-chat] UnSearch error', e && e.message ? e.message : e);
+        console.error('[minko-chat] UnSearch error', safeText(e?.message || e, 200));
         return [];
     } finally {
         clearTimeout(tid);
@@ -1475,13 +1466,13 @@ async function searchSearchXDetailed(query) {
             return { results: [], quotaExceeded: true, httpStatus };
         }
         if (!r.ok) {
-            const errBody = await r.text().catch(() => '');
-            console.error('[minko-chat] SearchX HTTP', httpStatus, errBody.slice(0, 200));
+            const errBody = await readTextWithLimit(r, 16384).catch(() => '');
+            console.error('[minko-chat] SearchX HTTP', httpStatus, safeText(errBody, 200));
             // Некоторые API отдают 400 с текстом про limit
             const quotaHint = /limit|quota|rate|exceed|credits?/i.test(errBody);
             return { results: [], quotaExceeded: quotaHint, httpStatus };
         }
-        const j = await r.json();
+        const j = await readJsonWithLimit(r, 1024 * 1024);
         const rows = Array.isArray(j.results)
             ? j.results
             : Array.isArray(j.data)
@@ -1498,7 +1489,7 @@ async function searchSearchXDetailed(query) {
             .filter((x) => x.url || x.content);
         return { results, quotaExceeded: false, httpStatus };
     } catch (e) {
-        console.error('[minko-chat] SearchX error', e && e.message ? e.message : e);
+        console.error('[minko-chat] SearchX error', safeText(e?.message || e, 200));
         return { results: [], quotaExceeded: false, httpStatus: 0 };
     } finally {
         clearTimeout(tid);
@@ -1760,15 +1751,16 @@ async function callOpenAIWithWebSearch(instructions, nonSystem, model) {
         body.reasoning = { effort: 'low' };
     }
 
-    const r = await fetch(RESPONSES_URL, {
+    const r = await fetchWithTimeout(RESPONSES_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             Authorization: 'Bearer ' + GPT_KEY
         },
-        body: JSON.stringify(body)
-    });
-    const data = await r.json().catch(() => ({}));
+        body: JSON.stringify(body),
+        redirect: 'error'
+    }, 40000);
+    const data = await readJsonWithLimit(r, 2 * 1024 * 1024, 40000).catch(() => ({}));
     if (!r.ok) {
         throw new Error(data.error?.message || `Responses API ${r.status}`);
     }
@@ -1791,15 +1783,16 @@ async function callOpenAI(messages, model, maxTokens, temperature) {
         body.temperature = temperature;
     }
 
-    const r = await fetch(GPT_URL, {
+    const r = await fetchWithTimeout(GPT_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             Authorization: 'Bearer ' + GPT_KEY
         },
-        body: JSON.stringify(body)
-    });
-    const data = await r.json();
+        body: JSON.stringify(body),
+        redirect: 'error'
+    }, 40000);
+    const data = await readJsonWithLimit(r, 2 * 1024 * 1024, 40000);
     if (!r.ok || !data.choices || !data.choices[0]) {
         throw new Error(data.error?.message || `OpenAI error ${r.status}`);
     }
@@ -1825,7 +1818,10 @@ exports.handler = async (event) => {
 
     let body = event.body;
     if (event.isBase64Encoded && body) body = Buffer.from(body, 'base64').toString('utf8');
-    if (String(body || '').length > MAX_BODY_CHARS) {
+    if (
+        String(body || '').length > MAX_BODY_CHARS ||
+        Buffer.byteLength(body || '', 'utf8') > 48 * 1024
+    ) {
         return err(413, 'Запрос слишком большой.', headers);
     }
 
@@ -1862,7 +1858,7 @@ exports.handler = async (event) => {
         rateAllowed = rate.allowed;
     } catch (error) {
         console.warn('[minko-chat] distributed rate limit unavailable', safeText(error?.message, 120));
-        rateAllowed = checkRateLimit(rateKey, rateLimit);
+        return err(503, 'Защита от перегрузки временно недоступна. Попробуй позже.', headers);
     }
     if (!rateAllowed) {
         console.warn('SECURITY_EVENT|minko_chat_rate_limited|actor=%s', authUser?.id || 'guest');
@@ -1899,7 +1895,7 @@ exports.handler = async (event) => {
                 '*зевает* Не-а~ Я только по аниме и сайту. Давай лучше тайтл какой-нибудь 💤';
             return ok({ choices: [{ message: { role: 'assistant', content: reply } }] }, headers);
         } catch (e) {
-            console.error('[minko-chat] offtopic', e);
+            console.error('[minko-chat] offtopic', safeText(e?.message || e, 200));
             return ok(
                 {
                     choices: [
@@ -1961,8 +1957,10 @@ exports.handler = async (event) => {
                 }, headers);
             }
         } catch (e) {
-            console.error('[minko-chat] search→sources failed', e);
-            void remoteServerLog('warn', 'search→sources failed', { err: String(e.message || e) });
+            console.error('[minko-chat] search→sources failed', safeText(e?.message || e, 200));
+            void remoteServerLog('warn', 'search→sources failed', {
+                err: safeText(e?.message || e, 200)
+            });
         }
 
         // Fallback: hosted OpenAI web_search (если нет Tavily/SerpAPI или они пустые)
@@ -1982,8 +1980,10 @@ exports.handler = async (event) => {
                     choices: [{ message: { role: 'assistant', content: text || '…' } }]
                 }, headers);
             } catch (e) {
-                console.error('[minko-chat] OpenAI web_search failed', e);
-                void remoteServerLog('warn', 'web_search failed', { err: String(e.message || e) });
+                console.error('[minko-chat] OpenAI web_search failed', safeText(e?.message || e, 200));
+                void remoteServerLog('warn', 'web_search failed', {
+                    err: safeText(e?.message || e, 200)
+                });
             }
         }
 
@@ -2005,14 +2005,16 @@ exports.handler = async (event) => {
     }
 
     // Не аниме-research (сайт / приветствия и т.п.) — обычный чат без веб-поиска
-    const systemContent = buildSystemPrompt(userGender, isVip, clientResearch || '');
+    const systemContent = buildSystemPrompt(userGender, isVip, catalogFacts || '');
     const msgs = [{ role: 'system', content: systemContent }, ...nonSystem];
     try {
         const text = await callOpenAI(msgs, model, 2048, 0.72);
         return ok({ choices: [{ message: { role: 'assistant', content: text || '…' } }] }, headers);
     } catch (e) {
-        console.error('[minko-chat]', e);
-        void remoteServerLog('error', 'OpenAI call failed', { err: String(e.message || e) });
+        console.error('[minko-chat]', safeText(e?.message || e, 200));
+        void remoteServerLog('error', 'OpenAI call failed', {
+            err: safeText(e?.message || e, 200)
+        });
         return ok({
             choices: [
                 {

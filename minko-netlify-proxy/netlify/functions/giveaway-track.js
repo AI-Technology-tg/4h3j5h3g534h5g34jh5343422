@@ -5,8 +5,11 @@
 const { allowedOrigin, corsHeaders } = require('./_cors');
 const {
     consumeRateLimit,
+    fetchWithTimeout,
     hashValue,
     ipHash,
+    readJsonWithLimit,
+    readTextWithLimit,
     recordSecurityEvent,
     safePath,
     safeText
@@ -17,7 +20,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 async function recordClick(payload) {
     const url = `${SUPABASE_URL}/rest/v1/rpc/giveaway_record_click`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: {
             apikey: SUPABASE_SERVICE_ROLE_KEY,
@@ -32,12 +35,12 @@ async function recordClick(payload) {
             p_user_agent: payload.userAgent || null,
             p_landing_path: payload.landingPath || null
         })
-    });
+    }, 10000);
     if (!res.ok) {
-        const text = await res.text();
+        const text = await readTextWithLimit(res, 16384);
         throw new Error(text.slice(0, 400));
     }
-    const rows = await res.json();
+    const rows = await readJsonWithLimit(res, 128 * 1024);
     return Array.isArray(rows) && rows[0] ? rows[0] : { recorded: true, reason: 'ok' };
 }
 
@@ -58,10 +61,16 @@ exports.handler = async function handler(event) {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
         return { statusCode: 503, headers, body: JSON.stringify({ error: 'Service unavailable' }) };
     }
+    if (Buffer.byteLength(event.body || '', event.isBase64Encoded ? 'base64' : 'utf8') > 8192) {
+        return { statusCode: 413, headers, body: JSON.stringify({ error: 'Payload too large' }) };
+    }
 
     let body;
     try {
-        body = JSON.parse(event.body || '{}');
+        const raw = event.isBase64Encoded
+            ? Buffer.from(event.body || '', 'base64').toString('utf8')
+            : event.body || '{}';
+        body = JSON.parse(raw);
     } catch (_) {
         return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid JSON' }) };
     }
@@ -82,7 +91,7 @@ exports.handler = async function handler(event) {
         const serverIpHash = ipHash(event);
         const rate = await consumeRateLimit(
             'giveaway.click',
-            `${serverIpHash}:${refCode}`,
+            serverIpHash,
             40,
             60
         );

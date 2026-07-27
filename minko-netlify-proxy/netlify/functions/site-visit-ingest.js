@@ -55,7 +55,7 @@ exports.handler = async function handler(event) {
     }
 
     const visitorId = `v_${hashValue(rawVisitorId, 'visitor').slice(0, 40)}`;
-    const rateKey = `${ipHash(event)}:${visitorId}`;
+    const rateKey = ipHash(event);
     try {
         const rate = await consumeRateLimit('analytics.ingest', rateKey, 180, 300);
         if (!rate.allowed) {

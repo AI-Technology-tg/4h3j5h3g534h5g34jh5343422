@@ -19,7 +19,14 @@ const ALLOWED_PARAMS = new Set([
     'uhd'
 ]);
 const { allowedOrigin, corsHeaders: buildCorsHeaders } = require('./_cors');
-const { consumeRateLimit, ipHash, recordSecurityEvent, safeText } = require('./_security');
+const {
+    consumeRateLimit,
+    fetchWithTimeout,
+    ipHash,
+    readTextWithLimit,
+    recordSecurityEvent,
+    safeText
+} = require('./_security');
 
 function corsHeaders(event) {
     return {
@@ -109,11 +116,12 @@ exports.handler = async (event) => {
             }).catch(() => {});
             return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
         }
-        const res = await fetch(target.toString(), { method: 'GET' });
-        const text = await res.text();
-        if (Buffer.byteLength(text, 'utf8') > 2 * 1024 * 1024) {
-            return { statusCode: 502, headers, body: JSON.stringify({ error: 'Upstream response too large' }) };
-        }
+        const res = await fetchWithTimeout(
+            target.toString(),
+            { method: 'GET', redirect: 'error' },
+            12000
+        );
+        const text = await readTextWithLimit(res, 2 * 1024 * 1024, 12000);
         return {
             statusCode: res.status,
             headers,

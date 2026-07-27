@@ -7,7 +7,14 @@
 const SHIKI_ORIGIN = 'https://shikimori.io';
 const SHIKI_UA = 'Re-Minko/1.0 (https://re-minko-anime.com; +contact@re-minko-anime.com)';
 const { allowedOrigin, corsHeaders: buildCorsHeaders } = require('./_cors');
-const { consumeRateLimit, ipHash, recordSecurityEvent, safeText } = require('./_security');
+const {
+    consumeRateLimit,
+    fetchWithTimeout,
+    ipHash,
+    readTextWithLimit,
+    recordSecurityEvent,
+    safeText
+} = require('./_security');
 const ALLOWED_PARAMS = new Set(['search', 'limit', 'status', 'order', 'page', 'censored']);
 
 function corsHeaders(event) {
@@ -80,18 +87,15 @@ exports.handler = async (event) => {
             }).catch(() => {});
             return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
         }
-        const res = await fetch(target.toString(), {
+        const res = await fetchWithTimeout(target.toString(), {
             method: 'GET',
             headers: {
                 Accept: 'application/json',
                 'User-Agent': SHIKI_UA
             },
-            redirect: 'follow'
-        });
-        const text = await res.text();
-        if (Buffer.byteLength(text, 'utf8') > 2 * 1024 * 1024) {
-            return { statusCode: 502, headers, body: JSON.stringify({ error: 'Upstream response too large' }) };
-        }
+            redirect: 'error'
+        }, 12000);
+        const text = await readTextWithLimit(res, 2 * 1024 * 1024, 12000);
         return {
             statusCode: res.status,
             headers,

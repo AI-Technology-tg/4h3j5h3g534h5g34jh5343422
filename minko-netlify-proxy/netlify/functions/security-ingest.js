@@ -80,7 +80,7 @@ exports.handler = async function handler(event) {
         return response(400, headers, { error: 'Unsupported event type' });
     }
 
-    const rateKey = `${ipHash(event)}:${safeText(body.clientId || '', 128)}`;
+    const rateKey = ipHash(event);
     try {
         const rate = await consumeRateLimit('security.client_ingest', rateKey, 30, 300);
         if (!rate.allowed) {

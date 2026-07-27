@@ -4,7 +4,14 @@
  */
 const ALLOWED_HOST = 'api.remanga.org';
 const { allowedOrigin, corsHeaders: buildCorsHeaders } = require('./_cors');
-const { consumeRateLimit, ipHash, recordSecurityEvent, safeText } = require('./_security');
+const {
+    consumeRateLimit,
+    fetchWithTimeout,
+    ipHash,
+    readTextWithLimit,
+    recordSecurityEvent,
+    safeText
+} = require('./_security');
 const ALLOWED_QUERY_PARAMS = new Set(['query', 'count', 'page', 'branch_id', 'ordering']);
 
 function corsHeaders(event) {
@@ -79,17 +86,15 @@ exports.handler = async (event) => {
             }).catch(() => {});
             return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
         }
-        const res = await fetch(target.toString(), {
+        const res = await fetchWithTimeout(target.toString(), {
             method: 'GET',
             headers: {
                 Accept: 'application/json, */*',
                 Referer: 'https://remanga.org/'
-            }
-        });
-        const text = await res.text();
-        if (Buffer.byteLength(text, 'utf8') > 4 * 1024 * 1024) {
-            return { statusCode: 502, headers, body: JSON.stringify({ error: 'Upstream response too large' }) };
-        }
+            },
+            redirect: 'error'
+        }, 12000);
+        const text = await readTextWithLimit(res, 4 * 1024 * 1024, 12000);
         return { statusCode: res.status, headers, body: text || '{}' };
     } catch (e) {
         console.error('[remanga-proxy]', safeText(e?.message, 200));
