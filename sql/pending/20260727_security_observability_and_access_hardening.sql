@@ -565,6 +565,7 @@ DROP POLICY IF EXISTS "dm_select" ON public.direct_messages;
 DROP POLICY IF EXISTS "dm_insert" ON public.direct_messages;
 DROP POLICY IF EXISTS "dm_update" ON public.direct_messages;
 DROP POLICY IF EXISTS "dm_delete" ON public.direct_messages;
+DROP POLICY IF EXISTS "dm_mark_read" ON public.direct_messages;
 CREATE POLICY "dm_select" ON public.direct_messages
   FOR SELECT TO authenticated
   USING (
@@ -662,34 +663,11 @@ ALTER TABLE public.dm_group_messages
 
 DROP POLICY IF EXISTS "dm_group_members_select" ON public.dm_group_members;
 DROP POLICY IF EXISTS "dm_group_members_insert" ON public.dm_group_members;
+DROP POLICY IF EXISTS "dm_group_members_insert_owner_only" ON public.dm_group_members;
 DROP POLICY IF EXISTS "dm_group_members_delete" ON public.dm_group_members;
 CREATE POLICY "dm_group_members_select" ON public.dm_group_members
   FOR SELECT TO authenticated
   USING (public.reminko_is_dm_group_member(group_id));
-CREATE POLICY "dm_group_members_insert_owner_only" ON public.dm_group_members
-  FOR INSERT TO authenticated
-  WITH CHECK (
-    role = 'member'
-    AND EXISTS (
-      SELECT 1
-      FROM public.dm_group_members owner_membership
-      WHERE owner_membership.group_id = dm_group_members.group_id
-        AND owner_membership.user_id = auth.uid()
-        AND owner_membership.role = 'owner'
-    )
-  );
-CREATE POLICY "dm_group_members_delete" ON public.dm_group_members
-  FOR DELETE TO authenticated
-  USING (
-    auth.uid() = user_id
-    OR EXISTS (
-      SELECT 1
-      FROM public.dm_group_members owner_membership
-      WHERE owner_membership.group_id = dm_group_members.group_id
-        AND owner_membership.user_id = auth.uid()
-        AND owner_membership.role = 'owner'
-    )
-  );
 
 REVOKE ALL ON TABLE public.dm_group_members FROM anon;
 REVOKE INSERT, UPDATE ON TABLE public.dm_group_members FROM authenticated;
@@ -1350,6 +1328,7 @@ FOR EACH ROW EXECUTE FUNCTION public.protect_friend_request_transition();
 
 DROP POLICY IF EXISTS "friends_insert" ON public.friends;
 DROP POLICY IF EXISTS "friends_update" ON public.friends;
+DROP POLICY IF EXISTS "friends_update_recipient" ON public.friends;
 CREATE POLICY "friends_insert" ON public.friends
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -1384,6 +1363,7 @@ FOR EACH ROW EXECUTE FUNCTION public.trg_global_chat_automod_before_insert();
 DROP POLICY IF EXISTS "chat_update_own" ON public.global_chat_messages;
 DROP POLICY IF EXISTS "chat_delete" ON public.global_chat_messages;
 DROP POLICY IF EXISTS "chat_update_creator" ON public.global_chat_messages;
+DROP POLICY IF EXISTS "chat_soft_delete_own" ON public.global_chat_messages;
 CREATE POLICY "chat_soft_delete_own" ON public.global_chat_messages
   FOR UPDATE TO authenticated
   USING (
@@ -1473,6 +1453,7 @@ CREATE POLICY "notifications_insert_creator" ON public.notifications
 -- ---------------------------------------------------------------------------
 
 DROP POLICY IF EXISTS "minko_ai_state_all" ON public.minko_ai_state;
+DROP POLICY IF EXISTS "minko_ai_state_select_own" ON public.minko_ai_state;
 CREATE POLICY "minko_ai_state_select_own" ON public.minko_ai_state
   FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
