@@ -651,7 +651,8 @@
     const REMINKO_KIDS_CARTOON_MAL = new Set([
         966, 1960, 235, 2406, 6149, 8687, 53876, 56566, 32353, 50418, 60534, 50250, 18941, 63356,
         62933, 63383, 63150, 63403, 64357, 63641, 62683, 62856, 63042, 63352, 37096, 42295, 63011,
-        63512, 64502, 63142, 63219, 41458,
+        63512, 64502, 63142, 63219, 41458, 64578, 63762, 54871, 61269, 32365, 55071, 54726, 56894,
+        57533,
     ]);
 
     const REMINKO_KIDS_GENRE_NAMES = new Set(['kids', 'детское', 'детский']);
@@ -674,7 +675,7 @@
 
     function reminkoRowTitleLooksLikeKidsCartoon(row, meta) {
         const title = String(
-            (row && (row.title_ru || row.title)) || (meta && meta.title) || ''
+            (row && (row.title_ru || row.title || row.title_en)) || (meta && meta.title) || ''
         )
             .trim()
             .toLowerCase();
@@ -682,33 +683,38 @@
         const patterns = [
             /анпанман/,
             /дораэмон/,
-            /покемон/,
-            /син-тян/,
+            /покемон|pokemon/,
+            /син-тян|crayon\s*shin/,
             /садзаэ/,
-            /маруко/,
+            /маруко|maruko/,
             /bono\s*bono|боно\s*боно/,
             /ниндзяла/,
             /shimajirou|шимаджиро/,
-            /томика\s+и\s+том/,
-            /копэн/,
+            /томика\s+и\s+том|tomica/,
+            /копэн|copen/,
             /кумарба/,
-            /асибэ/,
+            /асибэ|asibe/,
             /карамелька/,
             /табакошка/,
             /планозавр/,
-            /тикава/,
-            /бейблэйд/,
+            /тикава|chiikawa/,
+            /бейблэйд|beyblade/,
             /отряд\s+мистики/,
             /qq\s+гома/,
-            /тиби-годзилла/,
-            /chibi\s+godzilla/,
+            /тиби-годзилла|chibi\s*godzilla/,
             /кардбот|cardbot/,
             /мэйсаку|meisaku/,
             /всезнайка/,
             /счастливая\s+улыбка/,
             /origami\s+ninja/,
-            /детектив\s+конан/,
-            /detective\s+conan/,
+            /детектив\s+конан|detective\s+conan/,
+            /ягодичк|oshiri\s*tantei/,
+            /киккун|chikyuu\s*daisuki|chikyū\s*daisuki/,
+            /precure|прикьюр|хорошенькое\s+лекарство/,
+            /дигимон|digimon/,
+            /новая\s+история\s+японии|shin\s*nippon\s*history/,
+            /айпри|aikatsu|припара|pripara|pretty\s*series/,
+            /yo-?kai\s*watch|ёкай\s*вотч/,
         ];
         return patterns.some((re) => re.test(title));
     }
@@ -742,10 +748,12 @@
     /** Настоящая премьера: 1-я серия, не онгоинг/мульт. */
     function reminkoIsTrueCalendarAnnounced(row, catalogMeta) {
         const ep = parseInt(row && row.next_episode, 10) || 1;
+        const aired = parseInt(row && row.episodes_aired, 10);
         if (ep > 1) return false;
+        if (Number.isFinite(aired) && aired > 0) return false;
         if (!row || !row.next_at || !Number.isFinite(Date.parse(row.next_at))) return false;
         const st = String((row && row.status) || '').toLowerCase();
-        // Онгоинги с next_episode=1 (мультики и т.п.) — не анонсы
+        // Онгоинги / вышло — не анонсы (даже если next_episode=1 из-за кривых данных)
         if (st === 'ongoing' || st === 'released' || st === 'finished') return false;
         if (reminkoIsKidsCartoonCalendarRow(row, catalogMeta)) return false;
         if (catalogMeta && catalogMeta.status === 'Онгоинг') {
@@ -758,7 +766,7 @@
         return true;
     }
 
-    /** Онгоинги (след. серия > 1) и анонсы (премьера, ep ≤ 1), без дублей mal_id. */
+    /** Онгоинги (след. серия / уже идёт) и анонсы (премьера), без детского шлака и дублей. */
     function reminkoSplitCalendarRows(items, metaByMal) {
         const now = Date.now();
         const airing = [];
@@ -770,19 +778,41 @@
             const t = Date.parse(row.next_at);
             if (!Number.isFinite(t) || t <= now) continue;
             const ep = parseInt(row.next_episode, 10) || 1;
+            const aired = parseInt(row.episodes_aired, 10);
+            const st = String((row && row.status) || '').toLowerCase();
             const meta =
                 metaByMal && typeof metaByMal.get === 'function'
                     ? reminkoCatalogMetaForCalendarRow(row, metaByMal)
                     : null;
-            if (ep <= 1) {
-                if (!reminkoIsTrueCalendarAnnounced(row, meta)) continue;
+
+            // Детский / образовательный шлак — ни в онгоинги, ни в анонсы
+            if (reminkoIsKidsCartoonCalendarRow(row, meta)) continue;
+            if (reminkoIsCalendarRowFinished(row, meta)) continue;
+
+            const isAiring =
+                ep > 1 ||
+                (Number.isFinite(aired) && aired > 0) ||
+                st === 'ongoing' ||
+                st === 'released';
+            const isAnnounced =
+                !isAiring &&
+                (st === 'anons' || st === 'announcement' || ep <= 1) &&
+                reminkoIsTrueCalendarAnnounced(row, meta);
+
+            if (isAnnounced) {
                 if (Number.isFinite(mal) && mal > 0) {
                     if (seenAnnouncedMal.has(mal)) continue;
                     seenAnnouncedMal.add(mal);
                 }
                 announced.push(row);
-            } else {
-                if (reminkoIsCalendarRowFinished(row, meta)) continue;
+                continue;
+            }
+
+            if (isAiring && ep >= 1) {
+                // ongoing с ep=1 aired=0 без серий — не тащим в онгоинги (это ложные премьеры/мульты)
+                if (ep <= 1 && (!Number.isFinite(aired) || aired <= 0) && st === 'ongoing') {
+                    continue;
+                }
                 if (Number.isFinite(mal) && mal > 0) {
                     if (seenAiringMal.has(mal)) continue;
                     seenAiringMal.add(mal);

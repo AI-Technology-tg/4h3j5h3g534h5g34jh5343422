@@ -131,7 +131,8 @@
 }
 
 .calendar-item__poster img.is-poster-missing {
-    opacity: 0;
+    opacity: 0.35;
+    filter: grayscale(0.4);
 }
 
 .calendar-item__time {
@@ -329,7 +330,8 @@
 }
 
 .calendar-ann-card__poster img.is-poster-missing {
-    opacity: 0;
+    opacity: 0.35;
+    filter: grayscale(0.4);
 }
 
 .calendar-ann-card__shade {

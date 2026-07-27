@@ -23,6 +23,13 @@
         };
     }
 
+    function normalizeCalendarPosterHost(url) {
+        const s = String(url || '').trim();
+        if (!s) return '';
+        // shikimori.io CDN иногда отваливается — пробуем .one
+        return s.replace(/^(https?:\/\/)shikimori\.io\//i, '$1shikimori.one/');
+    }
+
     function pickInitialPoster(row, catalogAnime) {
         const mal = parseInt(row.mal_id, 10);
         if (Number.isFinite(mal) && mal > 0 && typeof global.readMalPosterCache === 'function') {
@@ -30,17 +37,15 @@
             if (cached) return cached;
         }
         const meta = posterMetaForRow(row, catalogAnime);
-        if (typeof global.pickKnownPosterUrl === 'function') {
-            const known = global.pickKnownPosterUrl(meta);
-            if (known) {
-                return typeof global.upgradeMalCdnPosterUrl === 'function'
-                    ? global.upgradeMalCdnPosterUrl(known)
-                    : known;
-            }
-        }
-        const candidates = [row.posterUrl, catalogAnime && catalogAnime.posterUrl];
-        for (const url of candidates) {
-            if (!url) continue;
+        const candidates = [
+            row && row.posterUrl,
+            catalogAnime && catalogAnime.posterUrl,
+            typeof global.pickKnownPosterUrl === 'function' ? global.pickKnownPosterUrl(meta) : ''
+        ];
+        for (const raw of candidates) {
+            if (!raw) continue;
+            let url = normalizeCalendarPosterHost(raw);
+            if (!url || url.startsWith('data:')) continue;
             if (
                 typeof global.isShikimoriPlaceholderPoster === 'function' &&
                 global.isShikimoriPlaceholderPoster(url)
@@ -53,9 +58,10 @@
             ) {
                 continue;
             }
-            return typeof global.upgradeMalCdnPosterUrl === 'function'
-                ? global.upgradeMalCdnPosterUrl(url)
-                : url;
+            if (typeof global.upgradeMalCdnPosterUrl === 'function') {
+                url = global.upgradeMalCdnPosterUrl(url);
+            }
+            return url;
         }
         return POSTER_PLACEHOLDER_SRC;
     }
