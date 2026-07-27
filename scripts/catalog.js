@@ -1198,7 +1198,7 @@ function bindGenreAdultPanelOnce() {
     });
 }
 
-/** Компактный список жанров с поиском */
+/** Компактный список жанров: сетка без галочек + 18+ */
 function loadGenres() {
     const panel = document.getElementById('filterGenrePanel');
     if (!panel) return;
@@ -1209,14 +1209,16 @@ function loadGenres() {
     if (!grid) return;
 
     const adultLabels =
-        (typeof window.reminkoAdultGenreLabels !== 'undefined' && window.reminkoAdultGenreLabels) || [
-            'Хентай',
-            'Эротика',
-            'Этти',
-            'Яой',
-            'Юри'
-        ];
-    const genres = getAllGenres().filter((g) => !adultLabels.includes(g));
+        typeof getAdultGenresForPicker === 'function'
+            ? getAdultGenresForPicker()
+            : (typeof window.reminkoAdultGenreLabels !== 'undefined' && window.reminkoAdultGenreLabels) || [
+                  'Хентай',
+                  'Эротика',
+                  'Яой',
+                  'Юри'
+              ];
+    const softAdult = new Set(['Этти', ...adultLabels]);
+    const genres = typeof getAllGenres === 'function' ? getAllGenres() : [];
     const unlocked = typeof isAdultContentEnabled === 'function' && isAdultContentEnabled();
 
     const makeChip = (genre, opts = {}) => {
@@ -1235,14 +1237,21 @@ function loadGenres() {
             .join(' ');
         return `
         <label class="${cls}" data-label="${v}" ${adult ? 'data-adult-genre="1"' : ''}>
-            <input type="checkbox" value="${v}" id="${id}" ${locked ? 'disabled aria-disabled="true"' : ''}>
+            <input type="checkbox" value="${v}" id="${id}" ${locked ? 'disabled aria-disabled="true"' : ''} tabindex="-1" aria-hidden="true">
             <span class="genre-picker-chip__text">${reminkoEscapeHtml(genre)}</span>
             ${locked ? '<span class="genre-adult-lock" title="Включите отображение жанров 18+ в настройках профиля">🔒</span>' : ''}
         </label>`;
     };
 
     grid.innerHTML =
-        genres.map((g) => makeChip(g)).join('') +
+        genres
+            .map((g) =>
+                makeChip(g, {
+                    adult: softAdult.has(g),
+                    locked: softAdult.has(g) && !unlocked
+                })
+            )
+            .join('') +
         adultLabels.map((g) => makeChip(g, { adult: true, locked: !unlocked })).join('');
 
     bindGenreAdultPanelOnce();

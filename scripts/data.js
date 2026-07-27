@@ -1448,7 +1448,6 @@ const REMINKO_GENRE_CANON = {
     Детский: 'Детское',
     Военный: 'Военное',
     Суперсила: 'Супер сила',
-    Исекай: 'Исэкай',
     Сёнэн: 'Сёнен',
     'Взрослые герои': 'Взрослые персонажи',
     Милашки: 'CGDCT',
@@ -1459,22 +1458,26 @@ const REMINKO_GENRE_CANON = {
     'Уход за детьми': 'Забота о детях',
     Делинквенты: 'Хулиганы',
     'Игра на выживание': 'Игра с высокими ставками',
-    Айдолы: 'Идолы (Жен.)',
     Отаку: 'Культура отаку',
     Искусство: 'Исполнительское искусство',
     Стратегия: 'Стратегические игры',
     Машины: 'Гонки',
-    Игры: 'Видеоигры',
     Премия: 'Удостоено наград',
     Юмор: 'Гэг-юмор',
     Демоны: 'Сверхъестественное',
-    Магия: 'Фэнтези',
     Полиция: 'Детектив',
     Мелодрама: 'Драма',
     Криминал: 'Детектив',
     Семейный: 'Детское',
     'Сёдзё-ай': 'Юри',
-    'Сёнен-ай': 'Яой'
+    'Сёнен-ай': 'Яой',
+    // UI-ярлыки ↔ каталог Kodik
+    Исекай: 'Исэкай',
+    Игры: 'Видеоигры',
+    Кулинария: 'Гурман',
+    Мистика: 'Тайна',
+    Айдолы: 'Идолы (Жен.)',
+    'Идолы (Муж.)': 'Идолы (Жен.)'
 };
 
 /** Мусор/мета-теги — не показываем в фильтре жанров. */
@@ -1488,58 +1491,58 @@ const REMINKO_GENRE_FILTER_SKIP = new Set([
 ]);
 
 /**
- * Популярные жанры для UI-фильтра (остальное — шлак/микро-темы Kodik).
- * На карточках аниме редкие жанры могут остаться, в пикере их нет.
+ * Фиксированный список жанров в пикере (как на эталонных каталогах).
+ * Порядок важен. 18+ (кроме Этти) добавляются отдельно.
  */
-const REMINKO_GENRE_FILTER_ALLOW = new Set([
+const REMINKO_GENRE_UI_ORDER = [
+    'Приключения',
     'Экшен',
     'Комедия',
     'Фэнтези',
-    'Приключения',
-    'Фантастика',
     'Драма',
-    'Романтика',
-    'Сёнен',
-    'Сэйнэн',
-    'Сёдзё',
-    'Дзёсей',
-    'Школа',
-    'Сверхъестественное',
-    'Исторический',
-    'Тайна',
-    'Меха',
-    'Боевые искусства',
-    'Военное',
-    'Повседневность',
-    'Гарем',
-    'Исэкай',
-    'Музыка',
-    'Спорт',
-    'Триллер',
-    'Ужасы',
-    'Психологическое',
     'Детектив',
-    'Вампиры',
-    'Реинкарнация',
-    'Гурман',
-    'Видеоигры',
-    'Гонки',
-    'Выживание',
-    'Махо-сёдзё',
-    'Космос',
-    'Мифология',
-    'Супер сила',
-    'Пародия',
-    'Городское фэнтези',
-    'Самураи',
-    'Путешествие во времени',
-    // 18+ — в пикере отдельно, когда разблокированы
+    'Военное',
     'Этти',
-    'Хентай',
-    'Эротика',
-    'Яой',
-    'Юри'
-]);
+    'Игры',
+    'Кулинария',
+    'Гарем',
+    'Исторический',
+    'Магия',
+    'Боевые искусства',
+    'Исекай',
+    'Ужасы',
+    'Махо-сёдзё',
+    'Айдолы',
+    'Лоли',
+    'Меха',
+    'Фантастика',
+    'Мистика',
+    'Романтика',
+    'Школа',
+    'Повседневность'
+];
+
+/** 18+ в конце сетки (Этти уже в основном списке). */
+const REMINKO_GENRE_UI_ADULT = ['Хентай', 'Эротика', 'Яой', 'Юри'];
+
+/**
+ * Чем матчить выбранный UI-жанр по полям anime.genres (после канона).
+ * Если нет ключа — матч по самому имени / канону.
+ */
+const REMINKO_GENRE_UI_MATCH = {
+    Игры: ['Видеоигры', 'Игры'],
+    Кулинария: ['Гурман', 'Кулинария'],
+    Исекай: ['Исэкай', 'Исекай'],
+    Магия: ['Магия'],
+    Мистика: ['Тайна', 'Мистика', 'Сверхъестественное'],
+    Айдолы: ['Айдолы', 'Идолы (Жен.)', 'Идолы (Муж.)'],
+    Лоли: ['Лоли'],
+    Этти: ['Этти'],
+    Хентай: ['Хентай'],
+    Эротика: ['Эротика'],
+    Яой: ['Яой'],
+    Юри: ['Юри']
+};
 
 function reminkoCanonicalGenre(genre) {
     const g = String(genre || '').trim();
@@ -1547,10 +1550,22 @@ function reminkoCanonicalGenre(genre) {
     return REMINKO_GENRE_CANON[g] || g;
 }
 
+function reminkoGenreMatchTargets(selectedGenre) {
+    const raw = String(selectedGenre || '').trim();
+    if (!raw) return [];
+    const mapped = REMINKO_GENRE_UI_MATCH[raw];
+    if (mapped && mapped.length) {
+        return [...new Set(mapped.map((g) => reminkoCanonicalGenre(g) || g).filter(Boolean))];
+    }
+    const c = reminkoCanonicalGenre(raw);
+    return c ? [c] : [raw];
+}
+
 function reminkoGenresMatch(animeGenre, selectedGenre) {
     const a = reminkoCanonicalGenre(animeGenre).toLowerCase();
-    const b = reminkoCanonicalGenre(selectedGenre).toLowerCase();
-    return !!a && !!b && a === b;
+    if (!a) return false;
+    const targets = reminkoGenreMatchTargets(selectedGenre).map((t) => String(t).toLowerCase());
+    return targets.includes(a);
 }
 
 function reminkoAnimeHasGenre(anime, selectedGenre) {
@@ -1563,44 +1578,22 @@ if (typeof window !== 'undefined') {
     window.reminkoCanonicalGenre = reminkoCanonicalGenre;
     window.reminkoGenresMatch = reminkoGenresMatch;
     window.reminkoAnimeHasGenre = reminkoAnimeHasGenre;
-    window.REMINKO_GENRE_FILTER_ALLOW = REMINKO_GENRE_FILTER_ALLOW;
+    window.reminkoGenreMatchTargets = reminkoGenreMatchTargets;
+    window.REMINKO_GENRE_UI_ORDER = REMINKO_GENRE_UI_ORDER;
+    window.REMINKO_GENRE_UI_ADULT = REMINKO_GENRE_UI_ADULT;
 }
 
-// Получить популярные жанры для фильтра (Kodik + кастом, без микро-тем)
+/** Жанры для UI-фильтра — фиксированный популярный список. */
 function getAllGenres() {
-    const counts = new Map();
-    const push = (genre) => {
-        const c = reminkoCanonicalGenre(genre);
-        if (!c || REMINKO_GENRE_FILTER_SKIP.has(c)) return;
-        if (!REMINKO_GENRE_FILTER_ALLOW.has(c)) return;
-        counts.set(c, (counts.get(c) || 0) + 1);
-    };
+    return REMINKO_GENRE_UI_ORDER.slice();
+}
 
-    const kodik =
-        typeof getKodikCatalogAnimeList === 'function' ? getKodikCatalogAnimeList() : [];
-    for (const anime of kodik) {
-        (anime.genres || []).forEach(push);
-    }
+function getAdultGenresForPicker() {
+    return REMINKO_GENRE_UI_ADULT.slice();
+}
 
-    const custom =
-        typeof getCustomAnimeFromStorageSync === 'function' ? getCustomAnimeFromStorageSync() : [];
-    for (const anime of custom) {
-        (anime.genres || []).forEach(push);
-    }
-
-    // Сайтовый каталог (если есть) — без Jikan virtual
-    if (typeof animeDatabase !== 'undefined' && Array.isArray(animeDatabase.all)) {
-        for (const anime of animeDatabase.all) {
-            if (anime && (anime.isJikanVirtual || anime.isKodikCalendarAnnounced)) continue;
-            (anime.genres || []).forEach(push);
-        }
-    }
-
-    return Array.from(counts.keys()).sort((a, b) => {
-        const diff = (counts.get(b) || 0) - (counts.get(a) || 0);
-        if (diff !== 0) return diff;
-        return a.localeCompare(b, 'ru');
-    });
+if (typeof window !== 'undefined') {
+    window.getAdultGenresForPicker = getAdultGenresForPicker;
 }
 
 // Удаление дубликатов и объединение сезонов
