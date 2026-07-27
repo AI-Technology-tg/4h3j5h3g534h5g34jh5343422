@@ -308,6 +308,12 @@
     box-sizing: border-box;
 }
 
+/* Пока «без проводов» — только офлайн-реплика Minko, без старой истории */
+#chatMessages .minko-msg.minko-offline-hidden,
+#chatMessages .message.minko-offline-hidden {
+    display: none !important;
+}
+
 .message:hover,
 .minko-msg:hover {
     background: transparent;

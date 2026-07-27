@@ -355,7 +355,7 @@ function _hideSleepyHeaderBadge() {
 /** Офлайн-чат: реплика от Minko (не про «сервер» — пользовательский тон). */
 const MINKO_CHAT_SERVER_OFFLINE_PARAGRAPHS = [
     'Создатель дубина перегрыз провода и оставил меня без сети 💔',
-    '*поправляет плюшевую подушку* Я схожу и ******* ему по *******  и попрошу меня снова включить~ Подожди чуток, ладно?'
+    '*хватает металлическую подушку* Я схожу ******* ему *******  и вежливо попрошу вставить пальчики в 220 для контакта~ Подожди чуток, ладно?'
 ];
 
 const MINKO_CHAT_SERVER_OFFLINE_HTML = MINKO_CHAT_SERVER_OFFLINE_PARAGRAPHS.map((t) => `<p>${t}</p>`).join('');
@@ -1852,51 +1852,51 @@ function _applyChatServerOfflineUi() {
     const chatMessagesEl = document.getElementById('chatMessages');
     if (!chatMessagesEl) return;
 
-    // Убрать офлайн-текст, если раньше ошибочно попал в пузырь «Вы»
-    chatMessagesEl.querySelectorAll('.message-user .message-bubble[data-reminko-offline-backup]').forEach((b) => {
+    // Откатить офлайн-текст, если раньше ошибочно попал в чужой пузырь
+    chatMessagesEl.querySelectorAll('.message-bubble[data-reminko-offline-backup]').forEach((b) => {
         if (b.dataset.reminkoOfflineBackup) {
             b.innerHTML = b.dataset.reminkoOfflineBackup;
             delete b.dataset.reminkoOfflineBackup;
         }
     });
 
-    const hasConversation =
-        chatMessagesEl.querySelectorAll('.minko-msg.message-user, .message-user').length > 0 ||
-        chatMessagesEl.querySelectorAll('.message-assistant').length > 1;
+    // Спрятать историю («ку» + старые ответы) — иначе кажется, что после проводов кто-то пишет
+    chatMessagesEl.querySelectorAll('.minko-msg, .message').forEach((el) => {
+        if (el.id === 'minkoOfflineServerRow' || el.getAttribute('data-minko-offline-notice') === '1') {
+            return;
+        }
+        el.classList.add('minko-offline-hidden');
+        el.setAttribute('hidden', '');
+        el.setAttribute('aria-hidden', 'true');
+    });
 
     let offlineRow = document.getElementById('minkoOfflineServerRow');
-    const welcomeBubble = !hasConversation ? _minkoPrimaryAssistantBubble() : null;
-
-    if (welcomeBubble && !welcomeBubble.closest('#minkoOfflineServerRow')) {
-        if (!welcomeBubble.dataset.reminkoOfflineBackup) {
-            welcomeBubble.dataset.reminkoOfflineBackup = welcomeBubble.innerHTML;
-        }
-        welcomeBubble.innerHTML = MINKO_CHAT_SERVER_OFFLINE_HTML;
-        offlineRow?.remove();
-    } else {
-        if (!offlineRow) {
-            offlineRow = document.createElement('div');
-            offlineRow.id = 'minkoOfflineServerRow';
-            offlineRow.className = 'minko-msg message message-assistant';
-            offlineRow.setAttribute('data-minko-offline-notice', '1');
-            offlineRow.innerHTML =
-                '<div class="minko-msg-avatar message-avatar minko-msg-avatar--video">' +
-                _minkoAvatarHtml('36') +
-                '</div>' +
-                '<div class="minko-msg-body message-content">' +
-                '<div class="minko-msg-meta"><span class="minko-msg-name">Minko</span></div>' +
-                '<div class="minko-msg-bubble message-bubble"></div>' +
-                '</div>';
-            chatMessagesEl.insertBefore(offlineRow, chatMessagesEl.firstChild);
-        }
-        const innerBubble = offlineRow.querySelector('.minko-msg-bubble');
-        if (innerBubble) innerBubble.innerHTML = MINKO_CHAT_SERVER_OFFLINE_HTML;
+    if (!offlineRow) {
+        offlineRow = document.createElement('div');
+        offlineRow.id = 'minkoOfflineServerRow';
+        offlineRow.className = 'minko-msg message message-assistant';
+        offlineRow.setAttribute('data-minko-offline-notice', '1');
+        offlineRow.innerHTML =
+            '<div class="minko-msg-avatar message-avatar minko-msg-avatar--video">' +
+            _minkoAvatarHtml('36') +
+            '</div>' +
+            '<div class="minko-msg-body message-content">' +
+            '<div class="minko-msg-meta"><span class="minko-msg-name">Minko</span></div>' +
+            '<div class="minko-msg-bubble message-bubble"></div>' +
+            '</div>';
+        chatMessagesEl.insertBefore(offlineRow, chatMessagesEl.firstChild);
     }
+    const innerBubble = offlineRow.querySelector('.minko-msg-bubble');
+    if (innerBubble) innerBubble.innerHTML = MINKO_CHAT_SERVER_OFFLINE_HTML;
+    offlineRow.classList.remove('minko-offline-hidden');
+    offlineRow.removeAttribute('hidden');
+    offlineRow.setAttribute('aria-hidden', 'false');
 
     const chatInput = document.getElementById('chatInput');
     const sendButton = document.getElementById('sendButton');
     if (chatInput) {
         chatInput.disabled = true;
+        chatInput.value = '';
         chatInput.placeholder = MINKO_CHAT_OFFLINE_PLACEHOLDER;
     }
     if (sendButton) sendButton.disabled = true;
@@ -1916,6 +1916,12 @@ function _clearChatServerOfflineUi() {
     if (!_minkoChatOfflineUiActive) return;
     _minkoSetOfflineFlags(false, undefined);
     document.getElementById('minkoOfflineServerRow')?.remove();
+    const chatMessagesEl = document.getElementById('chatMessages');
+    chatMessagesEl?.querySelectorAll('.minko-offline-hidden').forEach((el) => {
+        el.classList.remove('minko-offline-hidden');
+        el.removeAttribute('hidden');
+        el.removeAttribute('aria-hidden');
+    });
     _minkoAssistantBubbles().forEach((bubble) => {
         if (bubble.dataset.reminkoOfflineBackup) {
             bubble.innerHTML = bubble.dataset.reminkoOfflineBackup;
@@ -3197,19 +3203,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!message) return;
         if (chatInputEl.disabled) return;
 
+        // Офлайн / без проводов — никто не пишет и не получает «Привет» поверх
+        if (_minkoChatOfflineUiActive || _minkoRemoteOffActive || !freeOnline) {
+            if (!_minkoChatOfflineUiActive) {
+                _applyChatServerOfflineUi();
+            }
+            return;
+        }
+
         try {
             if (typeof window.reminkoMinkoMissTouchChat === 'function') {
                 window.reminkoMinkoMissTouchChat();
             }
         } catch (_) {
             /* ignore */
-        }
-
-        if (_minkoRemoteOffActive) {
-            if (typeof showInfo === 'function') {
-                showInfo('Создатель дубина перегрыз провода — Minko AI сейчас офлайн 💤');
-            }
-            return;
         }
 
         if (_isMinkoWakeGamePending() && _isMinkoDeepAsleep() <= 0) {
@@ -3660,7 +3667,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * если assistant ещё не успел ответить.
      */
     async function resumePendingMinkoReply() {
-        if (_minkoRemoteOffActive) return;
+        if (_minkoRemoteOffActive || _minkoChatOfflineUiActive || !freeOnline) return;
         if (_isMinkoDeepAsleep() > 0) return;
         if (_isMinkoWakeGamePending()) return;
         // Пока ждём «прости» после входа — не перехватываем ввод авто-дозапросом
