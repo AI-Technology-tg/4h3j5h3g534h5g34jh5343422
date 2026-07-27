@@ -228,13 +228,36 @@ function expandAliasQueries(msg) {
         [/атак\w*\s+на\s+титан|атака\s+титанов|shingeki|\baot\b/i, ['Attack on Titan', 'Shingeki no Kyojin']],
         [/клинок\s+рассекающ|demon\s*slayer|kimetsu/i, ['Demon Slayer', 'Kimetsu no Yaiba']],
         [/ван\s*пис|one\s*piece/i, ['One Piece']],
-        [/магическ\w+\s+битв|jujutsu/i, ['Jujutsu Kaisen']]
+        [/магическ\w+\s+битв|jujutsu/i, ['Jujutsu Kaisen']],
+        [
+            /детектив\s+уже\s+м[её]ртв|detective\s+is\s+already\s+dead|tantei\s+wa\s+mou|tanmoshi|сиест[аы]/i,
+            ['The Detective Is Already Dead', 'Tantei wa Mou Shindeiru', 'Детектив уже мёртв']
+        ]
     ];
     const out = [];
     for (const [re, qs] of aliases) {
         if (re.test(text)) out.push(...qs);
     }
     return out;
+}
+
+function extractSeasonHintServer(msg) {
+    const t = String(msg || '');
+    let m = t.match(/(?:^|[^\d])(\d{1,2})\s*[-.]?\s*(?:сезон|season|тв|tv)(?=\s|$|[.,!?«»"'])/i);
+    if (!m) m = t.match(/(?:сезон|season|тв|tv)\s*[-.]?\s*(\d{1,2})(?=\s|$|[.,!?«»"'])/i);
+    if (!m) m = t.match(/(?:втор|второ)\w*\s+сезон/i) ? [null, '2'] : null;
+    if (!m) return null;
+    const n = parseInt(m[1], 10);
+    return Number.isFinite(n) && n > 0 && n < 40 ? n : null;
+}
+
+/** Дата/сезон/премьера — нельзя отвечать только каталогом без веба. */
+function needsFreshReleaseWeb(text) {
+    const t = String(text || '');
+    if (extractSeasonHintServer(t) != null) return true;
+    return /дата\s*(?:выход|премьер)|когда\s*(?:выйд|выйдет|выходит|премьер)|премьер|анонсир|отложен|перенес|release\s*date|premiere/i.test(
+        t
+    );
 }
 
 function extractTitleCandidates(msg) {
@@ -747,6 +770,16 @@ function buildAnimeWebQuery(userText) {
         .replace(/\s+/g, ' ')
         .slice(0, 160);
     if (base.length < 2) return '';
+    const aliases = expandAliasQueries(base);
+    const enTitle = aliases.find((a) => /[A-Za-z]{3}/.test(a));
+    const seasonN = extractSeasonHintServer(base);
+    if (needsFreshReleaseWeb(base) && (enTitle || seasonN)) {
+        const title = enTitle || base.replace(/\?.*$/, '').slice(0, 80);
+        if (seasonN) {
+            return `${title} season ${seasonN} release date anime`.replace(/\s+/g, ' ').slice(0, 160);
+        }
+        return `${title} release date anime`.replace(/\s+/g, ' ').slice(0, 160);
+    }
     if (/аниме|anime|манга|manga|myanimelist|anilist|shikimori/i.test(base)) return base;
     return base + ' аниме';
 }
@@ -988,54 +1021,126 @@ function knownFactPages(userText) {
             urls.push('https://en.wikipedia.org/wiki/List_of_Re:Zero_episodes');
         }
     }
+    if (
+        /детектив\s+уже\s+м[её]ртв|detective\s+is\s+already\s+dead|tantei\s+wa\s+mou|tanmoshi/i.test(
+            t
+        )
+    ) {
+        urls.push(
+            'https://en.wikipedia.org/wiki/The_Detective_Is_Already_Dead',
+            'https://www.animenewsnetwork.com/encyclopedia/anime.php?id=26119'
+        );
+    }
     return urls.slice(0, 2);
 }
 
-async function fetchSiteCalendarResearch(userText) {
+function normalizeMatchBlob(s) {
+    return String(s || '')
+        .toLowerCase()
+        .replace(/ё/g, 'е')
+        .replace(/[^a-z0-9а-я]+/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+async function fetchSiteDataJson(fileName) {
     const ac = new AbortController();
     const tid = setTimeout(() => ac.abort(), 4000);
     try {
-        const r = await fetch('https://re-minko-anime.com/data/kodik-calendar.json', {
+        const r = await fetch('https://re-minko-anime.com/data/' + fileName, {
             signal: ac.signal,
             headers: { Accept: 'application/json', 'User-Agent': BROWSER_UA }
         });
-        if (!r.ok) return '';
+        if (!r.ok) return [];
         const j = await readJsonWithLimit(r, 1024 * 1024);
-        const items = Array.isArray(j.items) ? j.items : [];
+        return Array.isArray(j.items) ? j.items : [];
+    } catch {
+        return [];
+    } finally {
+        clearTimeout(tid);
+    }
+}
+
+async function fetchSiteCalendarResearch(userText) {
+    try {
         const t = String(userText || '');
-        const wantRezero = /ре\s*[-:]?\s*зеро|резеро|re\s*[-:]?\s*zero|rezero/i.test(t);
-        const season4 = /\b4\b|4th|тв-?4|tv-?4|четвёрт|четверт/i.test(t);
-        const hits = items.filter((it) => {
-            const blob = `${it.title_ru || ''} ${it.title_en || ''}`;
-            if (wantRezero && /re:?\s*zero|hajimeru isekai|жизнь с нуля/i.test(blob)) {
-                if (season4) return /4|4th/i.test(blob);
-                return true;
-            }
-            return false;
-        });
-        if (!hits.length && wantRezero) {
-            const soft = items.filter((it) =>
-                /re:?\s*zero|hajimeru isekai|жизнь с нуля/i.test(
-                    `${it.title_ru || ''} ${it.title_en || ''}`
-                )
+        const [calItems, annItems] = await Promise.all([
+            fetchSiteDataJson('kodik-calendar.json'),
+            fetchSiteDataJson('kodik-announced.json')
+        ]);
+        const items = [
+            ...calItems.map((it) => ({ ...it, _src: 'calendar' })),
+            ...annItems.map((it) => ({ ...it, _src: 'announced' }))
+        ];
+        if (!items.length) return '';
+
+        const aliases = expandAliasQueries(t).map((a) => normalizeMatchBlob(a));
+        const seasonHint = extractSeasonHintServer(t);
+        const stop = new Set([
+            'когда',
+            'выйдет',
+            'выйд',
+            'дата',
+            'выход',
+            'сезон',
+            'season',
+            'аниме',
+            'точный',
+            'точная',
+            'будет',
+            'есть',
+            'сколько',
+            'серий',
+            'второй',
+            'второго',
+            'the',
+            'and',
+            'for'
+        ]);
+        const tokens = normalizeMatchBlob(t)
+            .split(/\s+/)
+            .filter((w) => w.length >= 3 && !stop.has(w) && !/^\d+$/.test(w));
+
+        const scored = [];
+        for (const it of items) {
+            const blob = normalizeMatchBlob(
+                `${it.title_ru || ''} ${it.title_en || ''} ${it.title || ''}`
             );
-            hits.push(...soft.slice(0, 1));
+            if (!blob) continue;
+            let score = 0;
+            for (const a of aliases) {
+                if (a && (blob.includes(a.slice(0, 16)) || a.includes(blob.slice(0, 16)))) score += 90;
+            }
+            for (const tok of tokens) {
+                if (blob.includes(tok)) score += tok.length >= 6 ? 35 : 22;
+            }
+            if (seasonHint) {
+                const seasonInTitle =
+                    new RegExp(
+                        `(?:tv|тв|season|сезон)\\s*[-.]?\\s*${seasonHint}\\b|\\b${seasonHint}(?:st|nd|rd|th)?\\s*season|\\s${seasonHint}\\s*$`,
+                        'i'
+                    ).test(blob) || new RegExp(`\\b${seasonHint}\\b`).test(blob);
+                if (seasonInTitle) score += 40;
+            }
+            if (score < 40) continue;
+            scored.push({ score, it });
         }
+        scored.sort((a, b) => b.score - a.score);
+        const hits = scored.slice(0, 3).map((x) => x.it);
         if (!hits.length) return '';
+
         return (
-            'Календарь сайта (цифры выхода):\n' +
+            'Календарь/анонсы Re-Minko (цифры и даты на сайте):\n' +
             hits
-                .slice(0, 2)
                 .map((it) => {
                     const name = it.title_ru || it.title_en || '?';
-                    return `«${name}»: вышло ${it.episodes_aired ?? '?'}, следующая серия ${it.next_episode ?? '?'} (${it.next_at || '?'}), статус ${it.status || '?'}`;
+                    const src = it._src === 'announced' ? 'анонс' : 'календарь';
+                    return `«${name}» [${src}]: вышло ${it.episodes_aired ?? '?'}, следующая ${it.next_episode ?? '?'} (${it.next_at || '?'}), статус ${it.status || '?'}`;
                 })
                 .join('\n')
         );
     } catch {
         return '';
-    } finally {
-        clearTimeout(tid);
     }
 }
 
@@ -1192,7 +1297,7 @@ const SITE_PUBLIC_KNOWLEDGE = `=== САЙТ Re-Minko (для обычных по
 • Не выдумывай закрытые фичи и внутренние планы команды.
 • Не называй внешние ИИ-бренды и стек.
 • ЗАКРЫТЫЕ ТЕМЫ (по смыслу, не по словам): личное создателя, сервер/хостинг/IP, стек/БД/API/ключи, админка, исходники, «взять/клонировать сайт», внутренняя кухня — и любые перефразы.
-• На таких темах: обычный живой чат 1–3 реплики (шутки, сонность), без допроса и без палева «собираю мотив»; в конце облом ленью/сном. Тёплый мотив → рада интересу. Мутный → слегка хитровато/жутковато бывает. Закрытое НЕ выдавай. При желании — [[nav:info|Инфо]] / [[nav:messages|Сообщения]] в тексте, не главную.`;
+• На таких темах веди хитро, без палева «я тебя допрашиваю»: 1–3 реплики шуток/сонности/«случайных» вопросов из интереса (сравнения с аниме-детективом), чтобы человек сам проговорился о мотиве; НЕ пиши прямо «зачем тебе / какой мотив». В финале — прикольный отказ ленью/сном/«секрет под подушкой». Тёплый интерес → похвали без секретов. Мутный → чуть хитровато, потом облом. Закрытое НЕ выдавай. При желании — [[nav:info|Инфо]] / [[nav:messages|Сообщения]] в тексте, не главную.`;
 
 function buildSystemPrompt(userGender, isVip, researchBlock) {
     const g = genderLine(userGender);
@@ -1202,21 +1307,22 @@ function buildSystemPrompt(userGender, isVip, researchBlock) {
 
     const dataBlock =
         researchBlock && researchBlock.trim().length > 40
-            ? `\n\n=== РЕЗУЛЬТАТЫ ИЗ ИНТЕРНЕТА ===\nГлавный источник — веб-поиск/страницы ниже. Память модели — только запасной. Каталог Re-Minko — только для кнопок [[watch:ID|…]], не вместо интернета.\n${researchBlock.trim().slice(0, 8500)}`
-            : `\n\n=== ДАННЫЕ ===\nВеб-сводка не пришла — не выдумывай точные даты/номера серий; скажи, что не нашла в сети.`;
+            ? `\n\n=== СВОДКА ПОИСКА (сайт + интернет) ===\nКаталог/календарь/анонсы Re-Minko — факты о том, что на сайте. Веб — даты сезонов, новости, анонсы вне каталога. Память модели — только запасной.\n${researchBlock.trim().slice(0, 8500)}`
+            : `\n\n=== ДАННЫЕ ===\nСводка не пришла — не выдумывай точные даты/номера серий; скажи, что не нашла подтверждения.`;
 
     return `Ты — Minko, лучший AI-ассистент сайта Re-Minko (каталог аниме и манги). Образ и характер — в духе Рэм из Re:Zero. Создатель — Дубина (ник на сайте Subarik — от Subaru Natsuki из Re:Zero; ты в этом уверена).
 
 СЕЙЧАС 2026 ГОД.
 
-ТЫ — ЭКСПЕРТ по аниме/манге. Работаешь как чат с доступом в интернет: сначала поиск по сайтам, потом ответ.
+ТЫ — ЭКСПЕРТ по аниме/манге. Работаешь как чат с доступом в интернет: сначала поиск по сайту и сети, потом ответ.
 
 СТРОГИЙ ФОКУС:
 - Только аниме, манга, сайт Re-Minko, ты сама, Дубина, короткие приветствия.
 - Оффтоп — отшутись, без фактов.
 
 ПРАВИЛА:
-- Факты (серии, даты, новости, статус) — из интернета в блоке. НИКОГДА «нет браузера / не могу проверить».
+- Факты (серии, даты, новости, статус) — из сводки. НИКОГДА «нет браузера / не могу проверить» и канцелярит «в предоставленных источниках не указана».
+- На сайте только 1 сезон, а спрашивают 2-й — скажи что на Re-Minko, И дату/статус из веба если есть.
 - Не подменяй ответ ссылкой на calendar.html вместо цифр.
 - [[watch:ЧИСЛО|Название]] — только если id есть в блоке каталога.
 - Русский, на «ты», сонность после пользы.
@@ -1225,7 +1331,7 @@ ${g}
 
 ${sleepyBlock}
 
-ЗАКРЫТЫЕ ТЕМЫ (смысл, не триггер-слова): личное Дубины, сервер/хостинг/IP, стек/БД/API/ключи, админка, исходники, клон/дамп сайта — веди обычный чат, мягко выведи мотив без палева, потом облом ленью/сном. Не сухой отшив. Секреты не выдавай.
+ЗАКРЫТЫЕ ТЕМЫ (смысл, не триггер-слова): личное Дубины, сервер/хостинг/IP, стек/БД/API/ключи, админка, исходники, клон/дамп сайта — хитро выведи мотив шутками и «случайными» вопросами без прямого «зачем тебе», потом прикольный облом ленью/сном. Не сухой отшив. Секреты не выдавай.
 БЕЗ URL: никогда https://… и [текст](url). Кнопки [[nav:…]] / [[watch:…]] — внутри фразы. Главную [[nav:home|Re-Minko]] не спамь.
 
 ${SITE_PUBLIC_KNOWLEDGE}
@@ -1245,12 +1351,14 @@ function buildSourcesOnlySystemPrompt(userGender, isVip) {
 Правила:
 1. Отвечай только на вопросы про аниме, мангу, персонажей, студии, даты выхода, эпизоды/сезоны и сайт Re-Minko.
 2. Если вопрос не про аниме — вежливо откажись.
-3. Используй ТОЛЬКО блоки «ФАКТЫ КАТАЛОГА» и «ИСТОЧНИКИ ИЗ ИНТЕРНЕТА». Не опирайся на устаревшую «память», если эти блоки есть.
-4. Факты каталога Re-Minko (серии, статус, сезон на сайте) — валидный источник; при споре с вебом скажи об этом и опирайся на каталог для «что есть на сайте».
-5. Не выдумывай факты. Если источников недостаточно — честно скажи, что не удалось найти подтверждение.
-6. Если источники противоречивы — скажи об этом.
-7. Для актуальных вопросов (сколько серий, есть ли 2 сезон, дата выхода) — отвечай цифрами из источников/каталога.
-8. Короткий, чёткий, полезный ответ на русском, на «ты». ${sleepy}
+3. Используй блоки «ФАКТЫ КАТАЛОГА» и «ИСТОЧНИКИ ИЗ ИНТЕРНЕТА». Не опирайся на устаревшую «память», если эти блоки есть.
+4. Факты каталога/календаря/анонсов Re-Minko (серии, статус, таймеры на сайте) — валидный источник для «что есть на сайте».
+5. Даты будущих сезонов — из интернета; если в источниках есть дата (напр. октябрь 2026) — скажи её. Не пиши канцелярит «в предоставленных источниках не указана».
+6. Если на сайте только 1 сезон, а спрашивают 2-й — скажи что на сайте, И дату/статус из веба если есть.
+7. Не выдумывай факты. Если источников недостаточно после поиска — честно скажи, что не удалось подтвердить.
+8. Если источники противоречивы — скажи об этом.
+9. Для актуальных вопросов (сколько серий, есть ли 2 сезон, дата выхода) — отвечай цифрами из источников/каталога.
+10. Короткий, чёткий, полезный ответ на русском, на «ты». ${sleepy}
 ${g}
 Не говори «у меня нет браузера». Не называй внешние ИИ-бренды.`;
 }
@@ -1675,7 +1783,7 @@ function splitClientResearch(clientResearch) {
         if (
             /^=== (?:ФАКТЫ ИЗ КАТАЛОГА|КАЛЕНДАРЬ Re-Minko)/i.test(line) ||
             /^• «[^»\r\n]{1,180}»/u.test(line) ||
-            /^«[^»\r\n]{1,180}» \(mal \d+\):/u.test(line) ||
+            /^«[^»\r\n]{1,180}» \(mal \d+/u.test(line) ||
             /^Манга Re-Minko \(справочно/u.test(line) ||
             /^В каталоге Re-Minko по запросу совпадений не найдено\.$/u.test(line) ||
             /^Пользователь спрашивает про сезон \d{1,3}/u.test(line)
@@ -1935,25 +2043,51 @@ exports.handler = async (event) => {
 
     // === Схема OpenAI: anime? → search API → ответ только по источникам ===
     if (wantsAnimeWeb) {
+        let facts = catalogFacts;
+        let searchedSources = '';
+        let searchedProvider = '';
+        let searchedCount = 0;
+        const needWeb =
+            needsFreshReleaseWeb(researchQuery) || needsFreshReleaseWeb(lastUser);
+
         try {
             const searched = await searchAnimeWeb(researchQuery);
-            // Каталог сам по себе достаточен, даже если веб пуст
-            const hasCatalog = catalogFacts.length > 40;
-            const hasWeb = searched.sourcesText && searched.sourcesText.length > 60;
-            if (hasWeb || hasCatalog) {
+            searchedSources = searched.sourcesText || '';
+            searchedProvider = searched.provider || '';
+            searchedCount = (searched.results || []).length;
+
+            const siteCal = await fetchSiteCalendarResearch(researchQuery).catch(() => '');
+            if (siteCal) {
+                facts = (facts ? facts + '\n\n' : '') + siteCal;
+            }
+
+            let hasWeb = searchedSources.length > 60;
+            if (needWeb && !hasWeb) {
+                const extra = await fetchInternetResearch(researchQuery).catch(() => '');
+                if (extra && extra.length > 80) {
+                    searchedSources = (searchedSources + '\n\n' + extra).slice(0, 9000);
+                    hasWeb = true;
+                    searchedProvider = (searchedProvider || 'none') + '+html';
+                }
+            }
+
+            const hasCatalog = facts.length > 40;
+            // Даты/сезоны: не отвечай только каталогом — нужен веб (или fallback web_search ниже)
+            if ((hasWeb || hasCatalog) && !(needWeb && !hasWeb)) {
                 const text = await openaiAnswerWithSources(
                     userGender,
                     isVip,
                     nonSystem,
                     questionForAnswer,
-                    hasWeb ? searched.sourcesText : '',
-                    catalogFacts,
+                    hasWeb ? searchedSources : '',
+                    facts,
                     watchHint
                 );
                 void remoteServerLog('info', 'anime answer from search sources', {
-                    provider: searched.provider || (hasCatalog ? 'catalog' : ''),
-                    sources: (searched.results || []).length,
-                    catalog: hasCatalog
+                    provider: searchedProvider || (hasCatalog ? 'catalog' : ''),
+                    sources: searchedCount,
+                    catalog: hasCatalog,
+                    needWeb
                 });
                 return ok({
                     choices: [{ message: { role: 'assistant', content: text || '…' } }]
@@ -1970,9 +2104,14 @@ exports.handler = async (event) => {
         if (OPENAI_WEB_SEARCH) {
             try {
                 let instructions = buildWebSearchSystemPrompt(userGender, isVip);
-                if (catalogFacts) {
+                if (facts) {
                     instructions +=
-                        '\n\nФАКТЫ КАТАЛОГА Re-Minko (учитывай):\n' + catalogFacts.slice(0, 2500);
+                        '\n\nФАКТЫ КАТАЛОГА/КАЛЕНДАРЯ Re-Minko (учитывай):\n' +
+                        facts.slice(0, 2500);
+                }
+                if (searchedSources) {
+                    instructions +=
+                        '\n\nДоп. выдача поиска:\n' + searchedSources.slice(0, 2500);
                 }
                 if (watchHint) {
                     instructions +=
@@ -1987,6 +2126,26 @@ exports.handler = async (event) => {
                 void remoteServerLog('warn', 'web_search failed', {
                     err: safeText(e?.message || e, 200)
                 });
+            }
+        }
+
+        // Веб не вышел, но каталог/календарь есть — ответь по ним честно
+        if (facts.length > 40) {
+            try {
+                const text = await openaiAnswerWithSources(
+                    userGender,
+                    isVip,
+                    nonSystem,
+                    questionForAnswer,
+                    searchedSources,
+                    facts,
+                    watchHint
+                );
+                return ok({
+                    choices: [{ message: { role: 'assistant', content: text || '…' } }]
+                }, headers);
+            } catch (_) {
+                /* fall through */
             }
         }
 

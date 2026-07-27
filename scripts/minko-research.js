@@ -49,6 +49,14 @@
         {
             re: /щит\w*\s+герой|shield\s*hero/i,
             queries: ['The Rising of the Shield Hero', 'Tate no Yuusha', 'Восхождение героя щита']
+        },
+        {
+            re: /детектив\s+уже\s+м[её]ртв|detective\s+is\s+already\s+dead|tantei\s+wa\s+mou|tanmoshi|сиест[аы]/i,
+            queries: [
+                'The Detective Is Already Dead',
+                'Tantei wa Mou Shindeiru',
+                'Детектив уже мёртв'
+            ]
         }
     ];
 
@@ -260,6 +268,7 @@
         // Без \b: в JS граница слова ломается на кириллице («4 сезон» не матчилось)
         let m = t.match(/(?:^|[^\d])(\d{1,2})\s*[-.]?\s*(?:сезон|season|тв|tv)(?=\s|$|[.,!?«»"'])/i);
         if (!m) m = t.match(/(?:сезон|season|тв|tv)\s*[-.]?\s*(\d{1,2})(?=\s|$|[.,!?«»"'])/i);
+        if (!m && /(?:втор|второ)\w*\s+сезон/i.test(t)) return 2;
         if (!m) return null;
         const n = parseInt(m[1], 10);
         return Number.isFinite(n) && n > 0 && n < 40 ? n : null;
@@ -468,10 +477,23 @@
 
     async function fetchCalendarFactsForMessage(msg, catalogHits) {
         try {
-            const r = await fetch('data/kodik-calendar.json?v=cal', { cache: 'no-store' });
-            if (!r.ok) return '';
-            const j = await r.json();
-            const items = Array.isArray(j.items) ? j.items : [];
+            const [rCal, rAnn] = await Promise.all([
+                fetch('data/kodik-calendar.json?v=cal', { cache: 'no-store' }),
+                fetch('data/kodik-announced.json?v=ann', { cache: 'no-store' })
+            ]);
+            const items = [];
+            if (rCal.ok) {
+                const j = await rCal.json();
+                for (const it of Array.isArray(j.items) ? j.items : []) {
+                    items.push({ ...it, _src: 'calendar' });
+                }
+            }
+            if (rAnn.ok) {
+                const j = await rAnn.json();
+                for (const it of Array.isArray(j.items) ? j.items : []) {
+                    items.push({ ...it, _src: 'announced' });
+                }
+            }
             if (!items.length) return '';
 
             const malSet = new Set(
@@ -481,27 +503,50 @@
             );
             const aliases = expandAliasQueries(msg);
             const seasonHint = extractSeasonHint(msg);
+            const stop = new Set([
+                'когда',
+                'выйдет',
+                'дата',
+                'выход',
+                'сезон',
+                'аниме',
+                'точный',
+                'точная',
+                'будет',
+                'сколько',
+                'серий',
+                'второй',
+                'второго'
+            ]);
+            const tokens = normalizeTitle(msg)
+                .split(/\s+/)
+                .filter((w) => w.length >= 3 && !stop.has(w) && !/^\d+$/.test(w));
             const scored = [];
 
             for (const it of items) {
                 const mal = Number(it.mal_id);
                 const blob = `${it.title_ru || ''} ${it.title_en || ''} ${it.title || ''}`;
+                const nb = normalizeTitle(blob);
                 let score = 0;
                 if (malSet.has(mal)) score += 80;
                 for (const a of aliases) {
-                    if (normalizeTitle(blob).includes(normalizeTitle(a).slice(0, 12))) score += 40;
+                    const na = normalizeTitle(a);
+                    if (na && (nb.includes(na.slice(0, 12)) || na.includes(nb.slice(0, 12)))) {
+                        score += 50;
+                    }
                 }
-                if (/ре\s*зеро|re:?\s*zero|hajimeru isekai/i.test(blob) && /резеро|re:?\s*zero/i.test(msg)) {
-                    score += 50;
+                for (const tok of tokens) {
+                    if (nb.includes(tok)) score += tok.length >= 6 ? 30 : 18;
                 }
-                if (seasonHint && (/(?:тв|tv|season|сезон)\s*[-.]?\s*4\b/i.test(blob) || /4th/i.test(blob))) {
-                    if (seasonHint === 4) score += 30;
+                if (seasonHint) {
+                    const itemSeason = itemSeasonNumber(it);
+                    if (itemSeason === seasonHint) score += 35;
                 }
                 if (score < 40) continue;
                 scored.push({ score, it });
             }
             scored.sort((a, b) => b.score - a.score);
-            const top = scored.slice(0, 2).map((x) => x.it);
+            const top = scored.slice(0, 3).map((x) => x.it);
             if (!top.length) return '';
 
             const lines = top.map((it) => {
@@ -509,12 +554,13 @@
                 const aired = it.episodes_aired != null ? it.episodes_aired : '?';
                 const next = it.next_episode != null ? it.next_episode : '?';
                 const when = it.next_at ? String(it.next_at) : '?';
-                return `«${name}» (mal ${it.mal_id}): вышло серий ${aired}, следующая ${next} (${when}), статус ${it.status || '?'}`;
+                const src = it._src === 'announced' ? 'анонс' : 'календарь';
+                return `«${name}» (mal ${it.mal_id}, ${src}): вышло серий ${aired}, следующая ${next} (${when}), статус ${it.status || '?'}`;
             });
             return (
-                '=== КАЛЕНДАРЬ Re-Minko (актуальный выход серий на сайте) ===\n' +
+                '=== КАЛЕНДАРЬ Re-Minko (актуальный выход серий / анонсы на сайте) ===\n' +
                 lines.join('\n') +
-                '\nЕсли спрашивают «сколько серий / какая последняя» — ответь по «вышло серий» и «следующая». Не отсылай только на страницу календаря без цифр.'
+                '\nЕсли спрашивают «сколько серий / какая последняя / когда выход» — ответь по цифрам выше. Не отсылай только на страницу календаря без цифр.'
             );
         } catch (_) {
             return '';
