@@ -1092,6 +1092,18 @@
     word-break: break-word;
     white-space: normal;
     line-height: 1.35;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.va-online-path {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.va-online-pagetitle {
+    color: rgba(196, 181, 253, 0.9);
+    font-size: 0.68rem;
 }
 
 .va-compact__table td.va-path-full {
@@ -1099,6 +1111,10 @@
     word-break: break-word;
     white-space: normal;
     max-width: 28rem;
+}
+
+.va-compact__table td.va-path-full .va-online-pagetitle {
+    margin-top: 0.2rem;
 }
 
 .va-paths-list {

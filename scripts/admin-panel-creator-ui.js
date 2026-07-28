@@ -1381,6 +1381,10 @@ async function loadVisitorAnalyticsPanel() {
                 ? adminPanelEscapeHtml(String(row.email || row.user_id).slice(0, 36))
                 : `<span class="vac-mono">guest ${adminPanelEscapeHtml(String(row.visitor_id || '').slice(0, 18))}…</span>`;
             const fullPath = String(row.last_path || '/');
+            const pageTitle = String(row.last_page_title || '').trim();
+            const whereLine = pageTitle
+                ? `${fullPath}\n${pageTitle}`
+                : fullPath;
             const time = fmtTime(row.last_seen);
             html += `<li class="va-online-item ${isUser ? 'va-online-item--user' : ''}">
                 <span class="va-online-dot" aria-hidden="true"></span>
@@ -1394,7 +1398,14 @@ async function loadVisitorAnalyticsPanel() {
                         <time class="va-online-time">${adminPanelEscapeHtml(time)}</time>
                     </div>
                     <div class="va-online-row2">${sub}</div>
-                    <div class="va-online-row3 vac-mono" title="${adminPanelEscapeHtml(fullPath)}">${adminPanelEscapeHtml(fullPath)}</div>
+                    <div class="va-online-row3 vac-mono" title="${adminPanelEscapeHtml(whereLine)}">
+                        <span class="va-online-path">${adminPanelEscapeHtml(fullPath)}</span>
+                        ${
+                            pageTitle
+                                ? `<span class="va-online-pagetitle">${adminPanelEscapeHtml(pageTitle)}</span>`
+                                : ''
+                        }
+                    </div>
                 </div>
             </li>`;
         });
@@ -1437,10 +1448,18 @@ async function loadVisitorAnalyticsPanel() {
                 ? `<button type="button" class="va-online-name va-online-name--link" data-va-user="${adminPanelEscapeHtml(String(r.user_id))}">${adminPanelEscapeHtml(String(r.user_id).slice(0, 8))}…</button>`
                 : `<span class="vac-mono">${adminPanelEscapeHtml(String(r.visitor_id || '').slice(0, 10))}…</span>`;
             const fullPath = String(r.path || '/');
+            const pageTitle = String(r.page_title || '').trim();
             html += `<tr>
                 <td>${adminPanelEscapeHtml(fmtTime(r.created_at))}</td>
                 <td>${who}</td>
-                <td class="vac-mono va-path-full" title="${adminPanelEscapeHtml(fullPath)}">${adminPanelEscapeHtml(fullPath)}</td>
+                <td class="vac-mono va-path-full" title="${adminPanelEscapeHtml(fullPath)}">
+                    <div>${adminPanelEscapeHtml(fullPath)}</div>
+                    ${
+                        pageTitle
+                            ? `<div class="va-online-pagetitle">${adminPanelEscapeHtml(pageTitle)}</div>`
+                            : ''
+                    }
+                </td>
             </tr>`;
         });
     }

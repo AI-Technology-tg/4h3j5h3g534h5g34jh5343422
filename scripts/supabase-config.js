@@ -573,10 +573,52 @@ if (!window.__reminkoMaintNavClickBound) {
         }
     }
 
+    function currentVisitPath() {
+        let path = String(window.location.pathname || '/') + String(window.location.search || '');
+        try {
+            const low = String(window.location.pathname || '').toLowerCase();
+            const sp = new URLSearchParams(window.location.search || '');
+            if (!sp.get('id')) {
+                if (low.includes('/anime/view') || low.includes('view-4k')) {
+                    const id = sessionStorage.getItem('viewAnimeId');
+                    if (id) {
+                        path =
+                            String(window.location.pathname || '/anime/view.html') +
+                            '?id=' +
+                            encodeURIComponent(id);
+                    }
+                } else if (low.includes('/manga/view') || low.includes('/manga/reader')) {
+                    const id =
+                        sessionStorage.getItem('viewMangaId') ||
+                        sessionStorage.getItem('mangaId') ||
+                        sessionStorage.getItem('readerMangaId');
+                    if (id) {
+                        path =
+                            String(window.location.pathname || '/manga/view.html') +
+                            '?id=' +
+                            encodeURIComponent(id);
+                    }
+                }
+            }
+            if (low.includes('profile.html') && !sp.get('user') && !sp.get('id')) {
+                const uid = new URLSearchParams(window.location.search || '').get('user');
+                if (uid) {
+                    path =
+                        String(window.location.pathname || '/profile.html') +
+                        '?user=' +
+                        encodeURIComponent(uid);
+                }
+            }
+        } catch (_) {
+            /* ignore */
+        }
+        return path.slice(0, 2048);
+    }
+
     async function sendPageView() {
         if (skipPage()) return;
         if (window.__reminkoSiteVisitPageviewSent) return;
-        const path = String(window.location.pathname || '') + String(window.location.search || '');
+        const path = currentVisitPath();
         if (!path || path.length > 2048) return;
 
         try {
@@ -610,7 +652,7 @@ if (!window.__reminkoMaintNavClickBound) {
      */
     window.reminkoTrackSiteEvent = async function reminkoTrackSiteEvent(label, meta) {
         if (skipPage()) return;
-        const path = String(window.location.pathname || '') + String(window.location.search || '');
+        const path = currentVisitPath();
         const payload = {
             visitor_id: getVisitorId(),
             path: path.slice(0, 2048),
@@ -625,7 +667,7 @@ if (!window.__reminkoMaintNavClickBound) {
 
     async function sendHeartbeat() {
         if (skipPage()) return;
-        const path = String(window.location.pathname || '') + String(window.location.search || '');
+        const path = currentVisitPath();
         const payload = {
             visitor_id: getVisitorId(),
             path: path.slice(0, 2048),
@@ -643,6 +685,10 @@ if (!window.__reminkoMaintNavClickBound) {
     function boot() {
         sendPageView();
         sendHeartbeat();
+        // Повтор после смены document.title (название аниме/манги подгружается асинхронно)
+        setTimeout(() => {
+            void sendHeartbeat();
+        }, 3500);
         if (!window.__reminkoSiteHeartbeatTimer) {
             window.__reminkoSiteHeartbeatTimer = setInterval(sendHeartbeat, 45000);
         }

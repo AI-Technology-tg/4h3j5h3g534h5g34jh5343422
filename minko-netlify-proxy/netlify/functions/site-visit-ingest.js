@@ -9,6 +9,7 @@ const {
     recordSecurityEvent,
     safeOrigin,
     safePath,
+    safeVisitPath,
     safeText,
     sanitizeDetails,
     supabaseRequest
@@ -83,7 +84,7 @@ exports.handler = async function handler(event) {
             body: JSON.stringify({
                 visitor_id: visitorId,
                 user_id: user?.id || null,
-                path: safePath(body.path || '/'),
+                path: safeVisitPath(body.path || '/'),
                 page_title: safeText(body.page_title || body.pageTitle, 300) || null,
                 referrer: safeOrigin(body.referrer) || null,
                 user_agent: safeText(

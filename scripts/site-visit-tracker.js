@@ -1,12 +1,13 @@
 /**
  * Анонимная аналитика посещений для панели создателя (site_visit_events).
+ * Дублирует путь с query; основной трекер — в supabase-config.js.
  */
 (function () {
     'use strict';
 
     if (typeof window === 'undefined') return;
-    const path = window.location.pathname || '';
-    if (path.includes('admin.html')) return;
+    const pathname = window.location.pathname || '';
+    if (pathname.includes('admin.html')) return;
 
     const VISITOR_KEY = 'reminko_visitor_id_v1';
     const DEDUP_MS = 8000;
@@ -26,6 +27,38 @@
         }
     }
 
+    function currentPath() {
+        let path = String(window.location.pathname || '/') + String(window.location.search || '');
+        try {
+            const low = String(window.location.pathname || '').toLowerCase();
+            const sp = new URLSearchParams(window.location.search || '');
+            if (!sp.get('id')) {
+                if (low.includes('/anime/view') || low.includes('view-4k')) {
+                    const id = sessionStorage.getItem('viewAnimeId');
+                    if (id) {
+                        path =
+                            String(window.location.pathname || '/anime/view.html') +
+                            '?id=' +
+                            encodeURIComponent(id);
+                    }
+                } else if (low.includes('/manga/view') || low.includes('/manga/reader')) {
+                    const id =
+                        sessionStorage.getItem('viewMangaId') ||
+                        sessionStorage.getItem('mangaId');
+                    if (id) {
+                        path =
+                            String(window.location.pathname || '/manga/view.html') +
+                            '?id=' +
+                            encodeURIComponent(id);
+                    }
+                }
+            }
+        } catch (_) {
+            /* ignore */
+        }
+        return path.slice(0, 2048);
+    }
+
     async function trackPageView() {
         if (window.__reminkoSiteVisitPageviewSent) return;
         const now = Date.now();
@@ -43,7 +76,7 @@
 
         const row = {
             visitor_id: visitorId(),
-            path: path || '/',
+            path: currentPath() || '/',
             page_title: document.title || '',
             referrer: document.referrer ? String(document.referrer).slice(0, 512) : null,
             event_kind: 'pageview'
@@ -73,24 +106,20 @@
         };
 
         if (typeof window.ReminkoBoot?.on === 'function') {
-            // Idle: не конкурирует с FirstPaint / Interactive
             window.ReminkoBoot.on('Idle', run);
             return;
         }
 
-        // Fallback без BootManager
-        if (document.readyState === 'complete') {
-            setTimeout(run, 1200);
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(run, { timeout: 4000 });
         } else {
-            window.addEventListener(
-                'load',
-                () => {
-                    setTimeout(run, 1200);
-                },
-                { once: true }
-            );
+            setTimeout(run, 2000);
         }
     }
 
-    schedule();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', schedule);
+    } else {
+        schedule();
+    }
 })();

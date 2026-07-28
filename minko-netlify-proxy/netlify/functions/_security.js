@@ -47,6 +47,24 @@ function safePath(value) {
     }
 }
 
+/**
+ * Путь для аналитики посещений: pathname + search (id аниме/манги/профиля).
+ * Секреты в query уже чистит safeText (token/key/…).
+ */
+function safeVisitPath(value) {
+    const text = safeText(value, 2048);
+    if (!text) return '/';
+    try {
+        const url = new URL(text, 'https://re-minko-anime.com');
+        let out = `${url.pathname || '/'}${url.search || ''}`;
+        if (!out.startsWith('/')) out = `/${out}`;
+        return out.replace(CONTROL_CHAR_PATTERN, '').slice(0, 1024);
+    } catch (_) {
+        const noHash = String(text).split('#')[0] || '/';
+        return (noHash.startsWith('/') ? noHash : `/${noHash}`).slice(0, 1024);
+    }
+}
+
 function safeOrigin(value) {
     try {
         const url = new URL(String(value || ''));
@@ -312,6 +330,7 @@ module.exports = {
     readTextWithLimit,
     safeOrigin,
     safePath,
+    safeVisitPath,
     safeText,
     sanitizeDetails,
     supabaseRequest
