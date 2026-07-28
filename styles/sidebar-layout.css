@@ -632,6 +632,11 @@
     flex-direction: column;
     gap: 0.25rem;
     padding: 0 0.5rem;
+    max-height: min(42vh, 320px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
 }
 
 .sidebar-genre-link {

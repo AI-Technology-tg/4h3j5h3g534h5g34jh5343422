@@ -598,9 +598,7 @@ class NavigationManager {
             (typeof window !== 'undefined' && Array.isArray(window.reminkoAdultGenreLabels)
                 ? window.reminkoAdultGenreLabels
                 : ['Хентай', 'Эротика', 'Этти', 'Яой', 'Юри']);
-        const allGenres = getAllGenres()
-            .filter((genre) => !adultHide.includes(genre))
-            .slice(0, 8);
+        const allGenres = getAllGenres().filter((genre) => !adultHide.includes(genre));
         
         genresContainer.innerHTML = allGenres.map(genre => `
             <a href="${catalogPath}?genre=${encodeURIComponent(genre)}" class="sidebar-genre-link" data-genre="${genre}">

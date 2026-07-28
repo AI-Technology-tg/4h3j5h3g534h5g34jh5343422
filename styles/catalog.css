@@ -475,6 +475,11 @@
     max-width: 22rem;
 }
 
+.catalog-filter-bar--anime .anime-fb-dropdown--wide.genre-picker-panel {
+    min-width: min(94vw, 440px);
+    max-width: min(96vw, 540px);
+}
+
 .catalog-filter-bar--anime .filter-option:hover {
     background: rgba(227, 0, 255, 0.12);
 }
@@ -1967,12 +1972,21 @@
     }
 }
 
-/* —— Compact genre picker (плотные чипы, без растяжки на 2 колонки) —— */
+/* —— Compact genre picker (плотные чипы, скролл всей сетки) —— */
+.catalog-filter-bar--anime .anime-fb-dropdown--wide.genre-picker-panel,
 .genre-picker-panel {
-    min-width: min(92vw, 300px) !important;
-    max-width: min(96vw, 380px) !important;
-    padding: 0.45rem 0.5rem 0.4rem !important;
+    min-width: min(94vw, 440px) !important;
+    max-width: min(96vw, 540px) !important;
+    max-height: min(78vh, 560px) !important;
+    padding: 0.5rem 0.55rem 0.45rem !important;
     overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+.genre-picker-panel.filter-select-panel.active,
+.catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel.filter-select-panel.active {
+    display: flex !important;
+    flex-direction: column !important;
 }
 
 .genre-picker-panel .filter-mobile-panel-head {
@@ -1983,6 +1997,7 @@
     margin: 0 0 0.3rem;
     padding: 0 0.05rem 0.28rem;
     border-bottom: 1px solid rgba(227, 0, 255, 0.16);
+    flex: 0 0 auto;
 }
 
 .genre-picker-panel .filter-mobile-panel-head strong {
@@ -2009,6 +2024,7 @@
 
 .genre-picker-search {
     margin: 0 0 0.35rem;
+    flex: 0 0 auto;
 }
 
 .genre-picker-search-input {
@@ -2033,17 +2049,20 @@
 .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel .filter-genres-grid,
 .genre-picker-panel .filter-genres-grid {
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    flex: 1 1 auto !important;
     flex-wrap: unset !important;
     align-content: start !important;
     align-items: stretch !important;
     gap: 0.28rem !important;
-    max-height: min(50vh, 340px);
-    overflow-x: hidden;
-    overflow-y: auto;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
     overscroll-behavior: contain;
-    padding: 0.05rem 0.02rem 0.15rem;
+    padding: 0.05rem 0.1rem 0.2rem 0.02rem;
     scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
 }
 
 .genre-picker-panel .genre-picker-chip,
@@ -2057,21 +2076,21 @@
     max-width: none !important;
     flex: none !important;
     min-width: 0 !important;
-    min-height: 0 !important;
+    min-height: 2.15rem !important;
     height: auto !important;
     margin: 0 !important;
-    padding: 0.42rem 0.35rem !important;
-    gap: 0 !important;
+    padding: 0.38rem 0.3rem !important;
+    gap: 0.15rem !important;
     border-radius: 8px !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
     background: rgba(255, 255, 255, 0.05) !important;
     color: rgba(248, 250, 252, 0.94) !important;
-    font-size: 0.72rem !important;
+    font-size: 0.7rem !important;
     font-weight: 650 !important;
-    line-height: 1.15 !important;
+    line-height: 1.2 !important;
     text-align: center;
     cursor: pointer;
-    white-space: nowrap;
+    white-space: normal;
     box-sizing: border-box;
     -webkit-user-select: none;
     user-select: none;
@@ -2099,6 +2118,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
 }
 
 .genre-picker-chip.is-checked,
@@ -2120,6 +2143,7 @@
     margin-top: 0.35rem;
     padding-top: 0.3rem;
     border-top: 1px solid rgba(227, 0, 255, 0.14);
+    flex: 0 0 auto;
 }
 
 .genre-picker-clear {
@@ -2150,16 +2174,23 @@
 
 @media (max-width: 900px) {
     .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel.filter-select-panel {
-        width: min(94vw, 360px) !important;
-        max-height: min(68vh, 440px) !important;
+        width: min(94vw, 400px) !important;
+        max-width: min(94vw, 400px) !important;
+        max-height: min(72dvh, 520px) !important;
         overflow: hidden !important;
-        padding: 0.5rem !important;
+        padding: 0.55rem !important;
         left: 50% !important;
         right: auto !important;
         top: 50% !important;
         bottom: auto !important;
         inset: auto !important;
         transform: translate(-50%, -50%) !important;
+        display: none !important;
+    }
+
+    .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel.filter-select-panel.active {
+        display: flex !important;
+        flex-direction: column !important;
     }
 
     .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel .filter-genres-grid,
@@ -2167,18 +2198,22 @@
         display: grid !important;
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         flex-wrap: unset !important;
-        max-height: min(52vh, 360px) !important;
-        gap: 0.26rem !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        gap: 0.28rem !important;
+        overflow-y: auto !important;
     }
 
     .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel .genre-picker-chip.filter-option,
     .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel .filter-option {
-        min-height: 0 !important;
+        min-height: 2.25rem !important;
         width: 100% !important;
-        padding: 0.4rem 0.3rem !important;
-        font-size: 0.7rem !important;
+        padding: 0.38rem 0.28rem !important;
+        font-size: 0.68rem !important;
         border-radius: 8px !important;
         justify-content: center !important;
+        white-space: normal !important;
     }
 
     .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel .filter-option input[type='checkbox'] {
@@ -2201,6 +2236,7 @@
         padding: 0 0.05rem 0.28rem !important;
         border-radius: 0;
         background: transparent;
+        flex: 0 0 auto;
     }
 }
 
@@ -2210,11 +2246,12 @@
         left: 0;
         top: calc(100% + 0.45rem);
         z-index: 80;
+        max-height: min(70vh, 520px) !important;
     }
 
     .genre-picker-panel #genrePickerGrid.filter-genres-grid {
-        max-height: 320px;
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        max-height: none !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
 }
 
@@ -2224,7 +2261,12 @@
     }
 
     .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel .genre-picker-chip.filter-option {
-        font-size: 0.66rem !important;
-        padding: 0.36rem 0.28rem !important;
+        font-size: 0.64rem !important;
+        padding: 0.34rem 0.22rem !important;
+        min-height: 2.1rem !important;
+    }
+
+    .catalog-filter-bar--anime #filterGenrePanel.genre-picker-panel .filter-genres-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
 }
