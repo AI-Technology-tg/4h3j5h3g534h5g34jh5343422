@@ -3453,7 +3453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             } else {
                 addMessage('assistant', `Эй! Не матерись, пожалуйста! 😤 Это ${swearCount} из ${MAX_SWEAR_MESSAGES} предупреждений. Ещё раз — и я не буду с тобой общаться 3 часа!`);
-                resetSwearCount(); // Сбрасываем после предупреждения
+                // Счётчик НЕ сбрасываем — второй мат должен дать бан на 3 часа
                 return;
             }
         } else {
