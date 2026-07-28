@@ -566,7 +566,7 @@ async function reminkoResolveSiteCreatorUserId() {
         typeof window.APP_CONFIG.siteCreatorUserId === 'string' &&
         window.APP_CONFIG.siteCreatorUserId.trim();
     if (cfg && /^[0-9a-f-]{36}$/i.test(cfg)) return cfg.trim();
-    return 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb';
+    return REMINKO_SITE_CREATOR_USER_ID || 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb';
 }
 window.reminkoResolveSiteCreatorUserId = reminkoResolveSiteCreatorUserId;
 
@@ -1124,10 +1124,14 @@ function openMangaPage(mangaId) {
 /** Статичный запасной аватар Создателя, если в профиле нет своей картинки. */
 const REMINKO_CREATOR_AVATAR_REL = 'Fons/Creator ava.png';
 
-/** Синхронно: UUID совпадает с создателем (config / кэш страницы). */
+/** Канонический UUID создателя (Subarik) — запасной якорь без config.js. */
+const REMINKO_SITE_CREATOR_USER_ID = 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb';
+
+/** Синхронно: UUID совпадает с создателем (канон / config / кэш страницы). */
 function reminkoUserIdIsSiteCreatorSync(userId) {
     if (!userId) return false;
     const id = String(userId).trim().toLowerCase();
+    if (id === REMINKO_SITE_CREATOR_USER_ID) return true;
     const cfg =
         typeof window !== 'undefined' &&
         window.APP_CONFIG &&
@@ -1141,15 +1145,17 @@ function reminkoUserIdIsSiteCreatorSync(userId) {
     return !!(cached && cached === id);
 }
 window.reminkoUserIdIsSiteCreatorSync = reminkoUserIdIsSiteCreatorSync;
+window.REMINKO_SITE_CREATOR_USER_ID = REMINKO_SITE_CREATOR_USER_ID;
 
 /**
- * Создатель сайта определяется только по закреплённому UUID.
- * E-mail, username и изменяемые флаги профиля не являются источником авторизации.
- * @param {{ id?: string, username?: string, email?: string, isSiteCreator?: boolean, is_site_creator?: boolean }|null|undefined} p
+ * Создатель сайта определяется по закреплённому UUID (канон / config / кэш).
+ * Флаги is_site_creator в UI — только подсказка, не источник прав.
  */
 function reminkoIsSiteCreatorProfile(p) {
     if (!p) return false;
-    return Boolean(p.id && reminkoUserIdIsSiteCreatorSync(p.id));
+    const id = p.id || p.user_id || null;
+    if (id && reminkoUserIdIsSiteCreatorSync(id)) return true;
+    return false;
 }
 
 /** Подготовка профиля для аватара в чатах и ЛС. */
@@ -1413,13 +1419,18 @@ function reminkoTeamRoleBadgeHtml(role, className) {
 
 async function reminkoEnsureSiteCreatorUserIdCached() {
     if (window.__reminkoSiteCreatorUserId) return window.__reminkoSiteCreatorUserId;
-    if (typeof reminkoResolveSiteCreatorUserId !== 'function' || !supabaseClient) return null;
     try {
-        const id = await reminkoResolveSiteCreatorUserId(supabaseClient);
-        window.__reminkoSiteCreatorUserId = id || null;
+        let id = null;
+        if (typeof reminkoResolveSiteCreatorUserId === 'function') {
+            id = await reminkoResolveSiteCreatorUserId();
+        }
+        if (!id) id = REMINKO_SITE_CREATOR_USER_ID || 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb';
+        window.__reminkoSiteCreatorUserId = id;
         return window.__reminkoSiteCreatorUserId;
     } catch (_) {
-        return null;
+        window.__reminkoSiteCreatorUserId =
+            REMINKO_SITE_CREATOR_USER_ID || 'df1fe2c6-e1ad-4d7b-9676-0dc508ac04fb';
+        return window.__reminkoSiteCreatorUserId;
     }
 }
 window.reminkoEnsureSiteCreatorUserIdCached = reminkoEnsureSiteCreatorUserIdCached;

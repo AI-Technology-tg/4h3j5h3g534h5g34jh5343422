@@ -18,13 +18,23 @@
      * @returns {Promise<boolean>}
      */
     async function userIdIsSiteCreator(userId) {
-        if (!userId || typeof supabaseClient === 'undefined' || !supabaseClient) return false;
+        if (!userId) return false;
+        if (
+            typeof global.reminkoUserIdIsSiteCreatorSync === 'function' &&
+            global.reminkoUserIdIsSiteCreatorSync(userId)
+        ) {
+            return true;
+        }
+        if (typeof supabaseClient === 'undefined' || !supabaseClient) return false;
         try {
             const { data, error } = await supabaseClient.rpc('is_site_creator_user_id', {
                 user_id: userId
             });
             if (!error && data === true) return true;
-            if (!error && data === false) return false;
+            if (!error && data === false) {
+                // UUID канонический уже проверен выше; false от RPC не отменяет sync-хит
+                return false;
+            }
             const { data: email, error: e2 } = await supabaseClient.rpc('get_user_email', {
                 user_id: userId
             });

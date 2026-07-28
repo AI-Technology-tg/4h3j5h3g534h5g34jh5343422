@@ -219,10 +219,23 @@ async function loadUserProfile(userId) {
         }
 
         let isCreator = false;
-        if (typeof userIdIsSiteCreator === 'function') {
+        if (typeof reminkoUserIdIsSiteCreatorSync === 'function' && reminkoUserIdIsSiteCreatorSync(userId)) {
+            isCreator = true;
+        } else if (typeof userIdIsSiteCreator === 'function') {
             try {
                 isCreator = await userIdIsSiteCreator(userId);
             } catch (_) { /* noop */ }
+        }
+        if (!isCreator && profile.is_site_creator === true) {
+            // Публичный флаг из directory — только вместе с UUID-проверкой после кэша
+            if (typeof reminkoEnsureSiteCreatorUserIdCached === 'function') {
+                try {
+                    await reminkoEnsureSiteCreatorUserIdCached();
+                } catch (_) { /* noop */ }
+            }
+            if (typeof reminkoUserIdIsSiteCreatorSync === 'function') {
+                isCreator = reminkoUserIdIsSiteCreatorSync(userId);
+            }
         }
         
         const userData = {
@@ -234,7 +247,8 @@ async function loadUserProfile(userId) {
                 : reminkoNormalizeAvatarPath(profile.avatar) || 'Fons/1 b.jpg',
             gender: profile.gender || 'male',
             registerDate: profile.created_at || null,
-            isSiteCreator: isCreator
+            isSiteCreator: isCreator,
+            is_site_creator: isCreator || profile.is_site_creator === true
         };
 
         // Сразу каркас с реальным аватаром из profiles — без мигания дефолта
@@ -516,14 +530,7 @@ async function renderProfile(userData, isViewMode = false) {
         .filter(Boolean);
     const totalFavorites = favoritesAnime.length + favoritesManga.length;
 
-    // Аватар
-    const isCreatorAccount =
-        typeof reminkoIsSiteCreatorProfile === 'function'
-            ? reminkoIsSiteCreatorProfile({ ...userData, id: profileUserId })
-            : (userData.email || '').toLowerCase() === 'creator@reminko.com' &&
-              typeof reminkoUserIdIsSiteCreatorSync === 'function' &&
-              reminkoUserIdIsSiteCreatorSync(profileUserId);
-
+    // Аватар / бейдж создателя: сначала кэш UUID, потом проверка
     await Promise.all([
         typeof reminkoEnsureSiteCreatorUserIdCached === 'function'
             ? reminkoEnsureSiteCreatorUserIdCached().catch(() => {})
@@ -532,6 +539,28 @@ async function renderProfile(userData, isViewMode = false) {
             ? reminkoPrefetchTeamRoles([profileUserId]).catch(() => {})
             : Promise.resolve()
     ]);
+
+    let isCreatorAccount =
+        typeof reminkoIsSiteCreatorProfile === 'function'
+            ? reminkoIsSiteCreatorProfile({ ...userData, id: profileUserId })
+            : typeof reminkoUserIdIsSiteCreatorSync === 'function' &&
+              reminkoUserIdIsSiteCreatorSync(profileUserId);
+    if (
+        !isCreatorAccount &&
+        (userData.isSiteCreator === true || userData.is_site_creator === true) &&
+        typeof reminkoUserIdIsSiteCreatorSync === 'function' &&
+        reminkoUserIdIsSiteCreatorSync(profileUserId)
+    ) {
+        isCreatorAccount = true;
+    }
+    if (!isCreatorAccount && typeof userIdIsSiteCreator === 'function' && profileUserId) {
+        try {
+            isCreatorAccount = !!(await userIdIsSiteCreator(profileUserId));
+        } catch (_) {
+            /* noop */
+        }
+    }
+
     const profileTeamRole =
         typeof reminkoResolveProfileTeamRole === 'function'
             ? reminkoResolveProfileTeamRole(userData, profileUserId)
