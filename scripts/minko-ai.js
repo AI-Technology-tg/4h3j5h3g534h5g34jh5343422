@@ -2721,11 +2721,20 @@ function getMinkoAngryState() {
     return JSON.parse(stored);
 }
 
-// Сохранить состояние обиды
-function saveMinkoAngryState(blockedUntil, blockedForever = false) {
+/**
+ * Сохранить состояние обиды.
+ * @param {number} blockedUntil
+ * @param {boolean} [blockedForever=false]
+ * @param {'unauth'|'swear'|'gender'|string} [reason='unauth']
+ *   unauth — гости без входа (таймер снимается после авторизации);
+ *   swear/gender — не снимать из‑за входа/refresh сессии.
+ */
+function saveMinkoAngryState(blockedUntil, blockedForever = false, reason = 'unauth') {
+    const safeReason = String(reason || 'unauth').slice(0, 32);
     localStorage.setItem(MINKO_ANGRY_STORAGE_KEY, JSON.stringify({
         blockedUntil,
-        blockedForever
+        blockedForever,
+        reason: safeReason
     }));
 }
 
@@ -3132,8 +3141,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Проверяем временную блокировку
         if (angryState.blockedUntil && now < angryState.blockedUntil) {
             const authed = typeof isAuthenticatedSync === 'function' && isAuthenticatedSync();
-            // Обида из‑за отсутствия входа — после авторизации таймер снимаем сразу
-            if (authed && !angryState.blockedForever) {
+            // Явный reason: только 'unauth' снимается входом. Пустой/старый state — не трогаем
+            // (иначе бан за мат на 3ч сбрасывался на TOKEN_REFRESHED).
+            const reason = angryState.reason != null ? String(angryState.reason) : '';
+            if (authed && !angryState.blockedForever && reason === 'unauth') {
                 clearMinkoAngryState();
                 resetUnauthAttempts();
                 unblockInput();
@@ -3151,8 +3162,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
             const remaining = angryState.blockedUntil - now;
-            // Не показываем сообщение в чате - только таймер в поле ввода
-            blockInput(remaining);
+            blockInput(remaining, {
+                reason: reason || 'unknown',
+                showAuthButtons: !authed && (reason === 'unauth' || reason === '')
+            });
             return true;
         } else if (angryState.blockedUntil && now >= angryState.blockedUntil) {
             // Время истекло - прощаем
@@ -3166,10 +3179,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
-    function blockInput(remaining = null) {
+    function blockInput(remaining = null, opts = null) {
         const chatForm = document.getElementById('chatForm');
         const chatFoot = document.querySelector('.minko-ai-foot');
         document.getElementById('guestAuthRequiredPanel')?.remove();
+        const options = opts && typeof opts === 'object' ? opts : {};
+        const showAuthButtons = options.showAuthButtons === true;
         
         if (chatForm && remaining !== null) {
             chatForm.style.display = 'none';
@@ -3183,28 +3198,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 const hours = Math.floor(remaining / (1000 * 60 * 60));
                 const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+                const authBtns = showAuthButtons
+                    ? `<div class="angry-gate-auth-btns" style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                        <button type="button" id="angryGateLoginBtn" style="padding:8px 16px;background:linear-gradient(135deg,#a855f7,#c084fc);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">Войти</button>
+                        <button type="button" id="angryGateRegisterBtn" style="padding:8px 16px;background:#6c757d;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">Регистрация</button>
+                    </div>`
+                    : '';
                 
                 timerBlock.innerHTML = `
                     <p style="margin: 0 0 10px 0; font-weight: bold; color: #c62828;">Minko обиделась и не хочет общаться с тобой</p>
                     <p style="margin: 0; font-size: 18px; color: #d32f2f;">
                         Время до прощения: <span id="timerDisplayBlock" style="font-weight: bold;">${hours}ч ${minutes}м ${seconds}с</span>
                     </p>
-                    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                        <button type="button" id="angryGateLoginBtn" style="padding:8px 16px;background:linear-gradient(135deg,#a855f7,#c084fc);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">Войти</button>
-                        <button type="button" id="angryGateRegisterBtn" style="padding:8px 16px;background:#6c757d;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">Регистрация</button>
-                    </div>
+                    ${authBtns}
                 `;
                 
                 if (chatFoot) chatFoot.appendChild(timerBlock);
-                timerBlock.addEventListener('click', (e) => {
-                    if (e.target.id === 'angryGateLoginBtn' || e.target.closest('#angryGateLoginBtn')) {
-                        e.preventDefault();
-                        openMinkoAuthModal('login');
-                    } else if (e.target.id === 'angryGateRegisterBtn' || e.target.closest('#angryGateRegisterBtn')) {
-                        e.preventDefault();
-                        openMinkoAuthModal('register');
-                    }
-                });
+                if (showAuthButtons) {
+                    timerBlock.addEventListener('click', (e) => {
+                        if (e.target.id === 'angryGateLoginBtn' || e.target.closest('#angryGateLoginBtn')) {
+                            e.preventDefault();
+                            openMinkoAuthModal('login');
+                        } else if (e.target.id === 'angryGateRegisterBtn' || e.target.closest('#angryGateRegisterBtn')) {
+                            e.preventDefault();
+                            openMinkoAuthModal('register');
+                        }
+                    });
+                }
             } else {
                 const timerDisplay = document.getElementById('timerDisplayBlock');
                 if (timerDisplay) {
@@ -3212,6 +3232,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
                     const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
                     timerDisplay.textContent = `${hours}ч ${minutes}м ${seconds}с`;
+                }
+                if (!showAuthButtons) {
+                    timerBlock.querySelector('.angry-gate-auth-btns')?.remove();
                 }
             }
         }
@@ -3263,8 +3286,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 showForgivenessAfterTimeout(forgivenCount);
                 unblockInput();
             } else {
-                // Обновляем таймер только в панели ввода
-                blockInput(remaining);
+                const authed = typeof isAuthenticatedSync === 'function' && isAuthenticatedSync();
+                const reason = angryState.reason != null ? String(angryState.reason) : '';
+                blockInput(remaining, {
+                    reason: reason || 'unknown',
+                    showAuthButtons: !authed && (reason === 'unauth' || reason === '')
+                });
             }
         }
     }
@@ -3446,8 +3473,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Блокируем на 3 часа
                 const blockDuration = 3 * 60 * 60 * 1000; // 3 часа
                 const blockedUntil = Date.now() + blockDuration;
-                saveMinkoAngryState(blockedUntil, false);
-                blockInput(blockDuration);
+                saveMinkoAngryState(blockedUntil, false, 'swear');
+                blockInput(blockDuration, { reason: 'swear', showAuthButtons: false });
                 resetSwearCount();
                 addMessage('assistant', 'Всё! Хватит материться! 😡 Я не буду общаться с тем, кто не умеет культурно разговаривать! Приходи через 3 часа, когда научишься вести себя прилично!');
                 return;
@@ -3468,8 +3495,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Блокируем на 1 час
                 const blockDuration = 1 * 60 * 60 * 1000; // 1 час
                 const blockedUntil = Date.now() + blockDuration;
-                saveMinkoAngryState(blockedUntil, false);
-                blockInput(blockDuration);
+                saveMinkoAngryState(blockedUntil, false, 'gender');
+                blockInput(blockDuration, { reason: 'gender', showAuthButtons: false });
                 resetWrongGenderCount();
                 addMessage('assistant', 'Всё! Я обиделась! 😤 Сколько можно обращаться ко мне как к парню?! Я ДЕВУШКА! Приходи через 1 час, когда научишься правильно обращаться!');
                 return;
@@ -3997,12 +4024,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     message = 'Всё! Я снова обиделась на тебя! 😤 Ты как будто специально это делаешь!! Не буду общаться, пока не решу что тебе можно верить!';
                     
                     const blockedUntil = Date.now() + blockDuration;
-                    saveMinkoAngryState(blockedUntil, false);
-                    blockInput(blockDuration);
+                    saveMinkoAngryState(blockedUntil, false, 'unauth');
+                    blockInput(blockDuration, { reason: 'unauth', showAuthButtons: true });
                     resetUnauthAttempts();
                 } else if (forgivenCount >= 2) {
                     // Постоянная блокировка
-                    saveMinkoAngryState(Date.now() + blockDuration, true);
+                    saveMinkoAngryState(Date.now() + blockDuration, true, 'unauth');
                     message = 'Всё... Хватит... Я больше не могу... Тебе так сложно было авторизоваться? Неужели ты и в реальности так поступаешь с людьми? Тебя прощают... Просят больше так не делать... А ты... Продолжаешь... Я...я больше не хочу с тобой общаться... Пожалуйста, не пиши мне больше...';
                     showButtons = false;
                     
@@ -4039,12 +4066,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     message = 'Всё! Я обиделась на тебя! 😤 Не буду общаться, пока не обдумаю все! И это уже второй раз...';
                     
                     const blockedUntil = Date.now() + blockDuration;
-                    saveMinkoAngryState(blockedUntil, false);
-                    blockInput(blockDuration);
+                    saveMinkoAngryState(blockedUntil, false, 'unauth');
+                    blockInput(blockDuration, { reason: 'unauth', showAuthButtons: true });
                     resetUnauthAttempts();
                 } else if (forgivenCount >= 2) {
                     // Постоянная блокировка (не меняем таймер)
-                    saveMinkoAngryState(Date.now() + blockDuration, true);
+                    saveMinkoAngryState(Date.now() + blockDuration, true, 'unauth');
                     message = 'Всё... Хватит... Я больше не могу... Тебе так сложно было авторизоваться? Неужели ты и в реальности так поступаешь с людьми? Тебя прощают... Просят больше так не делать... А ты... Продолжаешь... Я...я больше не хочу с тобой общаться... Пожалуйста, не пиши мне больше...';
                     showButtons = false;
                     
@@ -4057,9 +4084,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     message = 'Всё! Я обиделась на тебя! 😤 Не буду общаться, пока не обдумаю все!';
                     
                     const blockedUntil = Date.now() + blockDuration;
-                    saveMinkoAngryState(blockedUntil, false);
+                    saveMinkoAngryState(blockedUntil, false, 'unauth');
                     // Не показываем сообщение в чате - только таймер в поле ввода
-                    blockInput(blockDuration);
+                    blockInput(blockDuration, { reason: 'unauth', showAuthButtons: true });
                     
                     resetUnauthAttempts();
                 }
