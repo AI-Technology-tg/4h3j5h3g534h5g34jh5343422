@@ -2601,29 +2601,38 @@ let _watchHistoryTimer = null;
 let _watchHistoryTimerKey = '';
 let _watchHistoryPending = null;
 
-/** ~20 с просмотра достаточно; при уходе со страницы — flush сразу. */
-const WATCH_HISTORY_DELAY_MS = 20000;
+/** Несколько секунд просмотра достаточно; при уходе со страницы — flush сразу. */
+const WATCH_HISTORY_DELAY_MS = 8000;
+
+function _watchHistorySameAnime(a, b) {
+    return String(a ?? '') === String(b ?? '');
+}
+
+function _watchHistorySameEpisode(a, b) {
+    const na = Number(a);
+    const nb = Number(b);
+    return Number.isFinite(na) && Number.isFinite(nb) && na === nb;
+}
 
 function scheduleWatchHistoryAfterMinute(animeId, episode) {
     if (typeof addToWatchHistory !== 'function') return;
-    const key = `${animeId}:${episode}`;
+    const ep = Math.max(1, parseInt(episode, 10) || 1);
+    const key = `${animeId}:${ep}`;
     if (_watchHistoryTimerKey === key && _watchHistoryTimer) return;
     clearTimeout(_watchHistoryTimer);
     _watchHistoryTimerKey = key;
-    _watchHistoryPending = { animeId, episode };
+    _watchHistoryPending = { animeId, episode: ep };
     _watchHistoryTimer = setTimeout(() => {
         const pend = _watchHistoryPending;
         _watchHistoryTimer = null;
         _watchHistoryTimerKey = '';
         _watchHistoryPending = null;
-        if (
-            pend &&
-            currentPlayerAnime &&
-            String(currentPlayerAnime.id) === String(pend.animeId) &&
-            currentEpisode === pend.episode
-        ) {
-            addToWatchHistory(pend.animeId, pend.episode);
+        if (!pend) return;
+        // Достаточно, что всё ещё смотрим это аниме (серия могла совпасть по Number)
+        if (!currentPlayerAnime || !_watchHistorySameAnime(currentPlayerAnime.id, pend.animeId)) {
+            return;
         }
+        addToWatchHistory(pend.animeId, pend.episode);
     }, WATCH_HISTORY_DELAY_MS);
 }
 
@@ -2636,8 +2645,7 @@ function flushWatchHistoryTimer() {
     clearWatchHistoryTimer();
     if (
         currentPlayerAnime &&
-        String(currentPlayerAnime.id) === String(pend.animeId) &&
-        Number(currentEpisode) === Number(pend.episode)
+        _watchHistorySameAnime(currentPlayerAnime.id, pend.animeId)
     ) {
         addToWatchHistory(pend.animeId, pend.episode);
     }
@@ -2714,8 +2722,10 @@ async function applyKodikIframeSrc(anime, episode) {
     const mountUrl = (url) => {
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-                if (!currentPlayerAnime || String(currentPlayerAnime.id) !== String(anime.id)) return;
-                if (currentEpisode !== ep) return;
+                if (!currentPlayerAnime || !_watchHistorySameAnime(currentPlayerAnime.id, anime.id)) {
+                    return;
+                }
+                if (!_watchHistorySameEpisode(currentEpisode, ep)) return;
                 const ifr = document.getElementById('animeKodikIframe');
                 if (!ifr) return;
                 const pl = document.getElementById('animeKodikPlaceholder');
@@ -2737,14 +2747,14 @@ async function applyKodikIframeSrc(anime, episode) {
                 setTimeout(() => reject(new Error('Kodik: превышено время ожидания')), 22000)
             )
         ]);
-        if (!currentPlayerAnime || String(currentPlayerAnime.id) !== String(anime.id)) return;
-        if (currentEpisode !== ep) return;
+        if (!currentPlayerAnime || !_watchHistorySameAnime(currentPlayerAnime.id, anime.id)) return;
+        if (!_watchHistorySameEpisode(currentEpisode, ep)) return;
         const playerUrl = K.buildIframeUrl(base.href, base.isSerial, ep);
         mountUrl(playerUrl);
     } catch (e) {
         console.warn('[Kodik]', e);
-        if (!currentPlayerAnime || String(currentPlayerAnime.id) !== String(anime.id)) return;
-        if (currentEpisode !== ep) return;
+        if (!currentPlayerAnime || !_watchHistorySameAnime(currentPlayerAnime.id, anime.id)) return;
+        if (!_watchHistorySameEpisode(currentEpisode, ep)) return;
         clearInlineKodikHint();
         const ph = document.getElementById('animeKodikPlaceholder');
         const phTx = document.getElementById('animeKodikPlaceholderText');
@@ -2808,8 +2818,8 @@ async function applyAllohaIframeSrc(anime, episode) {
 
     try {
         const url = await AllohaApi.resolveEmbedUrl(anime, ep);
-        if (!currentPlayerAnime || String(currentPlayerAnime.id) !== String(anime.id)) return;
-        if (currentEpisode !== ep) return;
+        if (!currentPlayerAnime || !_watchHistorySameAnime(currentPlayerAnime.id, anime.id)) return;
+        if (!_watchHistorySameEpisode(currentEpisode, ep)) return;
         if (!url) {
             if (phTx) {
                 phTx.textContent = 'Alloha: аниме не найдено в каталоге или нет озвучки для этой серии.';
@@ -2828,8 +2838,8 @@ async function applyAllohaIframeSrc(anime, episode) {
         }
     } catch (e) {
         console.warn('[Alloha]', e);
-        if (!currentPlayerAnime || String(currentPlayerAnime.id) !== String(anime.id)) return;
-        if (currentEpisode !== ep) return;
+        if (!currentPlayerAnime || !_watchHistorySameAnime(currentPlayerAnime.id, anime.id)) return;
+        if (!_watchHistorySameEpisode(currentEpisode, ep)) return;
         if (phTx) {
             phTx.textContent = 'Не удалось загрузить плеер Alloha. Попробуйте позже или выберите Kodik.';
         }
@@ -2913,11 +2923,15 @@ function initCatalogAnimeInlineKodik(anime) {
     if (trailPanel) trailPanel.hidden = true;
 
     currentPlayerAnime = anime;
-    currentEpisode = getCatalogEpisodeCursor(anime);
+    currentEpisode = Math.max(1, parseInt(getCatalogEpisodeCursor(anime), 10) || 1);
     const availableEpisodes = getCatalogAvailableEpisodes(anime);
     if (anime.type === 'Сериал' && availableEpisodes > 1) {
         fillInlineEpisodeSelect(availableEpisodes, currentEpisode);
         updateInlineEpisodeNavButtons();
+    }
+    if (animeEligibleForWatchHistory(anime)) {
+        scheduleWatchHistoryAfterMinute(anime.id, currentEpisode);
+        pushWatchActivity(anime);
     }
     void tryApplyKodikWhenReady(anime, currentEpisode);
     highlightEpisodeCardsInList();
@@ -3018,7 +3032,7 @@ function nextEpisode() {
 
 function goToEpisode(ep) {
     const episode = parseInt(ep, 10);
-    if (!currentPlayerAnime || Number.isNaN(ep)) return;
+    if (!currentPlayerAnime || Number.isNaN(episode)) return;
     const total = getCatalogAvailableEpisodes(currentPlayerAnime);
     if (episode < 1 || episode > total) return;
 

@@ -12,6 +12,13 @@ async function reminkoUpsertWatchHistoryRemote(userId, animeId, episodeNumber) {
     if (!animeKey || !Number.isFinite(episodeNum) || episodeNum < 1) return;
 
     try {
+        // Подтянуть сессию: иначе RLS auth.uid() пустой и insert молча не проходит
+        try {
+            await supabaseClient.auth.getSession();
+        } catch (_) {
+            /* ignore */
+        }
+
         const { data: existing } = await supabaseClient
             .from('watch_history')
             .select('id')
@@ -22,10 +29,11 @@ async function reminkoUpsertWatchHistoryRemote(userId, animeId, episodeNumber) {
 
         const watchedAt = new Date().toISOString();
         if (existing && existing.id) {
-            await supabaseClient
+            const { error } = await supabaseClient
                 .from('watch_history')
                 .update({ watched_at: watchedAt })
                 .eq('id', existing.id);
+            if (error) console.warn('[watch_history] update:', error);
         } else {
             const { error } = await supabaseClient.from('watch_history').insert({
                 user_id: userId,
@@ -72,16 +80,32 @@ function reminkoPushLocalWatchHistoryToSupabase(userId) {
 }
 
 function addToWatchHistory(animeId, episodeNumber) {
-    if (typeof isAuthenticatedSync !== 'function' || !isAuthenticatedSync()) return;
+    let authed = typeof isAuthenticatedSync === 'function' ? isAuthenticatedSync() : false;
+    if (!authed && localStorage.getItem('isAuth') === 'true') {
+        try {
+            const raw = sessionStorage.getItem('currentUser');
+            authed = !!(raw && JSON.parse(raw)?.id);
+        } catch (_) {
+            authed = false;
+        }
+    }
+    if (!authed) return;
 
-    const user = getCurrentUserSync();
-    if (!user) return;
+    let user = typeof getCurrentUserSync === 'function' ? getCurrentUserSync() : null;
+    if (!user || !user.id) {
+        try {
+            user = JSON.parse(sessionStorage.getItem('currentUser') || 'null');
+        } catch (_) {
+            user = null;
+        }
+    }
+    if (!user || !user.id) return;
 
     if (typeof ensureUserDataRecord === 'function') {
         ensureUserDataRecord(user.id);
     }
 
-    const userData = getUserData(user.id);
+    const userData = typeof getUserData === 'function' ? getUserData(user.id) : null;
     if (!userData) return;
 
     if (!userData.watchHistory) {
@@ -111,7 +135,9 @@ function addToWatchHistory(animeId, episodeNumber) {
         userData.watchHistory = userData.watchHistory.slice(0, 500);
     }
 
-    updateUserData(user.id, { watchHistory: userData.watchHistory });
+    if (typeof updateUserData === 'function') {
+        updateUserData(user.id, { watchHistory: userData.watchHistory });
+    }
 
     void reminkoUpsertWatchHistoryRemote(user.id, animeIdInt, episodeNum);
 
