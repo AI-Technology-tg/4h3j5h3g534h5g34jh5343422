@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="styles/sidebar-layout.css?v=20260727consist1">
     <link rel="stylesheet" href="styles/loading.css">
     <link rel="stylesheet" href="styles/notifications.css?v=20260726mobile1">
-    <link rel="stylesheet" href="styles/friends.css?v=20260726mobile2">
+    <link rel="stylesheet" href="styles/friends.css?v=20260728profile1">
 </head>
 <body>
     <div class="loading-screen" id="loadingScreen">
@@ -186,7 +186,7 @@
     <script src="scripts/utils.js?v=20260727wheel1"></script>
     <script src="scripts/utils-notifications.js"></script>
     <script src="scripts/auth.js"></script>
-    <script src="scripts/friends.js" defer></script>
+    <script src="scripts/friends.js?v=20260728profile1" defer></script>
     <script src="scripts/watch-together.js" defer></script>
     <script src="scripts/notifications.js" defer></script>
     <script src="scripts/episode-notifications.js" defer></script>
@@ -475,6 +475,9 @@
               <button type="button" class="friends-v2-icon-btn" data-watch="${u.id}" title="Смотреть вместе" aria-label="Смотреть вместе">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
               </button>
+              <button type="button" class="friends-v2-icon-btn friends-v2-icon-btn--danger" data-unfriend="${u.id}" title="Удалить из друзей" aria-label="Удалить из друзей">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>
             </div>`;
                 })
                 .join('');
@@ -495,6 +498,12 @@
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     createRoomWithInvite(btn.getAttribute('data-watch'));
+                });
+            });
+            list.querySelectorAll('[data-unfriend]').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeFriendFromList(btn.getAttribute('data-unfriend'));
                 });
             });
         }
@@ -694,6 +703,20 @@
             await supabaseClient.from('friends').delete().eq('id', requestRowId).eq('user_id', currentUser.id);
             if (typeof showSuccess === 'function') showSuccess('Заявка отменена');
             await refreshAll();
+        }
+
+        async function removeFriendFromList(friendId) {
+            if (!currentUser || !friendId || typeof friendsService === 'undefined') return;
+            const friend = friendsList.find((f) => String(f.friendUserId) === String(friendId));
+            const name = (friend && friend.friend && friend.friend.username) || 'друга';
+            if (!confirm('Удалить «' + name + '» из друзей?')) return;
+            const r = await friendsService.removeFriend(currentUser.id, friendId);
+            if (r && r.success) {
+                if (typeof showSuccess === 'function') showSuccess('Друг удалён');
+                await refreshAll();
+            } else if (typeof showError === 'function') {
+                showError((r && r.message) || 'Не удалось удалить');
+            }
         }
 
         async function sendFriendRequestTo(friendId) {

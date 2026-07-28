@@ -1340,9 +1340,11 @@ async function loadVisitorAnalyticsPanel() {
         return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     };
 
-    const fmtPath = (p) => {
+    const fmtPath = (p, maxLen) => {
         const s = String(p || '/');
-        return s.length > 42 ? s.slice(0, 39) + '…' : s;
+        const limit = Number(maxLen) > 0 ? Number(maxLen) : 0;
+        if (!limit || s.length <= limit) return s;
+        return s.slice(0, Math.max(1, limit - 1)) + '…';
     };
 
     let html = `<p class="va-compact__updated">Обновлено ${new Date().toLocaleTimeString('ru-RU')}${liveEnabled ? ' · live' : ''}</p>`;
@@ -1378,7 +1380,7 @@ async function loadVisitorAnalyticsPanel() {
             const sub = isUser
                 ? adminPanelEscapeHtml(String(row.email || row.user_id).slice(0, 36))
                 : `<span class="vac-mono">guest ${adminPanelEscapeHtml(String(row.visitor_id || '').slice(0, 18))}…</span>`;
-            const path = fmtPath(row.last_path);
+            const fullPath = String(row.last_path || '/');
             const time = fmtTime(row.last_seen);
             html += `<li class="va-online-item ${isUser ? 'va-online-item--user' : ''}">
                 <span class="va-online-dot" aria-hidden="true"></span>
@@ -1392,7 +1394,7 @@ async function loadVisitorAnalyticsPanel() {
                         <time class="va-online-time">${adminPanelEscapeHtml(time)}</time>
                     </div>
                     <div class="va-online-row2">${sub}</div>
-                    <div class="va-online-row3 vac-mono" title="${adminPanelEscapeHtml(String(row.last_path || ''))}">${adminPanelEscapeHtml(path)}</div>
+                    <div class="va-online-row3 vac-mono" title="${adminPanelEscapeHtml(fullPath)}">${adminPanelEscapeHtml(fullPath)}</div>
                 </div>
             </li>`;
         });
@@ -1410,7 +1412,7 @@ async function loadVisitorAnalyticsPanel() {
     } else {
         html += '<ul class="va-paths-list">';
         topPaths.slice(0, 8).forEach((row) => {
-            html += `<li><span class="vac-mono" title="${adminPanelEscapeHtml(String(row.path || ''))}">${adminPanelEscapeHtml(fmtPath(row.path))}</span><strong>${Number(row.cnt || 0)}</strong></li>`;
+            html += `<li><span class="vac-mono" title="${adminPanelEscapeHtml(String(row.path || ''))}">${adminPanelEscapeHtml(fmtPath(row.path, 72))}</span><strong>${Number(row.cnt || 0)}</strong></li>`;
         });
         html += '</ul>';
     }
@@ -1434,10 +1436,11 @@ async function loadVisitorAnalyticsPanel() {
             const who = r.user_id
                 ? `<button type="button" class="va-online-name va-online-name--link" data-va-user="${adminPanelEscapeHtml(String(r.user_id))}">${adminPanelEscapeHtml(String(r.user_id).slice(0, 8))}…</button>`
                 : `<span class="vac-mono">${adminPanelEscapeHtml(String(r.visitor_id || '').slice(0, 10))}…</span>`;
+            const fullPath = String(r.path || '/');
             html += `<tr>
                 <td>${adminPanelEscapeHtml(fmtTime(r.created_at))}</td>
                 <td>${who}</td>
-                <td class="vac-mono" title="${adminPanelEscapeHtml(String(r.path || ''))}">${adminPanelEscapeHtml(fmtPath(r.path))}</td>
+                <td class="vac-mono va-path-full" title="${adminPanelEscapeHtml(fullPath)}">${adminPanelEscapeHtml(fullPath)}</td>
             </tr>`;
         });
     }

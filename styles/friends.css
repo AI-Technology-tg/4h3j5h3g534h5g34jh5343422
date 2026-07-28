@@ -394,6 +394,14 @@
 .friends-v2-icon-btn:hover {
     background: rgba(227, 0, 255, 0.18);
 }
+.friends-v2-icon-btn--danger {
+    color: #ff6b8a;
+    background: rgba(255, 45, 85, 0.08);
+}
+.friends-v2-icon-btn--danger:hover {
+    background: rgba(255, 45, 85, 0.2);
+    color: #ff8aa3;
+}
 
 .friends-v2-btn-primary {
     background: var(--fp-primary);

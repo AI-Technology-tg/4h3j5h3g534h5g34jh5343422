@@ -873,6 +873,16 @@ body.theme-dark .vip-soon-badge {
         border-color: rgba(255, 45, 85, 0.5) !important;
     }
 
+    body.theme-dark .friends-v2-icon-btn--danger {
+        color: #ff8aa3 !important;
+        background: rgba(255, 45, 85, 0.12) !important;
+    }
+
+    body.theme-dark .friends-v2-icon-btn--danger:hover {
+        background: rgba(255, 45, 85, 0.24) !important;
+        color: #ffb0c0 !important;
+    }
+
     body.theme-dark .info-hero,
     body.theme-dark .info-card,
     body.theme-dark .info-block,

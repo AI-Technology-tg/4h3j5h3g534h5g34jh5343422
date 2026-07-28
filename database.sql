@@ -4102,7 +4102,7 @@ $$;
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE VIEW public.profile_directory
-WITH (security_barrier = true, security_invoker = true)
+WITH (security_barrier = true, security_invoker = false)
 AS
 SELECT
   id,
@@ -4983,7 +4983,8 @@ AS $$
 BEGIN
   NEW.created_at := TIMEZONE('utc'::TEXT, NOW());
   NEW.visitor_id := left(trim(NEW.visitor_id), 64);
-  NEW.path := left(split_part(trim(NEW.path), '?', 1), 1024);
+  -- Keep path+query so creator panel shows exact page location.
+  NEW.path := left(trim(NEW.path), 1024);
   NEW.page_title := NULLIF(left(trim(COALESCE(NEW.page_title, '')), 300), '');
   NEW.referrer := NULLIF(left(trim(COALESCE(NEW.referrer, '')), 1024), '');
   NEW.user_agent := NULLIF(left(trim(COALESCE(NEW.user_agent, '')), 512), '');
