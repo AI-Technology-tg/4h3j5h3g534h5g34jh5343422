@@ -355,40 +355,22 @@
                     </div>
                 </div>
 
-                <!-- Розыgрыш видео-обзоров -->
                 <div class="admin-tab-content" id="tabGiveaway">
                     <div class="admin-section">
-                        <h2>🎁 Розыгрыш видео-обзоров</h2>
-                        <p class="admin-inline-hint" style="max-width: 52rem; line-height: 1.5;">
-                            Участники с уникальными ссылками из раздела «Инфо → Розыгрыш».
-                            Переходы считаются один раз с каждого устройства; регистрации — без повторов с одного device_hash.
+                        <h2>🎁 Розыгрыш — итоги</h2>
+                        <p class="admin-inline-hint" style="max-width: 42rem; line-height: 1.55;">
+                            Публичный набор участников закрыт. На сайте (Инфо → Розыгрыш) — благодарность и победители:
+                            <strong>s1ckle</strong> (TikTok @re.zero.865) и <strong>2 победителя</strong>, попросившие анонимность.
                         </p>
-                        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin:1rem 0;">
-                            <button type="button" class="admin-btn" id="giveawayAdminRefreshBtn">🔄 Обновить</button>
-                            <span id="giveawayAdminStatus" class="admin-inline-hint"></span>
-                        </div>
-                        <div id="giveawayAdminSummary" class="admin-giveaway-summary"></div>
-                        <div style="overflow-x:auto;margin-top:1rem;">
-                            <table class="users-table" id="giveawayAdminTable">
-                                <thead>
-                                    <tr>
-                                        <th>Участник</th>
-                                        <th>Email</th>
-                                        <th>Платформа</th>
-                                        <th>TikTok</th>
-                                        <th>Instagram</th>
-                                        <th>Код / ссылка</th>
-                                        <th>Участие</th>
-                                        <th>Переходы</th>
-                                        <th>Регистрации</th>
-                                        <th>Последний переход</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="giveawayAdminTableBody">
-                                    <tr><td colspan="10">Загрузка…</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <p class="admin-inline-hint" style="max-width: 42rem; line-height: 1.55; margin-top: 0.75rem;">
+                            Старая таблица участников в интерфейсе отключена. Данные в Supabase при необходимости можно смотреть через SQL.
+                        </p>
+                        <div id="giveawayAdminSummary" class="admin-giveaway-summary" hidden></div>
+                        <button type="button" class="admin-btn" id="giveawayAdminRefreshBtn" hidden>Обновить</button>
+                        <span id="giveawayAdminStatus" class="admin-inline-hint" hidden></span>
+                        <table class="users-table" id="giveawayAdminTable" hidden>
+                            <tbody id="giveawayAdminTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
 

@@ -9,17 +9,8 @@ function initHomeBetaBanner() {
     /* Плашка «Бета» — только статичный текст в разметке index.html */
 }
 
-/** Совпадает с giveaway-info.js */
-const HOME_GIVEAWAY_START_ISO = '2026-07-17T22:00:00.000Z';
-const HOME_GIVEAWAY_END_ISO = '2026-07-31T21:59:59.000Z';
-
 function initHomeGiveawayBanner() {
-    const banner = document.getElementById('homeGiveawayBanner');
-    if (!banner) return;
-    const end = Date.parse(HOME_GIVEAWAY_END_ISO);
-    if (!Number.isNaN(end) && Date.now() >= end) {
-        banner.hidden = true;
-    }
+    /* Баннер розыгрыша снят — итоги во вкладке Инфо → Розыгрыш */
 }
 
 function getHomeCache() {
@@ -76,14 +67,14 @@ const HOME_SOCIAL_INFO = {
         img: 'Fons/Sociale/Telegram.webp',
         url: 'https://telegram.me/re_minko',
         goLabel: 'Перейти в Telegram',
-        text: 'На канале чаще всего публикуется информация о разработке и проводятся розыгрыши. Также есть Telegram-группа для общения с сообществом.',
+        text: 'На канале чаще всего публикуется информация о разработке и новости сайта. Также есть Telegram-группа для общения с сообществом.',
     },
     tiktok: {
         title: 'TikTok',
         img: 'Fons/Sociale/TikTok.webp',
         url: 'https://www.tiktok.com/@re.minko',
         goLabel: 'Перейти в TikTok',
-        text: 'Здесь — ролики создателя. Разработка сайта не главная тема, но иногда проскакивают промокоды и халява.',
+        text: 'Здесь — ролики создателя. Разработка сайта не главная тема, но иногда проскакивают промокоды и анонсы.',
     },
     instagram: {
         title: 'Instagram',
@@ -111,14 +102,14 @@ const HOME_SOCIAL_INFO = {
         img: 'Fons/Sociale/VK.webp',
         url: '',
         goLabel: 'ВКонтакте скоро',
-        text: 'Группа во «ВКонтакте» для новостей и розыгрышей. Ссылка появится, когда сообщество будет готово.',
+        text: 'Группа во «ВКонтакте» для новостей и общения. Ссылка появится, когда сообщество будет готово.',
     },
     discord: {
         title: 'Discord',
         img: 'Fons/Sociale/Discord.webp',
         url: '',
         goLabel: 'Сервер скоро',
-        text: 'Discord-сервер для информирования и проведения розыгрышей прямо на сайте. Ссылка появится, когда сервер будет готов.',
+        text: 'Discord-сервер для информирования и общения с сообществом. Ссылка появится, когда сервер будет готов.',
     },
     android: {
         title: 'Приложения Re-Minko',

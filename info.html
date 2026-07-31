@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="styles/loading.css">
     <link rel="stylesheet" href="styles/register-flow.css?v=20260726mobile1">
     <link rel="stylesheet" href="styles/notifications.css?v=20260726mobile1">
-    <link rel="stylesheet" href="styles/info-page.css?v=20260726mobile2">
+    <link rel="stylesheet" href="styles/info-page.css?v=20260801gw1">
 </head>
 <body>
     <div class="loading-screen" id="loadingScreen">
@@ -261,265 +261,31 @@
                         </div>
                     </section>
 
-                                        <section class="info-panel info-giveaway-panel" data-tab-panel="giveaway" role="tabpanel" id="tab-giveaway" hidden>
-                        <div class="gw-ambient" aria-hidden="true">
-                            <span class="gw-ambient__orb gw-ambient__orb--a"></span>
-                            <span class="gw-ambient__orb gw-ambient__orb--b"></span>
-                            <span class="gw-ambient__grid"></span>
-                        </div>
-
-                        <header class="gw-hero">
-                            <div class="gw-hero__copy">
-                                <div class="gw-hero__meta">
-                                    <span class="gw-pill">TikTok</span>
-                                    <span class="gw-pill">Instagram</span>
-                                    <span class="gw-pill gw-pill--accent">$100 USDT</span>
-                                </div>
-                                <h2 class="gw-hero__title">Розыгрыш $100 (USDT) от Re-Minko</h2>
-                                <p class="gw-hero__lead">
-                                    Создайте видеобзор или познавательный ролик о Re-Minko.
-                                    Участие через кнопку ниже — зарегистрируйтесь, нажмите «Участвую», укажите соцсети и получите реф-ссылку для повышения шансов.
-                                </p>
-                                <ul class="gw-hero__facts">
-                                    <li><span class="gw-hero__facts-k">Призовой фонд</span><span class="gw-hero__facts-v">$100 USDT</span></li>
-                                    <li><span class="gw-hero__facts-k">Результаты</span><span class="gw-hero__facts-v">1 августа</span></li>
-                                    <li><span class="gw-hero__facts-k">Формат</span><span class="gw-hero__facts-v">Обзор / ролик</span></li>
-                                </ul>
-                            </div>
-                            <div class="gw-prize" aria-hidden="true">
-                                <div class="gw-prize__ring"></div>
-                                <div class="gw-prize__core">
-                                    <span class="gw-prize__sum">$100</span>
-                                    <span class="gw-prize__cur">USDT</span>
-                                </div>
-                            </div>
-                        </header>
-
-                        <div class="gw-duo" style="margin-top:1.25rem;">
-                            <article class="gw-card">
-                                <div class="gw-card__head">
-                                    <div>
-                                        <h3 class="gw-card__title">Как участвовать</h3>
-                                        <ol class="gw-card__text" style="margin:0.65rem 0 0;padding-left:1.15rem;line-height:1.55;">
-                                            <li>Зарегистрируйтесь на сайте.</li>
-                                            <li>В меню розыгрыша нажмите «Участвую», введите данные соцсетей и получите реф-ссылку для повышения шансов.</li>
-                                        </ol>
-                                        <p class="gw-card__text" style="margin:0.85rem 0 0;"><strong>Цель:</strong> создайте видеобзор или познавательный ролик о Re-Minko.</p>
-                                    </div>
-                                </div>
-                            </article>
-                            <article class="gw-card">
-                                <div class="gw-card__head">
-                                    <div>
-                                        <h3 class="gw-card__title">Призы</h3>
-                                        <ol class="gw-card__text" style="margin:0.65rem 0 0;padding-left:1.15rem;line-height:1.55;">
-                                            <li><strong>1 место:</strong> $60, статус бета-тестера, полный функционал до релиза.</li>
-                                            <li><strong>2 место:</strong> $30, доступ к тестовым страницам и VIP-функциям.</li>
-                                            <li><strong>3 место:</strong> $10, 3 месяца бесплатного доступа к Минко ИИ.</li>
-                                        </ol>
-                                        <p class="gw-card__text" style="margin:0.85rem 0 0;"><strong>Результаты:</strong> 1 августа. Удачи👉🫠</p>
-                                    </div>
-                                </div>
-                            </article>
-                        </div>
-
-                        <div class="gw-timer" id="giveawayTimerBlock">
-                            <div class="gw-timer__scan" aria-hidden="true"></div>
-                            <div class="gw-timer__inner">
-                                <div class="gw-timer__head">
-                                    <div class="gw-timer__label">
-                                        <svg class="gw-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                                        <span id="giveawayTimerKicker">Обратный отсчёт · до старта</span>
-                                    </div>
-                                    <p class="gw-timer__dates" id="giveawayTimerLead">
-                                        <span id="giveawayStartDate">—</span>
-                                        <span class="gw-timer__sep">→</span>
-                                        <span id="giveawayEndDate">—</span>
-                                    </p>
-                                </div>
-                                <div class="info-giveaway-countdown gw-countdown" id="giveawayCountdownInner" aria-live="polite"></div>
-                                <p id="giveawayNotStartedNote" class="gw-note gw-note--wait" hidden>
-                                    Регистрация участников откроется в день старта. Следите за анонсами в Telegram.
-                                </p>
-                                <p id="giveawayEndedNote" class="gw-note gw-note--end" hidden>
-                                    Приём работ завершён. Результаты розыгрыша — 1 августа (Telegram и сайт).
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="gw-duo">
-                            <article class="gw-card gw-card--tg">
-                                <div class="gw-card__head">
-                                    <span class="gw-card__icon gw-card__icon--tg" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24"><path d="M21.5 4.5L2.8 11.2c-.9.3-.9 1.6.1 1.9l4.8 1.5 1.8 5.6c.3.9 1.5 1 2 .2l2.6-3.4 4.9 3.6c.8.6 2 .1 2.2-.9L22.5 6c.2-1-.6-1.8-1.5-1.5z" fill="currentColor"/></svg>
-                                    </span>
-                                    <div>
-                                        <h3 class="gw-card__title">Официальный канал</h3>
-                                        <p class="gw-card__text">Правила, дедлайны, промежуточная статистика и объявление победителя.</p>
-                                    </div>
-                                </div>
-                                <a class="gw-btn gw-btn--tg" href="https://telegram.me/re_minko" target="_blank" rel="noopener noreferrer">
-                                    <span>Telegram Re-Minko</span>
-                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                </a>
-                            </article>
-                        </div>
-
-                        <div class="gw-stage" id="giveawayStageBlock">
-                            <div id="giveawayLoginHint" class="gw-auth-hint" hidden>
-                                <p>Для получения реферальной ссылки войдите в аккаунт Re-Minko.</p>
-                                <button type="button" class="gw-btn gw-btn--ghost" id="giveawayOpenLoginBtn">Авторизация</button>
-                            </div>
-
-                            <div id="giveawayJoinBlock" class="gw-join">
-                                <button type="button" class="gw-btn gw-btn--primary gw-btn--xl" id="giveawayJoinBtn">
-                                    <span class="gw-btn__glow" aria-hidden="true"></span>
-                                    <span class="info-giveaway-join-btn__label">Участвую</span>
-                                </button>
-                                <p id="giveawayJoinMsg" class="gw-form-msg" aria-live="polite"></p>
-
-                                <div id="giveawayJoinForm" class="gw-prereg" hidden>
-                                    <p class="gw-card__text" style="margin:0 0 0.75rem;">Укажите платформу и ник — после подтверждения получите персональную реферальную ссылку.</p>
-                                    <div class="gw-prereg__platforms" role="radiogroup" aria-label="Платформа публикации">
-                                        <label class="gw-platform">
-                                            <input type="radio" name="giveawayJoinPlatform" value="tiktok" checked>
-                                            <span class="gw-platform__face">
-                                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 5.5a4.6 4.6 0 0 0 3 3V9a6.8 6.8 0 0 1-3-.7V15a4.5 4.5 0 1 1-4.5-4.5c.2 0 .5 0 .7.1v2.3a2.2 2.2 0 1 0 1.6 2.1V5.5h2.2z" fill="currentColor"/></svg>
-                                                TikTok
-                                            </span>
-                                        </label>
-                                        <label class="gw-platform">
-                                            <input type="radio" name="giveawayJoinPlatform" value="instagram">
-                                            <span class="gw-platform__face">
-                                                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor"/></svg>
-                                                Instagram
-                                            </span>
-                                        </label>
-                                        <label class="gw-platform">
-                                            <input type="radio" name="giveawayJoinPlatform" value="both">
-                                            <span class="gw-platform__face">Обе</span>
-                                        </label>
-                                    </div>
-
-                                    <div class="gw-prereg__fields" id="giveawayJoinFields" data-mode="single">
-                                        <label class="gw-field is-active" id="giveawayJoinTiktokWrap">
-                                            <span class="gw-field__label">
-                                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 5.5a4.6 4.6 0 0 0 3 3V9a6.8 6.8 0 0 1-3-.7V15a4.5 4.5 0 1 1-4.5-4.5c.2 0 .5 0 .7.1v2.3a2.2 2.2 0 1 0 1.6 2.1V5.5h2.2z" fill="currentColor"/></svg>
-                                                TikTok
-                                            </span>
-                                            <span class="gw-field__input">
-                                                <span class="gw-field__at">@</span>
-                                                <input type="text" id="giveawayJoinTiktok" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
-                                            </span>
-                                        </label>
-                                        <label class="gw-field" id="giveawayJoinInstagramWrap">
-                                            <span class="gw-field__label">
-                                                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
-                                                Instagram
-                                            </span>
-                                            <span class="gw-field__input">
-                                                <span class="gw-field__at">@</span>
-                                                <input type="text" id="giveawayJoinInstagram" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
-                                            </span>
-                                        </label>
-                                    </div>
-
-                                    <div class="gw-join-form-actions">
-                                        <button type="button" class="gw-btn gw-btn--primary gw-btn--full" id="giveawayJoinConfirmBtn">
-                                            <span class="gw-btn__glow" aria-hidden="true"></span>
-                                            <span>Подтвердить</span>
-                                        </button>
-                                        <button type="button" class="gw-btn gw-btn--ghost" id="giveawayJoinCancelBtn">Отмена</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div id="giveawayStatsBlock" class="gw-stats" hidden>
-                                <div class="gw-stats__head">
-                                    <h3 class="gw-stats__title">Персональная реферальная ссылка</h3>
-                                    <p class="gw-stats__sub">Разместите её в описании ролика. Ссылка закреплена до конца розыгрыша.</p>
-                                </div>
-                                <div class="gw-profile-summary">
-                                    <p id="giveawaySocialSummary" class="gw-card__text" style="margin:0;"></p>
-                                    <button type="button" class="gw-btn gw-btn--ghost" id="giveawayEditProfileBtn" hidden>Изменить данные</button>
-                                </div>
-                                <div class="gw-stats__link">
-                                    <input type="text" id="giveawayShareUrl" readonly aria-label="Реферальная ссылка">
-                                    <button type="button" class="gw-btn gw-btn--ghost" id="giveawayCopyBtn">Копировать</button>
-                                </div>
-                                <p id="giveawayCopyMsg" class="gw-form-msg" aria-live="polite"></p>
-                                <div class="gw-stats__metrics">
-                                    <div class="gw-metric">
-                                        <span class="gw-metric__label">Уникальные переходы</span>
-                                        <strong class="gw-metric__val" id="giveawayStatClicks">0</strong>
-                                    </div>
-                                    <div class="gw-metric">
-                                        <span class="gw-metric__label">Регистрации</span>
-                                        <strong class="gw-metric__val" id="giveawayStatRegs">0</strong>
-                                    </div>
-                                </div>
-
-                                <div id="giveawayEditProfileBlock" class="gw-prereg" hidden style="margin-top:1rem;">
-                                    <p class="gw-card__text" style="margin:0 0 0.75rem;">Можно поправить платформу и ники. Реф-ссылка не изменится.</p>
-                                    <div class="gw-prereg__platforms" role="radiogroup" aria-label="Платформа публикации">
-                                        <label class="gw-platform">
-                                            <input type="radio" name="giveawayEditPlatform" value="tiktok">
-                                            <span class="gw-platform__face">TikTok</span>
-                                        </label>
-                                        <label class="gw-platform">
-                                            <input type="radio" name="giveawayEditPlatform" value="instagram">
-                                            <span class="gw-platform__face">Instagram</span>
-                                        </label>
-                                        <label class="gw-platform">
-                                            <input type="radio" name="giveawayEditPlatform" value="both">
-                                            <span class="gw-platform__face">Обе</span>
-                                        </label>
-                                    </div>
-                                    <div class="gw-prereg__fields" id="giveawayEditFields" data-mode="single">
-                                        <label class="gw-field is-active" id="giveawayEditTiktokWrap">
-                                            <span class="gw-field__label">TikTok</span>
-                                            <span class="gw-field__input">
-                                                <span class="gw-field__at">@</span>
-                                                <input type="text" id="giveawayEditTiktok" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
-                                            </span>
-                                        </label>
-                                        <label class="gw-field" id="giveawayEditInstagramWrap">
-                                            <span class="gw-field__label">Instagram</span>
-                                            <span class="gw-field__input">
-                                                <span class="gw-field__at">@</span>
-                                                <input type="text" id="giveawayEditInstagram" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
-                                            </span>
-                                        </label>
-                                    </div>
-                                    <div class="gw-join-form-actions" style="margin-top:0.75rem;">
-                                        <button type="button" class="gw-btn gw-btn--primary gw-btn--full" id="giveawayEditSaveBtn">
-                                            <span class="gw-btn__glow" aria-hidden="true"></span>
-                                            <span>Сохранить</span>
-                                        </button>
-                                        <button type="button" class="gw-btn gw-btn--ghost" id="giveawayEditCancelBtn">Отмена</button>
-                                    </div>
-                                    <p id="giveawayEditMsg" class="gw-form-msg" aria-live="polite"></p>
-                                </div>
-
-                                <div id="giveawayAddSocialBlock" class="gw-prereg" hidden style="margin-top:1rem;">
-                                    <p class="gw-card__text" style="margin:0 0 0.75rem;">Можно быстро добавить вторую соцсеть — или изменить всё через «Изменить данные».</p>
-                                    <label class="gw-field is-active" id="giveawayAddSocialFieldWrap">
-                                        <span class="gw-field__label" id="giveawayAddSocialLabel">Соцсеть</span>
-                                        <span class="gw-field__input">
-                                            <span class="gw-field__at">@</span>
-                                            <input type="text" id="giveawayAddSocialInput" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30">
-                                        </span>
-                                    </label>
-                                    <div class="gw-join-form-actions" style="margin-top:0.75rem;">
-                                        <button type="button" class="gw-btn gw-btn--primary gw-btn--full" id="giveawayAddSocialBtn">
-                                            <span class="gw-btn__glow" aria-hidden="true"></span>
-                                            <span>Добавить соцсеть</span>
-                                        </button>
-                                    </div>
-                                    <p id="giveawayAddSocialMsg" class="gw-form-msg" aria-live="polite"></p>
-                                </div>
-                            </div>
-                        </div>
+                    <section class="info-panel info-giveaway-panel info-giveaway-panel--results" data-tab-panel="giveaway" role="tabpanel" id="tab-giveaway" hidden>
+                        <article class="info-card gw-results">
+                            <p class="gw-results__badge">Розыгрыш завершён</p>
+                            <h2 class="info-section-title">Спасибо всем за участие!</h2>
+                            <p class="info-section-text">
+                                Многие приняли участие, но не проявили активность в опубликовании обзоров.
+                                Надеемся, в следующий раз будет активнее.
+                            </p>
+                            <h3 class="gw-results__winners-title">Победители</h3>
+                            <ul class="gw-results__winners">
+                                <li>
+                                    <strong>s1ckle</strong>
+                                    <span>TikTok — <a href="https://www.tiktok.com/@re.zero.865" target="_blank" rel="noopener noreferrer">@re.zero.865</a></span>
+                                </li>
+                                <li>
+                                    <strong>2 победителя</strong>
+                                    <span>попросили об анонимности</span>
+                                </li>
+                            </ul>
+                            <p class="info-section-text gw-results__foot">
+                                Следите за новостями в
+                                <a href="https://telegram.me/re_minko" target="_blank" rel="noopener noreferrer">Telegram</a>
+                                — о следующих активностях расскажем там.
+                            </p>
+                        </article>
                     </section>
 <section class="info-panel" data-tab-panel="contacts" role="tabpanel" id="tab-contacts" hidden>
                         <h2 class="info-section-title">Контакты и документы</h2>
@@ -573,9 +339,7 @@
     <script src="scripts/register.js"></script>
     <script src="scripts/main.js"></script>
     <script src="scripts/loading.js"></script>
-    <script src="scripts/giveaway.js?v=20260722d"></script>
     <script src="scripts/info-page.js"></script>
-    <script src="scripts/giveaway-info.js?v=20260723a"></script>
-    <script src="scripts/apply-navigation.js?v=20260727nav2"></script>
+    <script src="scripts/apply-navigation.js?v=20260801gw1"></script>
 </body>
 </html>
