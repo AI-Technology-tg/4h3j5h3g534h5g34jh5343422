@@ -1,5 +1,5 @@
-# Один деплой: allowlist-сборка фронта + функции на том же домене.
-# Переменные окружения — как в minko-netlify-proxy/README.md (MINKO_*, OPENAI_*, XAI_*, SUPABASE_*).
+# РћРґРёРЅ РґРµРїР»РѕР№: allowlist-СЃР±РѕСЂРєР° С„СЂРѕРЅС‚Р° + С„СѓРЅРєС†РёРё РЅР° С‚РѕРј Р¶Рµ РґРѕРјРµРЅРµ.
+# РџРµСЂРµРјРµРЅРЅС‹Рµ РѕРєСЂСѓР¶РµРЅРёСЏ вЂ” РєР°Рє РІ minko-netlify-proxy/README.md (MINKO_*, OPENAI_*, XAI_*, SUPABASE_*).
 
 [build]
   command = "npm run build:public"
@@ -7,7 +7,7 @@
   functions = "minko-netlify-proxy/netlify/functions"
 
 [build.environment]
-  # config.local.js — только для ПК; на Netlify секреты в Environment variables
+  # config.local.js вЂ” С‚РѕР»СЊРєРѕ РґР»СЏ РџРљ; РЅР° Netlify СЃРµРєСЂРµС‚С‹ РІ Environment variables
   SECRETS_SCAN_OMIT_PATHS = "config.local.js"
 
 [functions]
@@ -17,7 +17,7 @@
   function = "ip-block"
   path = "/*"
 
-# web_search (Responses API) дольше обычного chat — нужен запас на Pro/Team
+# web_search (Responses API) РґРѕР»СЊС€Рµ РѕР±С‹С‡РЅРѕРіРѕ chat вЂ” РЅСѓР¶РµРЅ Р·Р°РїР°СЃ РЅР° Pro/Team
 [functions."minko-chat"]
   timeout = 26
 
@@ -33,12 +33,19 @@
   status = 200
   force = true
 
+# Приватные обновления мобильного APK (ключ в заголовке/query)
+[[redirects]]
+  from = "/mobile/update"
+  to = "/.netlify/functions/mobile-apk"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/r/:code"
   to = "/index.html?gref=:code"
   status = 302
 
-# HTML — всегда проверять обновления на сервере (без залипания старых страниц в кэше)
+# HTML вЂ” РІСЃРµРіРґР° РїСЂРѕРІРµСЂСЏС‚СЊ РѕР±РЅРѕРІР»РµРЅРёСЏ РЅР° СЃРµСЂРІРµСЂРµ (Р±РµР· Р·Р°Р»РёРїР°РЅРёСЏ СЃС‚Р°СЂС‹С… СЃС‚СЂР°РЅРёС† РІ РєСЌС€Рµ)
 [[headers]]
   for = "/*.html"
   [headers.values]
@@ -64,7 +71,7 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
-# JS/CSS — короткий кэш, браузер перепроверяет после деплоя
+# JS/CSS вЂ” РєРѕСЂРѕС‚РєРёР№ РєСЌС€, Р±СЂР°СѓР·РµСЂ РїРµСЂРµРїСЂРѕРІРµСЂСЏРµС‚ РїРѕСЃР»Рµ РґРµРїР»РѕСЏ
 [[headers]]
   for = "/scripts/*"
   [headers.values]
