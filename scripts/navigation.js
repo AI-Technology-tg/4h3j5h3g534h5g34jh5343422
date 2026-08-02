@@ -1,25 +1,69 @@
 // Общий компонент навигации для всех страниц
 // Автоматически определяет текущую страницу и применяет активный класс
 
-const REMINKO_ONLINE_WINDOW_MINUTES = 5;
-const REMINKO_ONLINE_POLL_MS = 45000;
+const REMINKO_ONLINE_BOOST = { min: 49, max: 84 };
+const REMINKO_ONLINE_STORAGE_KEY = 'reminko_online_display_v2';
+const REMINKO_ONLINE_BIAS_KEY = 'reminko_online_bias_v2';
 
-async function reminkoFetchRealOnlineCount() {
-    if (typeof supabaseClient === 'undefined' || !supabaseClient) return null;
+/** Целевое «онлайн» по времени суток — плавно, без рандома на каждый тик. */
+function reminkoComputeBoostedOnlineTarget(date = new Date()) {
+    const { min, max } = REMINKO_ONLINE_BOOST;
+    const hour = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+    const t = date.getTime();
+
+    const eveningPeak = Math.exp(-Math.pow((hour - 21.2) / 3.4, 2));
+    const afternoon = Math.exp(-Math.pow((hour - 15.5) / 4.2, 2)) * 0.55;
+    const nightDip = Math.exp(-Math.pow((hour - 4.5) / 2.8, 2)) * 0.35;
+    let dayCurve = 0.28 + eveningPeak * 0.52 + afternoon * 0.22 - nightDip * 0.18;
+    dayCurve = Math.max(0.08, Math.min(0.96, dayCurve));
+
+    const dow = date.getDay();
+    const weekend =
+        dow === 6 ? 1.09 : dow === 0 ? 1.06 : dow === 5 ? 1.04 : dow === 4 ? 1.02 : 1;
+
+    const slowWave = Math.sin((t / (1000 * 60 * 41)) * Math.PI * 2) * 0.055;
+    const dayWave = Math.sin((date.getDate() + 1) * 1.73) * 0.03;
+
+    let bias = 0;
     try {
-        const { data, error } = await supabaseClient.rpc('site_visit_online_count', {
-            p_window_minutes: REMINKO_ONLINE_WINDOW_MINUTES
-        });
-        if (error) {
-            console.warn('[Online widget]', error);
-            return null;
+        const raw = sessionStorage.getItem(REMINKO_ONLINE_BIAS_KEY);
+        if (raw == null) {
+            bias = Math.floor(Math.random() * 7) - 3;
+            sessionStorage.setItem(REMINKO_ONLINE_BIAS_KEY, String(bias));
+        } else {
+            bias = Number(raw) || 0;
         }
-        const n = Number(data);
-        return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
-    } catch (e) {
-        console.warn('[Online widget]', e);
-        return null;
+    } catch (_) {
+        bias = 0;
     }
+
+    const norm = Math.max(0, Math.min(1, dayCurve + slowWave + dayWave));
+    let value = min + norm * (max - min) * weekend + bias;
+    return Math.round(Math.max(min, Math.min(max, value)));
+}
+
+function reminkoReadBoostedOnlineDisplay() {
+    try {
+        const raw = sessionStorage.getItem(REMINKO_ONLINE_STORAGE_KEY);
+        const n = Number(raw);
+        if (Number.isFinite(n) && n >= REMINKO_ONLINE_BOOST.min && n <= REMINKO_ONLINE_BOOST.max) return n;
+    } catch (_) {
+        /* ignore */
+    }
+    return null;
+}
+
+function reminkoWriteBoostedOnlineDisplay(n) {
+    try {
+        sessionStorage.setItem(REMINKO_ONLINE_STORAGE_KEY, String(n));
+    } catch (_) {
+        /* ignore */
+    }
+}
+
+function reminkoScheduleBoostedOnlineTick(fn) {
+    const delay = 9000 + Math.floor(Math.random() * 7000);
+    return setTimeout(fn, delay);
 }
 
 class NavigationManager {
@@ -823,20 +867,40 @@ class NavigationManager {
             window.__reminkoOnlineWidgetTimer = null;
         }
 
-        countEl.textContent = '—';
+        let displayed = reminkoReadBoostedOnlineDisplay();
+        if (displayed == null) {
+            displayed = reminkoComputeBoostedOnlineTarget();
+            reminkoWriteBoostedOnlineDisplay(displayed);
+        }
+        countEl.textContent = String(displayed);
 
-        const refresh = async () => {
+        const tick = () => {
             if (!countEl.isConnected) return;
 
-            const count = await reminkoFetchRealOnlineCount();
-            if (count != null) {
-                countEl.textContent = String(count);
+            const target = reminkoComputeBoostedOnlineTarget();
+            const diff = target - displayed;
+
+            if (diff === 0) {
+                if (Math.random() < 0.12) {
+                    const dir = Math.random() < 0.5 ? -1 : 1;
+                    const next = displayed + dir;
+                    if (next >= REMINKO_ONLINE_BOOST.min && next <= REMINKO_ONLINE_BOOST.max) {
+                        displayed = next;
+                    }
+                }
+            } else {
+                const step = Math.min(Math.abs(diff), Math.random() < 0.75 ? 1 : 2);
+                displayed += diff > 0 ? step : -step;
             }
 
-            window.__reminkoOnlineWidgetTimer = setTimeout(refresh, REMINKO_ONLINE_POLL_MS);
+            displayed = Math.max(REMINKO_ONLINE_BOOST.min, Math.min(REMINKO_ONLINE_BOOST.max, displayed));
+            countEl.textContent = String(displayed);
+            reminkoWriteBoostedOnlineDisplay(displayed);
+
+            window.__reminkoOnlineWidgetTimer = reminkoScheduleBoostedOnlineTick(tick);
         };
 
-        void refresh();
+        window.__reminkoOnlineWidgetTimer = reminkoScheduleBoostedOnlineTick(tick);
     }
 
     /** Общая инициализация после вставки/обновления шапки и сайдбара */
