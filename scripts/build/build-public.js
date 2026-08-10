@@ -16,6 +16,8 @@ const PUBLIC_DATA_FILES = [
 const ROOT_PUBLIC_FILES = [
     '_headers',
     'ads.txt',
+    'assetlinks.json',
+    '.well-known/assetlinks.json',
     'config.local.stub.js',
     'favicon.ico',
     'googled5f0682df83b4e0e.html',

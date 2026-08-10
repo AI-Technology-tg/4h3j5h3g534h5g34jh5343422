@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.reminko.mobile",
+      "sha256_cert_fingerprints": [
+        "03:E8:60:C3:33:70:A0:98:BF:ED:85:51:B3:7F:AC:B0:80:2C:77:F4:C6:66:97:CF:62:C7:2E:7F:66:0A:51:DF"
+      ]
+    }
+  }
+]

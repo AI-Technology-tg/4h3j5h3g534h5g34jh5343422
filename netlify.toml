@@ -8,7 +8,8 @@
 
 [build.environment]
   # config.local.js вЂ” С‚РѕР»СЊРєРѕ РґР»СЏ РџРљ; РЅР° Netlify СЃРµРєСЂРµС‚С‹ РІ Environment variables
-  SECRETS_SCAN_OMIT_PATHS = "config.local.js"
+  # assetlinks содержит SHA256 fingerprint APK — иначе Secrets Scan валит билд
+  SECRETS_SCAN_OMIT_PATHS = "config.local.js,assetlinks.json,.well-known/assetlinks.json,public-build/assetlinks.json,public-build/.well-known/assetlinks.json"
 
 [functions]
   node_bundler = "esbuild"
@@ -45,7 +46,20 @@
   to = "/index.html?gref=:code"
   status = 302
 
-# HTML вЂ” РІСЃРµРіРґР° РїСЂРѕРІРµСЂСЏС‚СЊ РѕР±РЅРѕРІР»РµРЅРёСЏ РЅР° СЃРµСЂРІРµСЂРµ (Р±РµР· Р·Р°Р»РёРїР°РЅРёСЏ СЃС‚Р°СЂС‹С… СЃС‚СЂР°РЅРёС† РІ РєСЌС€Рµ)
+# Android App Links: verification file (оба пути кладутся в public-build)
+[[headers]]
+  for = "/.well-known/assetlinks.json"
+  [headers.values]
+    Content-Type = "application/json"
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/assetlinks.json"
+  [headers.values]
+    Content-Type = "application/json"
+    Cache-Control = "public, max-age=3600"
+
+# HTML — всегда проверять обновления на сервере (без залипания старых страниц в кэше)
 [[headers]]
   for = "/*.html"
   [headers.values]
