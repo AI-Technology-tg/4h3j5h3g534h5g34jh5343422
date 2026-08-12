@@ -71,7 +71,9 @@ async function ghFetch(path, { accept = 'application/vnd.github+json', redirect 
 }
 
 function parseVersionCode(body) {
-  const m = String(body || '').match(/versionCode\s*:\s*(\d+)/i);
+  const text = String(body || '');
+  // versionCode: 65  |  versionCode 65  |  versionCode=65
+  const m = text.match(/versionCode\s*[:=\-]?\s*(\d+)/i);
   return m ? parseInt(m[1], 10) : 0;
 }
 
