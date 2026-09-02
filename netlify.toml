@@ -22,6 +22,44 @@
 [functions."minko-chat"]
   timeout = 26
 
+# SITE_CLOSED: сначала исключения, затем всё остальное → заглушка.
+# Чтобы открыть сайт — удали этот блок и force-редирект /*.
+[[redirects]]
+  from = "/scripts/desktop-only-guard.js"
+  to = "/scripts/desktop-only-guard.js"
+  status = 200
+
+[[redirects]]
+  from = "/site-closed.html"
+  to = "/site-closed.html"
+  status = 200
+
+[[redirects]]
+  from = "/robots.txt"
+  to = "/robots.txt"
+  status = 200
+
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/favicon.ico"
+  status = 200
+
+[[redirects]]
+  from = "/googled5f0682df83b4e0e.html"
+  to = "/googled5f0682df83b4e0e.html"
+  status = 200
+
+[[redirects]]
+  from = "/yandex_7826d5f9bd1db2e7.html"
+  to = "/yandex_7826d5f9bd1db2e7.html"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/config.local.js"
   to = "/config.local.stub.js"

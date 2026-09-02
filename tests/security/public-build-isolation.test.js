@@ -55,7 +55,13 @@ describe('public-build isolation', () => {
     it('does not publish private prefixes or extensions', () => {
         assert.ok(fs.existsSync(OUTPUT), 'public-build missing');
         const files = walk(OUTPUT);
-        assert.ok(files.length > 50, `expected populated public-build, got ${files.length}`);
+        const closed = fs.existsSync(path.join(OUTPUT, 'site-closed.html')) &&
+            !fs.existsSync(path.join(OUTPUT, 'catalog/anime.html'));
+        if (closed) {
+            assert.ok(files.length >= 3, `expected closed public-build, got ${files.length}`);
+        } else {
+            assert.ok(files.length > 50, `expected populated public-build, got ${files.length}`);
+        }
 
         const violations = files.filter(
             (relative) =>
@@ -69,17 +75,22 @@ describe('public-build isolation', () => {
     });
 
     it('publishes key public routes and assets', () => {
-        for (const relative of [
-            'index.html',
-            'catalog/anime.html',
-            '_headers',
-            'scripts/utils.js',
-            'styles/main.css'
-        ]) {
+        const closed = fs.existsSync(path.join(OUTPUT, 'site-closed.html')) &&
+            !fs.existsSync(path.join(OUTPUT, 'catalog/anime.html'));
+        const expected = closed
+            ? ['index.html', 'site-closed.html', '404.html', '_headers', 'scripts/desktop-only-guard.js']
+            : ['index.html', 'catalog/anime.html', '_headers', 'scripts/utils.js', 'styles/main.css'];
+        for (const relative of expected) {
             assert.ok(
                 fs.existsSync(path.join(OUTPUT, relative)),
                 `missing public file: ${relative}`
             );
+        }
+        if (closed) {
+            const html = fs.readFileSync(path.join(OUTPUT, 'index.html'), 'utf8');
+            assert.match(html, /Глобальное обновление/);
+            assert.ok(!fs.existsSync(path.join(OUTPUT, 'styles/main.css')));
+            assert.ok(!fs.existsSync(path.join(OUTPUT, 'scripts/home.js')));
         }
     });
 });
