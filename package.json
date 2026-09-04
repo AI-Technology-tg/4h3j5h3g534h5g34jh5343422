@@ -13,7 +13,7 @@
     "build:sitemap": "node scripts/build/generate-sitemap.js",
     "fetch:kodik": "node scripts/build/kodik-api-sync.js",
     "automate:anime": "npm run build:kodik && node scripts/build/anime-automation.js && npm run build:home-strips && npm run build:sitemap",
-    "automate:anime:enrich": "npm run build:kodik && node scripts/build/anime-automation.js --enrich-missing --limit=80 && npm run build:sitemap",
+    "automate:anime:enrich": "npm run build:kodik && node scripts/build/anime-automation.js --enrich-missing --limit=80 && npm run build:home-strips && npm run build:sitemap",
     "automate:anime:api": "npm run fetch:kodik && npm run automate:anime",
     "automate:anime:api:enrich": "npm run fetch:kodik && npm run automate:anime:enrich",
     "sync:kodik": "npm run automate:anime",

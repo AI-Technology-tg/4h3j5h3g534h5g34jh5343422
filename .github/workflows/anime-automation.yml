@@ -42,9 +42,41 @@ jobs:
           GIT_COMMITTER_EMAIL: 235368487+AI-Technology-tg@users.noreply.github.com
         run: |
           set -euo pipefail
+          # Маленький манифест для десктопа (проверка свежести без скачивания 18MB)
+          node -e "
+            const fs=require('fs');
+            const path=require('path');
+            const data=path.join('data');
+            const files=[
+              'kodik-anime-catalog.json',
+              'kodik-calendar.json',
+              'kodik-announced.json',
+              'kodik-home-strips.json',
+              'remanga-manga-catalog.json',
+              'anime-automation-report.json'
+            ];
+            const out={ builtAt:new Date().toISOString(), source:'anime-automation', files:{} };
+            for (const f of files) {
+              const p=path.join(data,f);
+              if (!fs.existsSync(p)) continue;
+              const st=fs.statSync(p);
+              let builtAt=null;
+              try {
+                const j=JSON.parse(fs.readFileSync(p,'utf8'));
+                builtAt=(j && j.meta && j.meta.builtAt) || j.builtAt || null;
+              } catch (_) {}
+              out.files[f]={ bytes: st.size, mtime: st.mtime.toISOString(), builtAt };
+            }
+            fs.writeFileSync(path.join(data,'catalog-manifest.json'), JSON.stringify(out,null,2));
+            console.log('catalog-manifest.json written');
+          "
+
           git add \
             data/kodik-anime-catalog.json \
             data/kodik-calendar.json \
+            data/kodik-announced.json \
+            data/kodik-home-strips.json \
+            data/catalog-manifest.json \
             data/anime-automation-report.json \
             data/anime-enrichment-cache.json \
             sitemap.xml || true
