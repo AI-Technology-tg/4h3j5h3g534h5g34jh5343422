@@ -138,6 +138,20 @@ async function fetchCalendar(token) {
     return null;
 }
 
+/** Fallback: Shikimori calendar (когда Kodik /calendar пустой в CI). */
+async function fetchShikimoriCalendarFallback() {
+    const res = await fetch('https://shikimori.io/api/calendar', {
+        headers: {
+            Accept: 'application/json',
+            'User-Agent': 'Re-Minko-KodikSync/1.0'
+        },
+        redirect: 'follow'
+    });
+    if (!res.ok) throw new Error('Shikimori calendar HTTP ' + res.status);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+}
+
 function writeJsonAtomic(file, value) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const tmp = file + '.tmp';
@@ -162,12 +176,26 @@ async function main() {
     writeJsonAtomic(path.join(DUMP_DIR, 'anime-serial.json'), serial);
     writeJsonAtomic(path.join(DUMP_DIR, 'anime.json'), movies);
 
-    const calendar = await fetchCalendar(token);
+    let calendar = await fetchCalendar(token);
+    let calendarSource = 'kodik';
+    if (!calendar || !calendar.length) {
+        try {
+            calendar = await fetchShikimoriCalendarFallback();
+            calendarSource = 'shikimori';
+            console.log(`calendar: Kodik пуст → Shikimori fallback (${calendar.length})`);
+        } catch (e) {
+            console.warn('calendar: Shikimori fallback failed:', e && e.message ? e.message : e);
+            calendar = null;
+        }
+    }
+
     if (calendar && calendar.length) {
         writeJsonAtomic(path.join(DUMP_DIR, 'calendar.json'), calendar);
-        console.log(`calendar: ${calendar.length} записей`);
-    } else {
+        console.log(`calendar: ${calendar.length} записей (${calendarSource})`);
+    } else if (fs.existsSync(path.join(DUMP_DIR, 'calendar.json'))) {
         console.log('calendar: API не вернул календарь, оставлен текущий kodik base/calendar.json');
+    } else {
+        console.warn('calendar: нет данных и нет локального файла — анонсы/таймеры не обновятся');
     }
 
     console.log(`Kodik API sync готов: serial=${serial.length}, movies=${movies.length}`);
