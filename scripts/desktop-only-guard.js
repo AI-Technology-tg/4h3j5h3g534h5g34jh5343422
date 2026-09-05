@@ -68,7 +68,7 @@
     if (typeof window === 'undefined' || window.__reminkoAssetVersionGate) return;
     window.__reminkoAssetVersionGate = true;
 
-    var V = '20260905open1';
+    var V = '20260905rust1';
     window.REMINKO_ASSET_VERSION = V;
     var KEY = 'reminko_asset_v';
 

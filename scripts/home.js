@@ -107,10 +107,9 @@ const HOME_SOCIAL_INFO = {
     discord: {
         title: 'Discord',
         img: 'Fons/Sociale/Discord.webp',
-        url: 'https://discord.gg/hd262MWE6m',
-        goLabel: 'Открыть Discord',
-        text: 'Сервер MinkoRust: новости, помощь с входом и общение. Ниже видно, кто сейчас в Discord.',
-        widgetId: '1516522453390725221',
+        url: '',
+        goLabel: 'Discord скоро',
+        text: 'Сервер Discord сообщества Re-Minko. Ссылка появится, когда сообщество будет готово.',
     },
     android: {
         title: 'Приложения Re-Minko',
