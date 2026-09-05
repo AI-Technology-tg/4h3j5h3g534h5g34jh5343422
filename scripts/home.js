@@ -107,9 +107,10 @@ const HOME_SOCIAL_INFO = {
     discord: {
         title: 'Discord',
         img: 'Fons/Sociale/Discord.webp',
-        url: '',
-        goLabel: 'Сервер скоро',
-        text: 'Discord-сервер для информирования и общения с сообществом. Ссылка появится, когда сервер будет готов.',
+        url: 'https://discord.gg/hd262MWE6m',
+        goLabel: 'Открыть Discord',
+        text: 'Сервер MinkoRust: новости, помощь с входом и общение. Ниже видно, кто сейчас в Discord.',
+        widgetId: '1516522453390725221',
     },
     android: {
         title: 'Приложения Re-Minko',
@@ -147,6 +148,17 @@ function openHomeSocialPanel(key) {
         }
     }
     if (textEl) textEl.textContent = info.text;
+
+    const widgetEl = document.getElementById('homeSocialPanelWidget');
+    if (widgetEl) {
+        if (info.widgetId) {
+            widgetEl.hidden = false;
+            widgetEl.src = `https://discord.com/widget?id=${info.widgetId}&theme=dark`;
+        } else {
+            widgetEl.hidden = true;
+            widgetEl.removeAttribute('src');
+        }
+    }
 
     if (iconEl) {
         iconEl.className = 'home-social-panel__icon';
@@ -206,6 +218,11 @@ function closeHomeSocialPanel() {
     if (!panel) return;
     panel.hidden = true;
     document.body.style.overflow = '';
+    const widgetEl = document.getElementById('homeSocialPanelWidget');
+    if (widgetEl) {
+        widgetEl.hidden = true;
+        widgetEl.removeAttribute('src');
+    }
 }
 
 function initHomeSocialPanel() {
