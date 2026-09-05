@@ -6,8 +6,6 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '../..');
 const OUTPUT = path.join(ROOT, 'public-build');
-/** Сайт закрыт: в public-build только заглушка. Чтобы открыть — поставь false. */
-const SITE_CLOSED = true;
 const PUBLIC_DATA_FILES = [
     'kodik-anime-catalog.json',
     'kodik-announced.json',
@@ -200,50 +198,7 @@ function verifyIsolation(files) {
     }
 }
 
-function writeClosedBuild() {
-    fs.rmSync(OUTPUT, { recursive: true, force: true });
-    fs.mkdirSync(OUTPUT, { recursive: true });
-
-    const html = fs.readFileSync(path.join(ROOT, 'site-closed.html'), 'utf8');
-    fs.writeFileSync(path.join(OUTPUT, 'index.html'), html);
-    fs.writeFileSync(path.join(OUTPUT, '404.html'), html);
-    fs.writeFileSync(path.join(OUTPUT, 'site-closed.html'), html);
-
-    fs.mkdirSync(path.join(OUTPUT, 'scripts'), { recursive: true });
-    copyFile('scripts/desktop-only-guard.js');
-
-    fs.writeFileSync(path.join(OUTPUT, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
-    fs.writeFileSync(
-        path.join(OUTPUT, '_headers'),
-        [
-            '/*',
-            '  Cache-Control: no-store, no-cache, must-revalidate',
-            '  X-Robots-Tag: noindex, nofollow, noarchive',
-            '  X-Content-Type-Options: nosniff',
-            '  X-Frame-Options: SAMEORIGIN',
-            '  Referrer-Policy: strict-origin-when-cross-origin',
-            '',
-            '/scripts/desktop-only-guard.js',
-            '  Cache-Control: public, max-age=0, must-revalidate',
-            ''
-        ].join('\n')
-    );
-
-    for (const relative of ['favicon.ico', 'googled5f0682df83b4e0e.html', 'yandex_7826d5f9bd1db2e7.html']) {
-        if (fs.existsSync(path.join(ROOT, relative))) copyFile(relative);
-    }
-
-    const files = walkFiles(OUTPUT);
-    verifyIsolation(files);
-    console.log(`[public-build] SITE CLOSED: ${files.length} files written to ${path.relative(ROOT, OUTPUT)}`);
-}
-
 function main() {
-    if (SITE_CLOSED) {
-        writeClosedBuild();
-        return;
-    }
-
     fs.rmSync(OUTPUT, { recursive: true, force: true });
     fs.mkdirSync(OUTPUT, { recursive: true });
 

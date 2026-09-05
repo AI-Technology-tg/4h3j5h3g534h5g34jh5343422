@@ -1,34 +1,3 @@
-/**
- * Полное закрытие сайта. Чтобы открыть — поставь false
- * и выключи SITE_CLOSED в build-public.js + edge ip-block.js.
- */
-(function reminkoGlobalSiteClosed() {
-    var SITE_CLOSED = true;
-    if (!SITE_CLOSED) return;
-    try {
-        var path = String((window.location && window.location.pathname) || '');
-        if (/\/site-closed\.html$/i.test(path)) return;
-    } catch (_) {
-        /* ignore */
-    }
-    var dest = '/site-closed.html';
-    try {
-        if (window.location && window.location.protocol === 'file:') {
-            dest = 'site-closed.html';
-        } else if (window.location && window.location.origin) {
-            dest = window.location.origin + '/site-closed.html';
-        }
-    } catch (_) {
-        /* ignore */
-    }
-    try {
-        window.location.replace(dest);
-    } catch (_) {
-        window.location.href = dest;
-    }
-    throw new Error('site-closed');
-})();
-
 (function reminkoQuietProductionConsole() {
     if (typeof window === 'undefined' || window.__reminkoQuietConsole) return;
     window.__reminkoQuietConsole = true;
@@ -99,7 +68,7 @@
     if (typeof window === 'undefined' || window.__reminkoAssetVersionGate) return;
     window.__reminkoAssetVersionGate = true;
 
-    var V = '20260727console1';
+    var V = '20260905open1';
     window.REMINKO_ASSET_VERSION = V;
     var KEY = 'reminko_asset_v';
 
