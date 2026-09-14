@@ -1,36 +1,36 @@
 {
-  "builtAt": "2026-09-14T13:03:19.622Z",
+  "builtAt": "2026-09-14T19:56:25.601Z",
   "source": "anime-automation",
   "files": {
     "kodik-anime-catalog.json": {
-      "bytes": 18338608,
-      "mtime": "2026-09-14T13:03:18.944Z",
-      "builtAt": "2026-09-14T13:02:56.744Z"
+      "bytes": 18338667,
+      "mtime": "2026-09-14T19:56:24.848Z",
+      "builtAt": "2026-09-14T19:56:05.169Z"
     },
     "kodik-calendar.json": {
-      "bytes": 47874,
-      "mtime": "2026-09-14T13:02:56.851Z",
-      "builtAt": "2026-09-14T13:02:56.852Z"
+      "bytes": 47881,
+      "mtime": "2026-09-14T19:56:05.407Z",
+      "builtAt": "2026-09-14T19:56:05.407Z"
     },
     "kodik-announced.json": {
       "bytes": 23231,
-      "mtime": "2026-09-14T13:02:56.856Z",
-      "builtAt": "2026-09-14T13:02:56.857Z"
+      "mtime": "2026-09-14T19:56:05.412Z",
+      "builtAt": "2026-09-14T19:56:05.412Z"
     },
     "kodik-home-strips.json": {
-      "bytes": 67292,
-      "mtime": "2026-09-14T13:03:19.258Z",
-      "builtAt": "2026-09-14T13:03:19.248Z"
+      "bytes": 65562,
+      "mtime": "2026-09-14T19:56:25.302Z",
+      "builtAt": "2026-09-14T19:56:25.294Z"
     },
     "remanga-manga-catalog.json": {
       "bytes": 17543331,
-      "mtime": "2026-09-14T12:59:11.779Z",
+      "mtime": "2026-09-14T19:52:12.493Z",
       "builtAt": "2026-07-11T22:08:20.307Z"
     },
     "anime-automation-report.json": {
       "bytes": 395,
-      "mtime": "2026-09-14T13:03:18.949Z",
-      "builtAt": "2026-09-14T13:03:18.949Z"
+      "mtime": "2026-09-14T19:56:25.036Z",
+      "builtAt": "2026-09-14T19:56:25.037Z"
     }
   }
 }
