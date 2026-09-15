@@ -80,3 +80,16 @@ test('release metadata exposes only approved desktop assets', () => {
     'update.zip.sha256'
   ]);
 });
+
+test('device headers are parsed without trusting forwarded IP', () => {
+  const evt = {
+    headers: {
+      authorization: 'Bearer abc.def',
+      'x-re-minko-device': 'A'.repeat(64).toLowerCase(),
+      'x-forwarded-for': '198.51.100.9'
+    }
+  };
+  assert.equal(gateway._test.bearerToken(evt), 'abc.def');
+  assert.equal(gateway._test.deviceIdFrom(evt), 'a'.repeat(64));
+  assert.equal(gateway._test.DEVICE_ID.test(gateway._test.deviceIdFrom(evt)), true);
+});
