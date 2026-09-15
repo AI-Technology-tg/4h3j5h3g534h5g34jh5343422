@@ -6,6 +6,7 @@
  * GET ?action=download&tag=v1.2.3&asset=update.zip
  */
 const { clientIp } = require('./_cors');
+const { isIP } = require('node:net');
 
 const RELEASE_REPO =
   process.env.DESKTOP_RELEASE_REPO || 'AI-Technology-tg/Re-Minko-WinUI-PC';
@@ -43,7 +44,7 @@ function allowedIps() {
 
 function accessFor(event) {
   const ip = String(clientIp(event) || 'unknown').trim();
-  return { allowed: ip !== 'unknown' && allowedIps().has(ip), currentIp: ip };
+  return { allowed: isIP(ip) > 0 && allowedIps().has(ip), currentIp: ip };
 }
 
 function githubToken() {
@@ -61,7 +62,8 @@ async function github(path, options = {}) {
       'User-Agent': 'Re-Minko-Desktop-Gateway',
       'X-GitHub-Api-Version': '2022-11-28'
     },
-    redirect: options.redirect || 'follow'
+    redirect: options.redirect || 'follow',
+    signal: AbortSignal.timeout(12000)
   });
 }
 

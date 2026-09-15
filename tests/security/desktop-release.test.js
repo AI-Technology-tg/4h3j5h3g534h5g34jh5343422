@@ -46,6 +46,17 @@ test('desktop gate parses environment allowlist', () => {
   }
 });
 
+test('desktop gate rejects malformed connection IP', () => {
+  const previous = process.env.REMINKO_ALLOWED_IPS;
+  process.env.REMINKO_ALLOWED_IPS = 'not-an-ip';
+  try {
+    assert.equal(gateway._test.accessFor(event('not-an-ip')).allowed, false);
+  } finally {
+    if (previous === undefined) delete process.env.REMINKO_ALLOWED_IPS;
+    else process.env.REMINKO_ALLOWED_IPS = previous;
+  }
+});
+
 test('release metadata exposes only approved desktop assets', () => {
   const result = gateway._test.publicRelease({
     tag_name: 'v1.0.65',
