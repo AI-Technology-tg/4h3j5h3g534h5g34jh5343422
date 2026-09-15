@@ -41,6 +41,13 @@
   status = 200
   force = true
 
+# Private desktop releases: IP gate + server-side GitHub token.
+[[redirects]]
+  from = "/desktop/release"
+  to = "/.netlify/functions/desktop-release"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/r/:code"
   to = "/index.html?gref=:code"
