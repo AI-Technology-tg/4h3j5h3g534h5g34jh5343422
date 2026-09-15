@@ -9,13 +9,11 @@
  * POST ?action=activate        { deviceId, code }
  */
 const { randomBytes, randomInt } = require('node:crypto');
-const { isIP } = require('node:net');
 const { clientIp } = require('./_cors');
 const { hashValue, supabaseRequest } = require('./_security');
 
 const RELEASE_REPO =
   process.env.DESKTOP_RELEASE_REPO || 'AI-Technology-tg/Re-Minko-WinUI-PC';
-const DEFAULT_TEST_IP = '203.0.113.77';
 const ALLOWED_ASSETS = new Set(['app.7z', 'update.zip', 'update.zip.sha256']);
 const INSTALLER_ASSET = /^Re-Minko-Installer-\d+\.\d+\.\d+\.exe$/;
 const DEVICE_ID = /^[a-f0-9]{64}$/;
@@ -45,16 +43,6 @@ function json(statusCode, body) {
     headers: headers(),
     body: JSON.stringify(body)
   };
-}
-
-function allowedIps() {
-  const configured = String(process.env.REMINKO_ALLOWED_IPS || DEFAULT_TEST_IP);
-  return new Set(
-    configured
-      .split(/[\s,;]+/)
-      .map((value) => value.trim())
-      .filter(Boolean)
-  );
 }
 
 function header(event, name) {
@@ -93,7 +81,7 @@ function readJson(event) {
 
 function ipAccess(event) {
   const ip = String(clientIp(event) || 'unknown').trim();
-  return { allowed: isIP(ip) > 0 && allowedIps().has(ip), currentIp: ip };
+  return { allowed: false, currentIp: ip };
 }
 
 function deviceHash(deviceId) {
@@ -182,7 +170,6 @@ async function resolveAccess(event) {
   const ip = ipAccess(event);
   const deviceId = deviceIdFrom(event);
   const token = bearerToken(event);
-  if (ip.allowed) return { ...ip, via: 'ip' };
   try {
     const device = await findActivatedDevice(deviceId, token);
     if (device?.id) {
@@ -423,7 +410,6 @@ exports.handler = async (event) => {
 };
 
 exports._test = {
-  allowedIps,
   accessFor: ipAccess,
   publicRelease,
   isAllowedAsset,

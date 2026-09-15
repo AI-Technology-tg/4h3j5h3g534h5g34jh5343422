@@ -16,29 +16,14 @@ function event(ip) {
   };
 }
 
-test('desktop gate trusts Netlify connection IP and denies by default', async () => {
+test('desktop gate never grants access by IP', () => {
   const previous = process.env.REMINKO_ALLOWED_IPS;
-  delete process.env.REMINKO_ALLOWED_IPS;
+  process.env.REMINKO_ALLOWED_IPS = '46.124.132.38,203.0.113.77';
   try {
     assert.deepEqual(gateway._test.accessFor(event('46.124.132.38')), {
       allowed: false,
       currentIp: '46.124.132.38'
     });
-    assert.deepEqual(gateway._test.accessFor(event('203.0.113.77')), {
-      allowed: true,
-      currentIp: '203.0.113.77'
-    });
-  } finally {
-    if (previous === undefined) delete process.env.REMINKO_ALLOWED_IPS;
-    else process.env.REMINKO_ALLOWED_IPS = previous;
-  }
-});
-
-test('desktop gate parses environment allowlist', () => {
-  const previous = process.env.REMINKO_ALLOWED_IPS;
-  process.env.REMINKO_ALLOWED_IPS = '46.124.132.38, 192.0.2.10';
-  try {
-    assert.equal(gateway._test.accessFor(event('46.124.132.38')).allowed, true);
     assert.equal(gateway._test.accessFor(event('203.0.113.77')).allowed, false);
   } finally {
     if (previous === undefined) delete process.env.REMINKO_ALLOWED_IPS;
