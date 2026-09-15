@@ -20,6 +20,40 @@ const DEVICE_ID = /^[a-f0-9]{64}$/;
 const CODE_TTL_MS = 10 * 60 * 1000;
 const DISCORD_CHANNEL =
   process.env.REMINKO_DISCORD_CHANNEL_ID || '1545611587430256693';
+const STAFF_ROLES = new Set([
+  'tester_pr',
+  'moderator',
+  'admin',
+  'head_admin',
+  'creator'
+]);
+
+function parseRole(value) {
+  const role = String(value || '').trim().toLowerCase();
+  return STAFF_ROLES.has(role) ? role : 'tester_pr';
+}
+
+function permissionsFor(role) {
+  switch (parseRole(role)) {
+    case 'creator':
+      return [
+        'creator_panel',
+        'manage_staff',
+        'manage_content',
+        'moderate',
+        'promote',
+        'full_access'
+      ];
+    case 'head_admin':
+      return ['manage_staff', 'manage_content', 'moderate', 'promote'];
+    case 'admin':
+      return ['manage_content', 'moderate', 'promote'];
+    case 'moderator':
+      return ['moderate'];
+    default:
+      return ['promote'];
+  }
+}
 
 function isAllowedAsset(name) {
   return ALLOWED_ASSETS.has(name) || INSTALLER_ASSET.test(name);
@@ -161,7 +195,7 @@ async function findActivatedDevice(deviceId, token) {
   const rows = await supabaseRequest(
     `/rest/v1/desktop_activated_devices?device_hash=eq.${encodeURIComponent(deviceHash(deviceId))}` +
       `&token_hash=eq.${encodeURIComponent(tokenHash(token))}` +
-      `&revoked_at=is.null&select=id&limit=1`
+      `&revoked_at=is.null&select=id,staff_role&limit=1`
   );
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
 }
@@ -181,12 +215,18 @@ async function resolveAccess(event) {
           body: JSON.stringify({ last_seen_at: new Date().toISOString() })
         }
       ).catch(() => {});
-      return { allowed: true, currentIp: ip.currentIp, via: 'device' };
+      return {
+        allowed: true,
+        currentIp: ip.currentIp,
+        via: 'device',
+        role: parseRole(device.staff_role),
+        permissions: permissionsFor(device.staff_role)
+      };
     }
   } catch (_) {
     /* fall through to deny */
   }
-  return { allowed: false, currentIp: ip.currentIp, via: 'none' };
+  return { allowed: false, currentIp: ip.currentIp, via: 'none', role: 'tester_pr' };
 }
 
 async function notifyDiscord({ code, deviceId, ip }) {
@@ -310,6 +350,20 @@ async function activate(event) {
   }
 
   const token = randomBytes(32).toString('hex');
+  const existing = await supabaseRequest(
+    `/rest/v1/desktop_activated_devices?device_hash=eq.${encodeURIComponent(hash)}` +
+      `&select=staff_role&limit=1`
+  );
+  const existingRole = Array.isArray(existing) ? existing[0]?.staff_role : '';
+  let role;
+  if (existingRole) {
+    role = parseRole(existingRole);
+  } else {
+    const creators = await supabaseRequest(
+      `/rest/v1/desktop_activated_devices?staff_role=eq.creator&revoked_at=is.null&select=id&limit=1`
+    );
+    role = Array.isArray(creators) && creators[0] ? 'tester_pr' : 'creator';
+  }
   await supabaseRequest('/rest/v1/desktop_activated_devices?on_conflict=device_hash', {
     method: 'POST',
     headers: {
@@ -321,11 +375,17 @@ async function activate(event) {
       token_hash: tokenHash(token),
       activated_at: new Date().toISOString(),
       last_seen_at: new Date().toISOString(),
-      revoked_at: null
+      revoked_at: null,
+      staff_role: role
     })
   });
 
-  return json(200, { allowed: true, token });
+  return json(200, {
+    allowed: true,
+    token,
+    role,
+    permissions: permissionsFor(role)
+  });
 }
 
 async function download(event, tag, assetName) {
@@ -376,7 +436,9 @@ exports.handler = async (event) => {
       const access = await resolveAccess(event);
       return json(200, {
         allowed: access.allowed,
-        currentIp: access.currentIp
+        currentIp: access.currentIp,
+        role: access.role || 'tester_pr',
+        permissions: permissionsFor(access.role)
       });
     }
 
@@ -415,6 +477,8 @@ exports._test = {
   isAllowedAsset,
   deviceIdFrom,
   bearerToken,
+  parseRole,
+  permissionsFor,
   DEVICE_ID,
   ALLOWED_ASSETS
 };

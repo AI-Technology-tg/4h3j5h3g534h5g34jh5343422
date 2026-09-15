@@ -78,3 +78,18 @@ test('device headers are parsed without trusting forwarded IP', () => {
   assert.equal(gateway._test.deviceIdFrom(evt), 'a'.repeat(64));
   assert.equal(gateway._test.DEVICE_ID.test(gateway._test.deviceIdFrom(evt)), true);
 });
+
+test('staff roles map creator to full permissions and ignore unknown values', () => {
+  assert.equal(gateway._test.parseRole('creator'), 'creator');
+  assert.equal(gateway._test.parseRole('HEAD_ADMIN'), 'head_admin');
+  assert.equal(gateway._test.parseRole('nope'), 'tester_pr');
+  assert.deepEqual(gateway._test.permissionsFor('creator'), [
+    'creator_panel',
+    'manage_staff',
+    'manage_content',
+    'moderate',
+    'promote',
+    'full_access'
+  ]);
+  assert.ok(!gateway._test.permissionsFor('admin').includes('creator_panel'));
+});
