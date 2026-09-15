@@ -12,6 +12,11 @@ const RELEASE_REPO =
   process.env.DESKTOP_RELEASE_REPO || 'AI-Technology-tg/Re-Minko-WinUI-PC';
 const DEFAULT_TEST_IP = '203.0.113.77';
 const ALLOWED_ASSETS = new Set(['app.7z', 'update.zip', 'update.zip.sha256']);
+const INSTALLER_ASSET = /^Re-Minko-Installer-\d+\.\d+\.\d+\.exe$/;
+
+function isAllowedAsset(name) {
+  return ALLOWED_ASSETS.has(name) || INSTALLER_ASSET.test(name);
+}
 
 function headers(contentType = 'application/json; charset=utf-8') {
   return {
@@ -86,7 +91,7 @@ function publicRelease(release, event) {
   const origin = ownOrigin(event);
   const assets = {};
   for (const asset of release.assets || []) {
-    if (!ALLOWED_ASSETS.has(asset.name)) continue;
+    if (!isAllowedAsset(asset.name)) continue;
     assets[asset.name] =
       `${origin}/.netlify/functions/desktop-release?action=download` +
       `&tag=${encodeURIComponent(release.tag_name)}&asset=${encodeURIComponent(asset.name)}`;
@@ -103,7 +108,7 @@ async function download(event, tag, assetName) {
   if (!/^v\d+\.\d+\.\d+(?:[-+][a-z0-9.-]+)?$/i.test(tag)) {
     return json(400, { error: 'invalid_tag' });
   }
-  if (!ALLOWED_ASSETS.has(assetName)) {
+  if (!isAllowedAsset(assetName)) {
     return json(403, { error: 'asset_not_allowed' });
   }
 
@@ -145,6 +150,12 @@ exports.handler = async (event) => {
     if (action === 'latest') {
       return json(200, publicRelease(await releaseByTag('latest'), event));
     }
+    if (action === 'installer') {
+      const release = await releaseByTag('latest');
+      const installer = (release.assets || []).find((item) => INSTALLER_ASSET.test(item.name));
+      if (!installer) return json(404, { error: 'installer_missing' });
+      return download(event, release.tag_name, installer.name);
+    }
     if (action === 'download') {
       return download(
         event,
@@ -159,4 +170,4 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { allowedIps, accessFor, publicRelease, ALLOWED_ASSETS };
+exports._test = { allowedIps, accessFor, publicRelease, isAllowedAsset, ALLOWED_ASSETS };

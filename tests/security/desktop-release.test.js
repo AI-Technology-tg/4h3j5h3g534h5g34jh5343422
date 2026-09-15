@@ -65,6 +65,8 @@ test('release metadata exposes only approved desktop assets', () => {
       { name: 'app.7z' },
       { name: 'update.zip' },
       { name: 'update.zip.sha256' },
+      { name: 'Re-Minko-Installer-1.0.66.exe' },
+      { name: 'Re-Minko-Installer-1.0.66.exe.sha256' },
       { name: 'source.zip' },
       { name: 'secret.txt' }
     ]
@@ -72,6 +74,7 @@ test('release metadata exposes only approved desktop assets', () => {
 
   assert.equal(result.version, '1.0.65');
   assert.deepEqual(Object.keys(result.assets).sort(), [
+    'Re-Minko-Installer-1.0.66.exe',
     'app.7z',
     'update.zip',
     'update.zip.sha256'
