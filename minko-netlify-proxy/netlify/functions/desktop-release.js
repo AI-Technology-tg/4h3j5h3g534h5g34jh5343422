@@ -6,6 +6,7 @@
  * GET  ?action=installer
  * GET  ?action=download&tag=v1.2.3&asset=update.zip
  * POST ?action=request-access  { deviceId }
+ * POST ?action=resume          { deviceId }
  * POST ?action=activate        { deviceId, code }
  */
 const { randomBytes, randomInt } = require('node:crypto');
@@ -203,6 +204,51 @@ async function findActivatedDevice(deviceId, token) {
       `&revoked_at=is.null&select=id,staff_role&limit=1`
   );
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
+}
+
+async function findKnownDevice(deviceId) {
+  if (!DEVICE_ID.test(deviceId)) return null;
+  const rows = await supabaseRequest(
+    `/rest/v1/desktop_activated_devices?device_hash=eq.${encodeURIComponent(deviceHash(deviceId))}` +
+      `&revoked_at=is.null&select=id,staff_role&limit=1`
+  );
+  return Array.isArray(rows) && rows[0] ? rows[0] : null;
+}
+
+async function issueSession(device, ip) {
+  const token = randomBytes(32).toString('hex');
+  await supabaseRequest(
+    `/rest/v1/desktop_activated_devices?id=eq.${encodeURIComponent(device.id)}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        token_hash: tokenHash(token),
+        last_seen_at: new Date().toISOString(),
+        revoked_at: null
+      })
+    }
+  );
+  return {
+    allowed: true,
+    token,
+    currentIp: ip,
+    role: parseRole(device.staff_role),
+    permissions: permissionsFor(device.staff_role)
+  };
+}
+
+async function resumeDevice(event) {
+  const body = readJson(event) || {};
+  const deviceId = deviceIdFrom(event, body);
+  if (!DEVICE_ID.test(deviceId)) return json(400, { error: 'invalid_device' });
+  try {
+    const device = await findKnownDevice(deviceId);
+    if (!device?.id) return json(404, { error: 'not_activated' });
+    return json(200, await issueSession(device, ipAccess(event).currentIp));
+  } catch (_) {
+    return json(502, { error: 'resume_failed' });
+  }
 }
 
 async function resolveAccess(event) {
@@ -444,6 +490,7 @@ exports.handler = async (event) => {
 
     if (event.httpMethod === 'POST') {
       if (action === 'request-access') return requestAccess(event);
+      if (action === 'resume') return resumeDevice(event);
       if (action === 'activate') return activate(event);
       return json(400, { error: 'unknown_action' });
     }
