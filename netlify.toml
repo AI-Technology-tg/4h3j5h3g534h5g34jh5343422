@@ -49,6 +49,12 @@
   force = true
 
 [[redirects]]
+  from = "/desktop/watch"
+  to = "/.netlify/functions/desktop-watch"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/r/:code"
   to = "/index.html?gref=:code"
   status = 302

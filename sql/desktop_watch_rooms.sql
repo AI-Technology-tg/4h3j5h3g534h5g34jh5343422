@@ -1,0 +1,2 @@
+-- Комнаты совместного просмотра для WinUI. Доступ только через service role (desktop-watch).
+-- Применено миграцией desktop_watch_rooms.
