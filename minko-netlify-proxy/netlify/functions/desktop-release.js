@@ -270,14 +270,6 @@ async function requestAccess(event) {
   if (!discordToken()) return json(503, { error: 'discord_not_configured' });
 
   const hash = deviceHash(deviceId);
-  const existing = await supabaseRequest(
-    `/rest/v1/desktop_activated_devices?device_hash=eq.${encodeURIComponent(hash)}` +
-      `&revoked_at=is.null&select=id&limit=1`
-  );
-  if (Array.isArray(existing) && existing[0]) {
-    return json(409, { error: 'already_activated' });
-  }
-
   const recent = await supabaseRequest(
     `/rest/v1/desktop_activation_requests?device_hash=eq.${encodeURIComponent(hash)}` +
       `&used_at=is.null&expires_at=gte.${encodeURIComponent(new Date().toISOString())}` +
