@@ -59,6 +59,11 @@ function isAllowedAsset(name) {
   return ALLOWED_ASSETS.has(name) || INSTALLER_ASSET.test(name);
 }
 
+function isPublicInstallAsset(name) {
+  const asset = String(name || '');
+  return asset === 'app.7z' || INSTALLER_ASSET.test(asset);
+}
+
 function headers(contentType = 'application/json; charset=utf-8') {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -472,6 +477,15 @@ exports.handler = async (event) => {
       return download(event, release.tag_name, installer.name);
     }
 
+    if (action === 'download') {
+      const tag = String(event.queryStringParameters?.tag || '');
+      const assetName = String(event.queryStringParameters?.asset || '');
+      if (isPublicInstallAsset(assetName)) {
+        if (!githubToken()) return json(503, { error: 'release_gateway_not_configured' });
+        return download(event, tag, assetName);
+      }
+    }
+
     const access = await resolveAccess(event);
     if (!access.allowed) return json(403, { error: 'not_authorized', ...access });
     if (!githubToken()) return json(503, { error: 'release_gateway_not_configured' });
@@ -497,6 +511,7 @@ exports._test = {
   accessFor: ipAccess,
   publicRelease,
   isAllowedAsset,
+  isPublicInstallAsset,
   deviceIdFrom,
   bearerToken,
   parseRole,

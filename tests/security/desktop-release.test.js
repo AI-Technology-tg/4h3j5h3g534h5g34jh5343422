@@ -79,6 +79,13 @@ test('device headers are parsed without trusting forwarded IP', () => {
   assert.equal(gateway._test.DEVICE_ID.test(gateway._test.deviceIdFrom(evt)), true);
 });
 
+test('first install payload is public, updates stay gated', () => {
+  assert.equal(gateway._test.isPublicInstallAsset('app.7z'), true);
+  assert.equal(gateway._test.isPublicInstallAsset('Re-Minko-Installer-1.0.112.exe'), true);
+  assert.equal(gateway._test.isPublicInstallAsset('update.zip'), false);
+  assert.equal(gateway._test.isPublicInstallAsset('update.zip.sha256'), false);
+});
+
 test('staff roles map creator to full permissions and ignore unknown values', () => {
   assert.equal(gateway._test.parseRole('creator'), 'creator');
   assert.equal(gateway._test.parseRole('HEAD_ADMIN'), 'head_admin');
