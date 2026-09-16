@@ -4,7 +4,8 @@
  *
  * GET  ?action=ping
  * GET  ?action=memory
- * POST ?action=remember   { said, intent, section, title, hits, payload }
+ * POST ?action=lookup     { said }
+ * POST ?action=remember   { said, intent, section, title }
  * POST ?action=chat       { model, temperature, max_tokens, messages }
  * POST ?action=transcribe { wavBase64 }
  */
@@ -99,6 +100,91 @@ async function requireDevice(event, body = {}) {
   return { deviceId, hash: deviceHash(deviceId), role: device.staff_role || 'tester_pr' };
 }
 
+const SHARED_SEED = [
+  { said: 'открой каталог', intent: 'OpenSection', section: 'catalog' },
+  { said: 'покажи каталог', intent: 'OpenSection', section: 'catalog' },
+  { said: 'открой мангу', intent: 'OpenSection', section: 'manga' },
+  { said: 'покажи мангу', intent: 'OpenSection', section: 'manga' },
+  { said: 'открой календарь', intent: 'OpenSection', section: 'calendar' },
+  { said: 'покажи календарь', intent: 'OpenSection', section: 'calendar' },
+  { said: 'открой главную', intent: 'OpenSection', section: 'home' },
+  { said: 'на главную', intent: 'OpenSection', section: 'home' },
+  { said: 'открой чат', intent: 'OpenSection', section: 'ai' },
+  { said: 'открой друзей', intent: 'OpenSection', section: 'friends' },
+  { said: 'открой настройки', intent: 'OpenSection', section: 'settings' },
+  { said: 'открой профиль', intent: 'OpenSection', section: 'profile' },
+  { said: 'открой комнаты', intent: 'OpenSection', section: 'party' },
+  { said: 'случайное аниме', intent: 'RandomAnime', section: null }
+];
+
+let seedPromise = null;
+
+function normalizeSaid(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[^\p{L}\p{Nd}]+/gu, ' ')
+    .trim();
+}
+
+function tokens(value) {
+  return normalizeSaid(value).split(/\s+/).filter((item) => item.length >= 3);
+}
+
+function closePhrase(text, phrase) {
+  const left = normalizeSaid(text);
+  const right = normalizeSaid(phrase);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  if (left.startsWith(right) && left.length - right.length <= 8) return true;
+  if (right.startsWith(left) && left.length >= (right.length * 4) / 5) return true;
+  const leftTokens = tokens(left);
+  const rightTokens = tokens(right);
+  return (
+    rightTokens.length > 0 &&
+    rightTokens.every((item) =>
+      leftTokens.some((token) => token === item || token.includes(item) || item.includes(token))
+    )
+  );
+}
+
+function findClose(items, said) {
+  return (items || []).find((item) => closePhrase(said, item.said)) || null;
+}
+
+async function ensureSharedSeed() {
+  if (seedPromise) return seedPromise;
+  seedPromise = (async () => {
+    const rows = await supabaseRequest(
+      '/rest/v1/desktop_minko_memory?device_hash=eq.shared&kind=eq.voice-command&select=said'
+    );
+    const have = new Set((Array.isArray(rows) ? rows : []).map((row) => normalizeSaid(row.said)));
+    for (const item of SHARED_SEED) {
+      if (have.has(item.said)) continue;
+      await supabaseRequest('/rest/v1/desktop_minko_memory', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          device_hash: 'shared',
+          scope: 'shared',
+          kind: 'voice-command',
+          said: item.said,
+          intent: item.intent,
+          section: item.section,
+          title: null,
+          hits: 1,
+          payload: {},
+          updated_at: new Date().toISOString()
+        })
+      }).catch(() => {});
+    }
+  })().catch((error) => {
+    seedPromise = null;
+    throw error;
+  });
+  return seedPromise;
+}
+
 function mapMemoryRow(row) {
   const payload = row?.payload && typeof row.payload === 'object' ? row.payload : {};
   return {
@@ -120,56 +206,66 @@ async function getMemory(hash) {
   return Array.isArray(rows) ? rows.map(mapMemoryRow) : [];
 }
 
+async function insertMemory(row) {
+  try {
+    await supabaseRequest('/rest/v1/desktop_minko_memory', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(row)
+    });
+    return true;
+  } catch (error) {
+    if (String(error.message || '').includes('supabase_409')) return false;
+    throw error;
+  }
+}
+
+async function lookup(hash, said) {
+  await ensureSharedSeed();
+  const items = await getMemory(hash);
+  return findClose(items, said);
+}
+
 async function remember(hash, body) {
-  const said = safeText(body.said, 80);
+  const said = normalizeSaid(safeText(body.said, 80));
   const intent = safeText(body.intent, 40);
   if (said.length < 4 || !intent) return json(400, { error: 'invalid_entry' });
   const section = body.section ? safeText(body.section, 40) : null;
   const title = body.title ? safeText(body.title, 80) : null;
-  const hits = Math.max(1, Math.min(9999, Number(body.hits || 1)));
-  const envelope = Array.isArray(body.envelope)
-    ? body.envelope.slice(0, 96).map((value) => Number(value) || 0)
-    : null;
-  const sampleCount = Math.max(0, Number(body.sampleCount || 0));
-  const payload = envelope ? { envelope, sampleCount } : {};
+  await ensureSharedSeed();
+  const existing = await lookup(hash, said);
+  if (existing) return json(200, { ok: true, existed: true });
 
-  await supabaseRequest('/rest/v1/desktop_minko_memory?on_conflict=device_hash,kind,said', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({
-      device_hash: hash,
-      scope: 'device',
+  const now = new Date().toISOString();
+  await insertMemory({
+    device_hash: hash,
+    scope: 'device',
+    kind: 'voice-command',
+    said,
+    intent,
+    section,
+    title,
+    hits: 1,
+    payload: {},
+    updated_at: now
+  });
+
+  if (intent === 'OpenSection' || intent === 'RandomAnime' || intent === 'FindAnime') {
+    await insertMemory({
+      device_hash: 'shared',
+      scope: 'shared',
       kind: 'voice-command',
       said,
       intent,
       section,
       title,
-      hits,
-      payload,
-      updated_at: new Date().toISOString()
-    })
-  });
-
-  if (intent === 'OpenSection' || intent === 'RandomAnime' || intent === 'FindAnime') {
-    await supabaseRequest('/rest/v1/desktop_minko_memory?on_conflict=device_hash,kind,said', {
-      method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({
-        device_hash: 'shared',
-        scope: 'shared',
-        kind: 'voice-command',
-        said,
-        intent,
-        section,
-        title,
-        hits: 1,
-        payload: {},
-        updated_at: new Date().toISOString()
-      })
-    }).catch(() => {});
+      hits: 1,
+      payload: {},
+      updated_at: now
+    });
   }
 
-  return json(200, { ok: true });
+  return json(200, { ok: true, existed: false });
 }
 
 async function proxyChat(body) {
@@ -251,8 +347,14 @@ exports.handler = async (event) => {
     if (action === 'ping') return json(200, { ok: true, role: gate.role });
 
     if (action === 'memory' && event.httpMethod === 'GET') {
+      await ensureSharedSeed();
       const items = await getMemory(gate.hash);
       return json(200, { items });
+    }
+
+    if (action === 'lookup' && event.httpMethod === 'POST') {
+      const item = await lookup(gate.hash, body.said || '');
+      return json(200, { item });
     }
 
     if (action === 'remember' && event.httpMethod === 'POST') {
