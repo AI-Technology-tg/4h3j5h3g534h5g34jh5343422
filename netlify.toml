@@ -22,6 +22,9 @@
 [functions."minko-chat"]
   timeout = 26
 
+[functions."desktop-minko"]
+  timeout = 26
+
 [[redirects]]
   from = "/config.local.js"
   to = "/config.local.stub.js"
@@ -51,6 +54,12 @@
 [[redirects]]
   from = "/desktop/watch"
   to = "/.netlify/functions/desktop-watch"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/desktop/minko"
+  to = "/.netlify/functions/desktop-minko"
   status = 200
   force = true
 
