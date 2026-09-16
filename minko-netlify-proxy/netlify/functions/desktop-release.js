@@ -416,6 +416,26 @@ async function download(event, tag, assetName) {
   return json(502, { error: 'github_asset_failed', status: response.status });
 }
 
+const watchTogether = require('./desktop-watch');
+
+function isWatchAction(action) {
+  return (
+    action.startsWith('watch-') ||
+    action.startsWith('social-') ||
+    [
+      'create',
+      'leave',
+      'state',
+      'set-anime',
+      'set-player',
+      'chat',
+      'voice-toggle',
+      'voice-signal',
+      'voice-poll'
+    ].includes(action)
+  );
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: headers(), body: '' };
@@ -423,6 +443,8 @@ exports.handler = async (event) => {
 
   const action = String(event.queryStringParameters?.action || 'access');
   try {
+    if (isWatchAction(action)) return watchTogether.handler(event);
+
     if (event.httpMethod === 'POST') {
       if (action === 'request-access') return requestAccess(event);
       if (action === 'activate') return activate(event);

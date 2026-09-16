@@ -1,0 +1,2 @@
+-- Друзья и приглашения в комнаты WinUI. Доступ только через service role.
+-- Применено миграцией desktop_friends_and_room_invites.

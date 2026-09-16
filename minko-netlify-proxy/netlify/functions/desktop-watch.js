@@ -1,6 +1,6 @@
 /**
- * Комнаты совместного просмотра для WinUI (до 4 человек).
- * Авторизация — тот же device token, что desktop-release.
+ * Комнаты и друзья WinUI. Вход в комнату только по друзьям.
+ * Вызывается из desktop-release, отдельный URL может быть не задеплоен.
  */
 const { hashValue, supabaseRequest } = require('./_security');
 
@@ -8,6 +8,7 @@ const DEVICE_ID = /^[a-f0-9]{64}$/;
 const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_MEMBERS = 4;
 const MESSAGE_MAX = 400;
+const HANDLE_RE = /^@[a-z0-9_]{3,20}$/;
 
 function headers() {
   return {
@@ -67,6 +68,17 @@ function safeText(value, max) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
+function normalizeHandle(value) {
+  let handle = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^@+/, '')
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, 20);
+  if (handle.length < 3) return '';
+  return `@${handle}`;
+}
+
 async function findActivatedDevice(deviceId, token) {
   if (!DEVICE_ID.test(deviceId) || !token) return null;
   const rows = await supabaseRequest(
@@ -85,15 +97,33 @@ async function requireDevice(event, body = {}) {
   const token = match ? match[1].trim() : '';
   const device = await findActivatedDevice(deviceId, token);
   if (!device) return null;
-  return { deviceId, hash: deviceHash(deviceId) };
+  const hash = deviceHash(deviceId);
+  await supabaseRequest(
+    `/rest/v1/desktop_profiles?device_hash=eq.${encodeURIComponent(hash)}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ last_seen_at: new Date().toISOString() })
+    }
+  ).catch(() => {});
+  return { deviceId, hash };
 }
 
-async function getRoomByCode(code) {
+async function getProfile(hash) {
   const rows = await supabaseRequest(
-    `/rest/v1/desktop_watch_rooms?code=eq.${encodeURIComponent(code)}` +
-      `&closed_at=is.null&select=*&limit=1`
+    `/rest/v1/desktop_profiles?device_hash=eq.${encodeURIComponent(hash)}&select=*&limit=1`
   );
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
+}
+
+async function getProfiles(hashes) {
+  const unique = [...new Set(hashes.filter(Boolean))];
+  if (!unique.length) return [];
+  const filter = unique.map((item) => `"${item}"`).join(',');
+  const rows = await supabaseRequest(
+    `/rest/v1/desktop_profiles?device_hash=in.(${filter})&select=*`
+  );
+  return Array.isArray(rows) ? rows : [];
 }
 
 async function getRoomById(id) {
@@ -127,11 +157,10 @@ async function snapshot(room, hash) {
   ]);
   const me = people.find((p) => p.device_hash === hash);
   const now = Date.now();
-    return {
+  return {
     selfPeerId: hash,
     room: {
       id: room.id,
-      code: room.code,
       title: room.title,
       animeId: room.anime_id || '',
       animeTitle: room.anime_title,
@@ -179,9 +208,62 @@ async function requireMember(roomId, hash) {
   return { room, me, people };
 }
 
+async function areFriends(a, b) {
+  const rows = await supabaseRequest(
+    `/rest/v1/desktop_friendships?status=eq.accepted&or=(and(requester_hash.eq.${encodeURIComponent(a)},addressee_hash.eq.${encodeURIComponent(b)}),and(requester_hash.eq.${encodeURIComponent(b)},addressee_hash.eq.${encodeURIComponent(a)}))&select=id&limit=1`
+  );
+  return Array.isArray(rows) && rows[0];
+}
+
+async function findOpenRoomFor(hash, hostOnly = false) {
+  const hostFilter = hostOnly ? '&is_host=eq.true' : '';
+  const rows = await supabaseRequest(
+    `/rest/v1/desktop_watch_participants?device_hash=eq.${encodeURIComponent(hash)}` +
+      `${hostFilter}&select=room_id,is_host,last_seen_at&order=is_host.desc,last_seen_at.desc`
+  );
+  const list = Array.isArray(rows) ? rows : [];
+  for (const row of list) {
+    const room = await getRoomById(row.room_id);
+    if (room) return room;
+  }
+  return null;
+}
+
+async function addParticipant(room, hash, displayName, isHost) {
+  await supabaseRequest('/rest/v1/desktop_watch_participants', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      room_id: room.id,
+      device_hash: hash,
+      display_name: displayName,
+      is_host: !!isHost
+    })
+  });
+}
+
+async function addSystemMessage(roomId, hash, body) {
+  await supabaseRequest('/rest/v1/desktop_watch_messages', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      room_id: roomId,
+      device_hash: hash,
+      display_name: 'Система',
+      body
+    })
+  });
+}
+
 async function createRoom(actor, body) {
   const title = safeName(body.title) === 'Гость' ? 'Комната Re — Minko' : safeName(body.title);
-  const displayName = safeName(body.displayName);
+  const profile = await getProfile(actor.hash);
+  const displayName = safeName(body.displayName || profile?.display_name);
+  const existing = await findOpenRoomFor(actor.hash, true);
+  if (existing) {
+    await touch(existing.id, actor.hash);
+    return json(200, await snapshot(existing, actor.hash));
+  }
   for (let attempt = 0; attempt < 8; attempt++) {
     const code = makeCode();
     try {
@@ -195,68 +277,14 @@ async function createRoom(actor, body) {
         })
       });
       const room = Array.isArray(created) ? created[0] : created;
-      await supabaseRequest('/rest/v1/desktop_watch_participants', {
-        method: 'POST',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({
-          room_id: room.id,
-          device_hash: actor.hash,
-          display_name: displayName,
-          is_host: true
-        })
-      });
-      await supabaseRequest('/rest/v1/desktop_watch_messages', {
-        method: 'POST',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({
-          room_id: room.id,
-          device_hash: actor.hash,
-          display_name: 'Система',
-          body: `${displayName} создал комнату. Код: ${code}`
-        })
-      });
+      await addParticipant(room, actor.hash, displayName, true);
+      await addSystemMessage(room.id, actor.hash, `${displayName} создал комнату. Пригласите друзей.`);
       return json(200, await snapshot(room, actor.hash));
     } catch (error) {
       if (!String(error.message || '').includes('23505') || attempt === 7) throw error;
     }
   }
-  return json(500, { error: 'code_failed' });
-}
-
-async function joinRoom(actor, body) {
-  const code = String(body.code || '').trim().toUpperCase();
-  if (!/^[A-Z0-9]{6}$/.test(code)) return json(400, { error: 'invalid_code' });
-  const room = await getRoomByCode(code);
-  if (!room) return json(404, { error: 'room_not_found' });
-  const people = await listParticipantsSafe(room.id);
-  const existing = people.find((p) => p.device_hash === actor.hash);
-  if (existing) {
-    await touch(room.id, actor.hash);
-    return json(200, await snapshot(room, actor.hash));
-  }
-  if (people.length >= MAX_MEMBERS) return json(409, { error: 'room_full' });
-  const displayName = safeName(body.displayName);
-  await supabaseRequest('/rest/v1/desktop_watch_participants', {
-    method: 'POST',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      room_id: room.id,
-      device_hash: actor.hash,
-      display_name: displayName,
-      is_host: false
-    })
-  });
-  await supabaseRequest('/rest/v1/desktop_watch_messages', {
-    method: 'POST',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      room_id: room.id,
-      device_hash: actor.hash,
-      display_name: 'Система',
-      body: `${displayName} вошёл в комнату`
-    })
-  });
-  return json(200, await snapshot(room, actor.hash));
+  return json(500, { error: 'room_failed' });
 }
 
 async function leaveRoom(actor, body) {
@@ -410,6 +438,318 @@ async function voicePoll(actor, body, query) {
   });
 }
 
+async function syncProfile(actor, body) {
+  const displayName = safeName(body.displayName);
+  let handle = normalizeHandle(body.handle);
+  if (!HANDLE_RE.test(handle)) {
+    handle = `@rm${actor.hash.slice(0, 6)}`;
+  }
+  const existing = await getProfile(actor.hash);
+  const taken = await supabaseRequest(
+    `/rest/v1/desktop_profiles?handle=eq.${encodeURIComponent(handle)}&select=device_hash&limit=1`
+  );
+  if (Array.isArray(taken) && taken[0] && taken[0].device_hash !== actor.hash) {
+    handle = `@rm${actor.hash.slice(0, 8)}`;
+  }
+  const payload = {
+    device_hash: actor.hash,
+    handle,
+    display_name: displayName,
+    last_seen_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  if (existing) {
+    await supabaseRequest(
+      `/rest/v1/desktop_profiles?device_hash=eq.${encodeURIComponent(actor.hash)}`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(payload)
+      }
+    );
+  } else {
+    await supabaseRequest('/rest/v1/desktop_profiles', {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify(payload)
+    });
+  }
+  return json(200, { handle, displayName });
+}
+
+function mapFriend(profile, room, now) {
+  const lastSeen = profile.last_seen_at ? new Date(profile.last_seen_at).getTime() : 0;
+  const online = now - lastSeen < 90000;
+  return {
+    id: profile.device_hash,
+    displayName: profile.display_name || 'Гость',
+    handle: profile.handle || '@user',
+    presence: online ? 'В сети' : 'Не в сети',
+    isOnline: online,
+    watching: room?.anime_title || room?.title || null,
+    roomId: room?.id || null,
+    roomTitle: room ? room.title : null
+  };
+}
+
+async function socialInbox(actor) {
+  const now = Date.now();
+  const [friendRows, inviteRows] = await Promise.all([
+    supabaseRequest(
+      `/rest/v1/desktop_friendships?or=(requester_hash.eq.${encodeURIComponent(actor.hash)},addressee_hash.eq.${encodeURIComponent(actor.hash)})&select=*`
+    ),
+    supabaseRequest(
+      `/rest/v1/desktop_watch_invites?or=(from_hash.eq.${encodeURIComponent(actor.hash)},to_hash.eq.${encodeURIComponent(actor.hash)})&status=eq.pending&select=*`
+    )
+  ]);
+  const friendships = Array.isArray(friendRows) ? friendRows : [];
+  const invites = Array.isArray(inviteRows) ? inviteRows : [];
+  const hashes = new Set([actor.hash]);
+  for (const row of friendships) {
+    hashes.add(row.requester_hash);
+    hashes.add(row.addressee_hash);
+  }
+  for (const row of invites) {
+    hashes.add(row.from_hash);
+    hashes.add(row.to_hash);
+  }
+  const profiles = await getProfiles([...hashes]);
+  const profileMap = new Map(profiles.map((item) => [item.device_hash, item]));
+  const accepted = friendships.filter((row) => row.status === 'accepted');
+  const friendHashes = accepted.map((row) =>
+    row.requester_hash === actor.hash ? row.addressee_hash : row.requester_hash
+  );
+  const rooms = {};
+  for (const hash of friendHashes) {
+    const room = await findOpenRoomFor(hash, true);
+    if (room) rooms[hash] = room;
+  }
+  const myHostedRoom = await findOpenRoomFor(actor.hash, true);
+  const membership = await findOpenRoomFor(actor.hash, false);
+  const friends = friendHashes
+    .map((hash) => profileMap.get(hash))
+    .filter(Boolean)
+    .map((profile) => mapFriend(profile, rooms[profile.device_hash], now));
+  const incomingFriends = friendships
+    .filter((row) => row.status === 'pending' && row.addressee_hash === actor.hash)
+    .map((row) => {
+      const profile = profileMap.get(row.requester_hash);
+      return {
+        id: row.id,
+        displayName: profile?.display_name || 'Гость',
+        handle: profile?.handle || '@user',
+        incoming: true
+      };
+    });
+  const outgoingFriends = friendships
+    .filter((row) => row.status === 'pending' && row.requester_hash === actor.hash)
+    .map((row) => {
+      const profile = profileMap.get(row.addressee_hash);
+      return {
+        id: row.id,
+        displayName: profile?.display_name || 'Гость',
+        handle: profile?.handle || '@user',
+        incoming: false
+      };
+    });
+  const roomInvites = [];
+  for (const row of invites) {
+    if (row.to_hash !== actor.hash) continue;
+    const from = profileMap.get(row.from_hash);
+    const room = await getRoomById(row.room_id);
+    if (!room) continue;
+    roomInvites.push({
+      id: row.id,
+      roomId: room.id,
+      roomTitle: room.title,
+      actorName: from?.display_name || 'Гость',
+      actorHandle: from?.handle || '@user',
+      kind: row.kind,
+      actionLabel: row.kind === 'invite' ? 'Принять приглашение' : 'Принять заявку'
+    });
+  }
+  return json(200, {
+    friends,
+    incomingFriends,
+    outgoingFriends,
+    roomInvites,
+    myRoomId: myHostedRoom?.id || null,
+    activeRoom: membership ? await snapshot(membership, actor.hash) : null
+  });
+}
+
+async function addFriend(actor, body) {
+  const handle = normalizeHandle(body.handle);
+  if (!HANDLE_RE.test(handle)) return json(400, { error: 'bad_handle' });
+  const rows = await supabaseRequest(
+    `/rest/v1/desktop_profiles?handle=eq.${encodeURIComponent(handle)}&select=*&limit=1`
+  );
+  const target = Array.isArray(rows) && rows[0] ? rows[0] : null;
+  if (!target) return json(404, { error: 'user_not_found' });
+  if (target.device_hash === actor.hash) return json(400, { error: 'self' });
+  const existing = await supabaseRequest(
+    `/rest/v1/desktop_friendships?or=(and(requester_hash.eq.${encodeURIComponent(actor.hash)},addressee_hash.eq.${encodeURIComponent(target.device_hash)}),and(requester_hash.eq.${encodeURIComponent(target.device_hash)},addressee_hash.eq.${encodeURIComponent(actor.hash)}))&select=*&limit=1`
+  );
+  const row = Array.isArray(existing) && existing[0] ? existing[0] : null;
+  if (row?.status === 'accepted') return json(200, { ok: true, already: true });
+  if (row?.status === 'pending' && row.addressee_hash === actor.hash) {
+    await supabaseRequest(
+      `/rest/v1/desktop_friendships?id=eq.${encodeURIComponent(row.id)}`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: 'accepted', updated_at: new Date().toISOString() })
+      }
+    );
+    return json(200, { ok: true, accepted: true });
+  }
+  if (row?.status === 'pending') return json(200, { ok: true, pending: true });
+  if (row?.status === 'declined') {
+    await supabaseRequest(
+      `/rest/v1/desktop_friendships?id=eq.${encodeURIComponent(row.id)}`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          requester_hash: actor.hash,
+          addressee_hash: target.device_hash,
+          status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+      }
+    );
+    return json(200, { ok: true, pending: true });
+  }
+  await supabaseRequest('/rest/v1/desktop_friendships', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      requester_hash: actor.hash,
+      addressee_hash: target.device_hash,
+      status: 'pending'
+    })
+  });
+  return json(200, { ok: true, pending: true });
+}
+
+async function setFriendship(actor, body, status) {
+  const id = String(body.friendshipId || body.id || '');
+  if (!id) return json(400, { error: 'bad_id' });
+  const rows = await supabaseRequest(
+    `/rest/v1/desktop_friendships?id=eq.${encodeURIComponent(id)}&select=*&limit=1`
+  );
+  const row = Array.isArray(rows) && rows[0] ? rows[0] : null;
+  if (!row) return json(404, { error: 'not_found' });
+  if (row.addressee_hash !== actor.hash && row.requester_hash !== actor.hash) {
+    return json(403, { error: 'forbidden' });
+  }
+  if (status === 'accepted' && row.addressee_hash !== actor.hash) {
+    return json(403, { error: 'forbidden' });
+  }
+  await supabaseRequest(
+    `/rest/v1/desktop_friendships?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ status, updated_at: new Date().toISOString() })
+    }
+  );
+  return json(200, { ok: true });
+}
+
+async function createRoomInvite(actor, body, kind) {
+  const friendHash = String(body.friendId || body.toHash || '');
+  if (!friendHash || friendHash === actor.hash) return json(400, { error: 'bad_friend' });
+  if (!(await areFriends(actor.hash, friendHash))) return json(403, { error: 'not_friends' });
+  const me = await getProfile(actor.hash);
+  const friend = await getProfile(friendHash);
+  if (!friend) return json(404, { error: 'user_not_found' });
+
+  let room = null;
+  if (kind === 'invite') {
+    room = String(body.roomId || '') ? await getRoomById(body.roomId) : await findOpenRoomFor(actor.hash, true);
+    if (!room) {
+      const created = await createRoom(actor, { title: body.title || 'Комната Re — Minko', displayName: me?.display_name });
+      const payload = JSON.parse(created.body);
+      room = payload.room ? { id: payload.room.id, title: payload.room.title } : null;
+      if (!room) return created;
+      room = await getRoomById(room.id);
+    }
+    if (room.host_device_hash !== actor.hash) return json(403, { error: 'host_only' });
+  } else {
+    room = String(body.roomId || '') ? await getRoomById(body.roomId) : await findOpenRoomFor(friendHash, true);
+    if (!room) return json(404, { error: 'room_not_found' });
+  }
+
+  const people = await listParticipantsSafe(room.id);
+  if (people.some((p) => p.device_hash === (kind === 'invite' ? friendHash : actor.hash))) {
+    return json(200, await snapshot(room, actor.hash));
+  }
+  if (people.length >= MAX_MEMBERS) return json(409, { error: 'room_full' });
+
+  const from = kind === 'invite' ? actor.hash : actor.hash;
+  const to = kind === 'invite' ? friendHash : room.host_device_hash;
+  try {
+    await supabaseRequest('/rest/v1/desktop_watch_invites', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        room_id: room.id,
+        from_hash: from,
+        to_hash: to,
+        kind
+      })
+    });
+  } catch (error) {
+    if (!String(error.message || '').includes('23505')) throw error;
+  }
+  return json(200, {
+    ok: true,
+    roomId: room.id,
+    ...(kind === 'invite' && people.some((p) => p.device_hash === actor.hash)
+      ? await snapshot(room, actor.hash)
+      : {})
+  });
+}
+
+async function decideRoomInvite(actor, body, status) {
+  const id = String(body.inviteId || body.id || '');
+  if (!id) return json(400, { error: 'bad_id' });
+  const rows = await supabaseRequest(
+    `/rest/v1/desktop_watch_invites?id=eq.${encodeURIComponent(id)}&select=*&limit=1`
+  );
+  const invite = Array.isArray(rows) && rows[0] ? rows[0] : null;
+  if (!invite || invite.status !== 'pending') return json(404, { error: 'invite_not_found' });
+  if (invite.to_hash !== actor.hash) return json(403, { error: 'forbidden' });
+
+  await supabaseRequest(
+    `/rest/v1/desktop_watch_invites?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ status, updated_at: new Date().toISOString() })
+    }
+  );
+  if (status !== 'accepted') return json(200, { ok: true });
+
+  const room = await getRoomById(invite.room_id);
+  if (!room) return json(404, { error: 'room_not_found' });
+  const joinerHash = invite.kind === 'invite' ? invite.to_hash : invite.from_hash;
+  const people = await listParticipantsSafe(room.id);
+  if (people.length >= MAX_MEMBERS && !people.some((p) => p.device_hash === joinerHash)) {
+    return json(409, { error: 'room_full' });
+  }
+  if (!people.some((p) => p.device_hash === joinerHash)) {
+    const joiner = await getProfile(joinerHash);
+    await addParticipant(room, joinerHash, joiner?.display_name || 'Гость', false);
+    await addSystemMessage(room.id, joinerHash, `${joiner?.display_name || 'Гость'} вошёл в комнату`);
+  }
+  if (actor.hash !== joinerHash && !people.some((p) => p.device_hash === actor.hash)) {
+    return json(200, { ok: true, roomId: room.id });
+  }
+  return json(200, await snapshot(room, actor.hash));
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: headers(), body: '' };
   if (event.httpMethod !== 'GET' && event.httpMethod !== 'POST') {
@@ -421,28 +761,53 @@ exports.handler = async (event) => {
   try {
     const actor = await requireDevice(event, body);
     if (!actor) return json(401, { error: 'unauthorized' });
-    const action = String(query.action || body.action || 'state');
+    const action = String(query.action || body.action || 'watch-state');
     switch (action) {
+      case 'watch-create':
       case 'create':
         return await createRoom(actor, body);
-      case 'join':
-        return await joinRoom(actor, body);
+      case 'watch-leave':
       case 'leave':
         return await leaveRoom(actor, body);
+      case 'watch-state':
       case 'state':
         return await stateRoom(actor, body, query);
+      case 'watch-set-anime':
       case 'set-anime':
         return await setAnime(actor, body);
+      case 'watch-set-player':
       case 'set-player':
         return await setPlayer(actor, body);
+      case 'watch-chat':
       case 'chat':
         return await sendChat(actor, body);
+      case 'watch-voice-toggle':
       case 'voice-toggle':
         return await voiceToggle(actor, body);
+      case 'watch-voice-signal':
       case 'voice-signal':
         return await voiceSignal(actor, body);
+      case 'watch-voice-poll':
       case 'voice-poll':
         return await voicePoll(actor, body, query);
+      case 'social-sync':
+        return await syncProfile(actor, body);
+      case 'social-inbox':
+        return await socialInbox(actor);
+      case 'social-add-friend':
+        return await addFriend(actor, body);
+      case 'social-accept-friend':
+        return await setFriendship(actor, body, 'accepted');
+      case 'social-decline-friend':
+        return await setFriendship(actor, body, 'declined');
+      case 'social-invite':
+        return await createRoomInvite(actor, body, 'invite');
+      case 'social-ask':
+        return await createRoomInvite(actor, body, 'request');
+      case 'social-accept-room':
+        return await decideRoomInvite(actor, body, 'accepted');
+      case 'social-decline-room':
+        return await decideRoomInvite(actor, body, 'declined');
       default:
         return json(400, { error: 'unknown_action' });
     }
