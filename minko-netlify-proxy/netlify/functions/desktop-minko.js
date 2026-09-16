@@ -150,7 +150,7 @@ async function remember(hash, body) {
     })
   });
 
-  if (intent === 'OpenSection' || intent === 'RandomAnime') {
+  if (intent === 'OpenSection' || intent === 'RandomAnime' || intent === 'FindAnime') {
     await supabaseRequest('/rest/v1/desktop_minko_memory?on_conflict=device_hash,kind,said', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
@@ -215,7 +215,7 @@ async function proxyTranscribe(body) {
   form.append('language', 'ru');
   form.append(
     'prompt',
-    'Команды: открой каталог, открой мангу, открой календарь, найди аниме, случайное аниме.'
+    'открой каталог, открой мангу, открой календарь, найди аниме, случайное аниме'
   );
 
   const response = await fetchWithTimeout(
