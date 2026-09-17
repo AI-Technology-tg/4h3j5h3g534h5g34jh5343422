@@ -122,6 +122,7 @@
   for = "/.netlify/functions/*"
   [headers.values]
     Access-Control-Allow-Origin = "https://re-minko-anime.com"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, X-Re-Minko-Device"
     Access-Control-Allow-Methods = "POST, OPTIONS, GET, HEAD"
+    Cache-Control = "no-store, max-age=0"
     Vary = "Origin"

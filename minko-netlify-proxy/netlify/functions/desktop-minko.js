@@ -340,7 +340,7 @@ async function insertMemory(row) {
 }
 
 async function lookup(hash, said) {
-  await ensureSharedSeed();
+  void ensureSharedSeed();
   const items = await getMemory(hash);
   return findClose(items, said);
 }

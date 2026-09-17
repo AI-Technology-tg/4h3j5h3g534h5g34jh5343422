@@ -460,6 +460,7 @@ async function download(event, tag, assetName) {
 }
 
 const watchTogether = require('./desktop-watch');
+const desktopMinko = require('./desktop-minko');
 
 function isWatchAction(action) {
   return (
@@ -479,6 +480,20 @@ function isWatchAction(action) {
   );
 }
 
+function isMinkoAction(action) {
+  return action === 'minko' || action.startsWith('minko-');
+}
+
+function minkoEvent(event, action) {
+  return {
+    ...event,
+    queryStringParameters: {
+      ...(event.queryStringParameters || {}),
+      action: action === 'minko' ? 'ping' : action.slice('minko-'.length)
+    }
+  };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: headers(), body: '' };
@@ -486,6 +501,7 @@ exports.handler = async (event) => {
 
   const action = String(event.queryStringParameters?.action || 'access');
   try {
+    if (isMinkoAction(action)) return desktopMinko.handler(minkoEvent(event, action));
     if (isWatchAction(action)) return watchTogether.handler(event);
 
     if (event.httpMethod === 'POST') {
