@@ -14,15 +14,6 @@ class NavigationManager {
         
         if (filename === 'index.html' || path.endsWith('/')) return 'home';
         if (filename.includes('anime.html')) return 'catalog';
-        if (filename === 'favorites.html') return 'favorites';
-        if (filename === 'history.html') return 'history';
-        if (filename === 'friends.html') return 'friends';
-        if (filename === 'watch-together.html') return 'watch-together';
-        if (filename === 'minko-ai.html') return 'ai';
-        if (filename === 'minko-edit.html') return 'minko-edit';
-        if (filename === 'messages.html') return 'messages';
-        if (filename === 'privacy-policy.html') return 'privacy';
-        if (filename === 'terms-of-service.html') return 'terms';
         if (filename === 'admin.html') return 'admin';
         if (filename.includes('view.html') && path.includes('anime')) return 'anime-view';
         
@@ -32,7 +23,7 @@ class NavigationManager {
     // Получение базового пути для ссылок
     getBasePath() {
         const path = window.location.pathname;
-        if (path.includes('/catalog/') || path.includes('/anime/') || path.includes('/manga/')) {
+        if (path.includes('/catalog/') || path.includes('/anime/')) {
             return '../';
         }
         return '';
@@ -117,10 +108,6 @@ class NavigationManager {
                         </svg>
                         <span>Каталог аниме</span>
                     </a>
-                    <p class="sidebar-close-note">
-                        Сайт больше не развивается. Остались каталог и плееры.
-                        <a href="${this.basePath}index.html#homeCloseBanner">Почему</a>
-                    </p>
                     <div class="sidebar-divider"></div>
                     <a href="${this.basePath}admin.html" class="sidebar-link sidebar-link-creator ${activeClass('admin')}" id="sidebarCreatorAdminLink" data-page="admin" style="display: none;" title="Панель Создателя" data-maint-lock="admin">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -128,32 +115,6 @@ class NavigationManager {
                         </svg>
                         <span>Создатель</span>
                     </a>
-                    <a href="#" class="sidebar-link" id="minkoRustSidebarLink" data-page="minko-rust" title="Наш сервер Rust">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M14.5 4.5l5 2-6 6-2-2 3-6z"></path>
-                            <path d="M11.5 10.5L4 18l2 2 7.5-7.5"></path>
-                            <path d="M4.5 16.5l3 3"></path>
-                        </svg>
-                        <span>Наш сервер Rust</span>
-                    </a>
-                    <div class="sidebar-legal-wrap" role="group" aria-label="Юридическая информация">
-                        <div class="sidebar-divider"></div>
-                        <a href="${this.basePath}privacy-policy.html" class="sidebar-link sidebar-link-legal ${activeClass('privacy')}" data-page="privacy-policy">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                            </svg>
-                            <span>Политика конфиденциальности</span>
-                        </a>
-                        <a href="${this.basePath}terms-of-service.html" class="sidebar-link sidebar-link-legal ${activeClass('terms')}" data-page="terms-of-service">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                            </svg>
-                            <span>Условия использования</span>
-                        </a>
-                    </div>
                     <div class="sidebar-analytics-footer" aria-hidden="true">
                         <div class="sidebar-liveinternet-wrap">
                             <!--LiveInternet counter (скрыт, учёт через img)-->
@@ -674,7 +635,6 @@ class NavigationManager {
         // Обработчики делегированы document; тяжёлый DOM модалок создаётся
         // только при первом реальном открытии.
         this.initModalHandlers();
-        this.initMinkoRustOverlay();
         document.body.classList.add('reminko-ui-ready');
 
         if (typeof window.reminkoApplySidebarMaintenanceLocks === 'function') {
@@ -689,161 +649,6 @@ class NavigationManager {
         } catch (e) {
             /* ignore */
         }
-    }
-
-    ensureMinkoRustOverlayStyles() {
-        if (document.getElementById('minkoRustOverlayStyles')) return;
-        const style = document.createElement('style');
-        style.id = 'minkoRustOverlayStyles';
-        style.textContent = `
-.minko-rust-overlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:1rem}
-.minko-rust-overlay[hidden]{display:none!important}
-.minko-rust-overlay__backdrop{position:absolute;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px)}
-.minko-rust-overlay__card{position:relative;z-index:1;width:min(100%,760px);max-height:min(92vh,880px);overflow:auto;padding:1.35rem 1.35rem 1.2rem;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(160deg,rgba(30,27,46,.98),rgba(15,23,42,.98));box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 40px rgba(206,66,43,.14);color:#e5e7eb}
-.minko-rust-overlay__close{position:absolute;top:.55rem;right:.65rem;width:2rem;height:2rem;border:none;border-radius:8px;background:rgba(255,255,255,.06);color:#e5e7eb;font-size:1.35rem;line-height:1;cursor:pointer}
-.minko-rust-overlay__close:hover{background:rgba(255,255,255,.12)}
-.minko-rust-overlay__title{margin:0 2rem .35rem 0;font-size:1.25rem}
-.minko-rust-overlay__lead{margin:0 0 1rem;color:rgba(226,232,240,.82);line-height:1.5}
-.minko-rust-overlay__grid{display:grid;grid-template-columns:minmax(240px,350px) minmax(0,1fr);gap:1rem;align-items:start}
-.minko-rust-overlay__widget{display:block;width:100%;height:380px;border:0;border-radius:12px;background:#1e1f22}
-.minko-rust-overlay__meta{display:flex;flex-direction:column;gap:.7rem}
-.minko-rust-overlay__row{display:flex;flex-direction:column;gap:.28rem}
-.minko-rust-overlay__label{font-size:.75rem;letter-spacing:.02em;text-transform:uppercase;color:rgba(226,232,240,.58)}
-.minko-rust-overlay__value{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;font-size:.95rem}
-.minko-rust-overlay__value code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85rem;padding:.2rem .45rem;border-radius:6px;background:rgba(255,255,255,.06)}
-.minko-rust-overlay__copy{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#e5e7eb;border-radius:8px;padding:.2rem .55rem;font-size:.78rem;cursor:pointer}
-.minko-rust-overlay__copy:hover{background:rgba(255,255,255,.12)}
-.minko-rust-overlay__actions{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.35rem}
-.minko-rust-overlay__btn{display:inline-flex;align-items:center;justify-content:center;min-height:2.4rem;padding:.45rem .9rem;border-radius:10px;text-decoration:none;font-weight:600}
-.minko-rust-overlay__btn--discord{background:#5865f2;color:#fff}
-.minko-rust-overlay__btn--shop{background:rgba(206,66,43,.92);color:#fff}
-@media (max-width:760px){.minko-rust-overlay__grid{grid-template-columns:1fr}.minko-rust-overlay__widget{height:300px}}
-`;
-        document.head.appendChild(style);
-    }
-
-    createMinkoRustOverlayHtml() {
-        return `
-<div id="minkoRustOverlay" class="minko-rust-overlay" hidden>
-    <div class="minko-rust-overlay__backdrop" data-rust-close></div>
-    <div class="minko-rust-overlay__card" role="dialog" aria-modal="true" aria-labelledby="minkoRustOverlayTitle">
-        <button type="button" class="minko-rust-overlay__close" data-rust-close aria-label="Закрыть">×</button>
-        <h2 class="minko-rust-overlay__title" id="minkoRustOverlayTitle">MinkoRust | x3 Gather</h2>
-        <p class="minko-rust-overlay__lead">Наш игровой сервер Rust. Справа — краткие сведения, слева видно Discord сообщества MinkoRust.</p>
-        <div class="minko-rust-overlay__grid">
-            <iframe
-                id="minkoRustOverlayWidget"
-                class="minko-rust-overlay__widget"
-                title="Discord MinkoRust"
-                width="350"
-                height="380"
-                allowtransparency="true"
-                frameborder="0"
-                sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
-            ></iframe>
-            <div class="minko-rust-overlay__meta">
-                <div class="minko-rust-overlay__row">
-                    <span class="minko-rust-overlay__label">Сервер</span>
-                    <div class="minko-rust-overlay__value">MinkoRust | x3 Gather</div>
-                </div>
-                <div class="minko-rust-overlay__row">
-                    <span class="minko-rust-overlay__label">Карта</span>
-                    <div class="minko-rust-overlay__value">Procedural 4000</div>
-                </div>
-                <div class="minko-rust-overlay__row">
-                    <span class="minko-rust-overlay__label">Адрес</span>
-                    <div class="minko-rust-overlay__value">
-                        <code>169.58.50.241:28015</code>
-                        <button type="button" class="minko-rust-overlay__copy" data-rust-copy="169.58.50.241:28015">Копировать</button>
-                    </div>
-                </div>
-                <div class="minko-rust-overlay__row">
-                    <span class="minko-rust-overlay__label">Подключение в игре</span>
-                    <div class="minko-rust-overlay__value">
-                        <code>client.connect 169.58.50.241:28015</code>
-                        <button type="button" class="minko-rust-overlay__copy" data-rust-copy="client.connect 169.58.50.241:28015">Копировать</button>
-                    </div>
-                </div>
-                <div class="minko-rust-overlay__row">
-                    <span class="minko-rust-overlay__label">Киты</span>
-                    <div class="minko-rust-overlay__value">Дом, инструменты, оружие. VIP — в магазине на 7 дней.</div>
-                </div>
-                <div class="minko-rust-overlay__actions">
-                    <a class="minko-rust-overlay__btn minko-rust-overlay__btn--discord" href="https://discord.gg/hd262MWE6m" target="_blank" rel="noopener noreferrer">Открыть Discord</a>
-                    <a class="minko-rust-overlay__btn minko-rust-overlay__btn--shop" href="https://minko-rust.tebex.io/" target="_blank" rel="noopener noreferrer">Магазин VIP</a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>`;
-    }
-
-    openMinkoRustOverlay() {
-        this.ensureMinkoRustOverlay();
-        const overlay = document.getElementById('minkoRustOverlay');
-        if (!overlay) return;
-        const widget = document.getElementById('minkoRustOverlayWidget');
-        if (widget && !widget.getAttribute('src')) {
-            widget.src = 'https://discord.com/widget?id=1516522453390725221&theme=dark';
-        }
-        overlay.hidden = false;
-        document.body.style.overflow = 'hidden';
-        overlay.querySelector('.minko-rust-overlay__close')?.focus();
-    }
-
-    closeMinkoRustOverlay() {
-        const overlay = document.getElementById('minkoRustOverlay');
-        if (!overlay || overlay.hidden) return;
-        overlay.hidden = true;
-        document.body.style.overflow = '';
-        const widget = document.getElementById('minkoRustOverlayWidget');
-        if (widget) widget.removeAttribute('src');
-    }
-
-    copyMinkoRustText(btn) {
-        const text = btn?.getAttribute('data-rust-copy');
-        if (!text) return;
-        const done = () => {
-            const prev = btn.textContent;
-            btn.textContent = 'Скопировано';
-            setTimeout(() => {
-                btn.textContent = prev;
-            }, 1400);
-        };
-        if (navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(text).then(done).catch(() => {});
-            return;
-        }
-        done();
-    }
-
-    ensureMinkoRustOverlay() {
-        this.ensureMinkoRustOverlayStyles();
-        if (document.getElementById('minkoRustOverlay')) return;
-        document.body.insertAdjacentHTML('beforeend', this.createMinkoRustOverlayHtml());
-        const overlay = document.getElementById('minkoRustOverlay');
-        overlay?.querySelectorAll('[data-rust-close]').forEach((el) => {
-            el.addEventListener('click', () => this.closeMinkoRustOverlay());
-        });
-        overlay?.querySelectorAll('[data-rust-copy]').forEach((btn) => {
-            btn.addEventListener('click', () => this.copyMinkoRustText(btn));
-        });
-    }
-
-    initMinkoRustOverlay() {
-        this.ensureMinkoRustOverlay();
-        if (window.__minkoRustOverlayBound) return;
-        window.__minkoRustOverlayBound = true;
-        document.addEventListener('click', (e) => {
-            const link = e.target.closest('#minkoRustSidebarLink');
-            if (!link) return;
-            e.preventDefault();
-            e.stopPropagation();
-            this.openMinkoRustOverlay();
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') this.closeMinkoRustOverlay();
-        });
     }
 
     initDisabledNavLinks() {
@@ -1050,122 +855,48 @@ class NavigationManager {
     
     // Обновление ссылок в зависимости от авторизации
     async updateAuthLinks() {
-        if (typeof getCurrentUser === 'function') {
-            try {
-                const user = await getCurrentUser();
-                const friendsLink = document.getElementById('friendsLink');
-                const messagesLink = document.getElementById('messagesLink');
-                const watchTogetherLink = document.getElementById('watchTogetherLink');
-                const topLoginBtn = document.getElementById('topLoginBtn');
-                const topRegisterBtn = document.getElementById('topRegisterBtn');
-                const topLogoutBtn = document.getElementById('topLogoutBtn');
-                const resetAuthButtons = (mode) => {
-                    if (topLoginBtn) {
-                        topLoginBtn.textContent = 'Войти';
-                        topLoginBtn.style.display = mode === 'guest' ? 'flex' : 'none';
-                    }
-                    if (topRegisterBtn) {
-                        topRegisterBtn.style.display = mode === 'guest' ? 'flex' : 'none';
-                    }
-                    if (topLogoutBtn) {
-                        topLogoutBtn.style.display = mode === 'user' ? 'flex' : 'none';
-                    }
-                };
-                const maintOn = !!(window.__reminkoMaintenance && window.__reminkoMaintenance.enabled);
-                let maintCreator = false;
-                if (maintOn && typeof window.reminkoIsUserSiteCreator === 'function') {
-                    maintCreator = await window.reminkoIsUserSiteCreator();
+        if (typeof getCurrentUser !== 'function') return;
+        try {
+            const user = await getCurrentUser();
+            const topLoginBtn = document.getElementById('topLoginBtn');
+            const topRegisterBtn = document.getElementById('topRegisterBtn');
+            const topLogoutBtn = document.getElementById('topLogoutBtn');
+            const resetAuthButtons = (mode) => {
+                if (topLoginBtn) {
+                    topLoginBtn.textContent = 'Войти';
+                    topLoginBtn.style.display = mode === 'guest' ? 'flex' : 'none';
                 }
-                const showSocialLockedForGuests = maintOn && !maintCreator;
-
-                const basePath = this.basePath != null ? this.basePath : '';
-                const setMessagesHref = (toCreator) => {
-                    if (!messagesLink) return;
-                    messagesLink.setAttribute('href', basePath + (toCreator ? 'messages.html?creator=1' : 'messages.html'));
-                };
-                if (user && !user.isAnonymous) {
-                    let isSiteCreatorAcc =
-                        (typeof window.reminkoIsSiteCreatorProfile === 'function' &&
-                            window.reminkoIsSiteCreatorProfile(user));
-                    if (!isSiteCreatorAcc && typeof window.reminkoIsUserSiteCreator === 'function') {
-                        try {
-                            isSiteCreatorAcc = await window.reminkoIsUserSiteCreator();
-                        } catch (_) {
-                            /* ignore */
-                        }
-                    }
-                    const creatorAdminLink = document.getElementById('sidebarCreatorAdminLink');
-                    if (creatorAdminLink) {
-                        const em = (user.email || '').toLowerCase().trim();
-                        creatorAdminLink.style.display =
-                            isSiteCreatorAcc || em === 'creator@reminko.com' ? '' : 'none';
-                    }
-                    setMessagesHref(false);
-                    if (friendsLink) friendsLink.style.display = '';
-                    if (messagesLink) messagesLink.style.display = '';
-                    if (watchTogetherLink) watchTogetherLink.style.display = '';
-                    resetAuthButtons('user');
-
-                    // Обновляем счетчик заявок в друзья
-                    try {
-                        if (window.friendsService && typeof window.friendsService.getUnreadRequestsCount === 'function') {
-                            window.friendsService.getUnreadRequestsCount(user.id).then(count => {
-                                const friendsBadge = document.getElementById('friendsBadge');
-                                if (friendsBadge) {
-                                    if (count > 0) {
-                                        friendsBadge.textContent = count > 99 ? '99+' : count;
-                                        friendsBadge.style.display = 'flex';
-                                    } else {
-                                        friendsBadge.style.display = 'none';
-                                    }
-                                }
-                            });
-                        }
-                    } catch (e) {}
-
-                    try {
-                        if (typeof window.reminkoUpdateDmBadge === 'function') {
-                            window.reminkoUpdateDmBadge();
-                        }
-                    } catch (e) {}
-                } else if (user && user.isAnonymous) {
-                    const creatorAdminLink = document.getElementById('sidebarCreatorAdminLink');
-                    if (creatorAdminLink) creatorAdminLink.style.display = 'none';
-                    if (friendsLink) friendsLink.style.display = 'none';
-                    if (watchTogetherLink) watchTogetherLink.style.display = 'none';
-                    if (messagesLink) {
-                        messagesLink.style.display = '';
-                        setMessagesHref(true);
-                    }
-                    resetAuthButtons('guest');
-                    try {
-                        if (typeof window.reminkoUpdateDmBadge === 'function') {
-                            window.reminkoUpdateDmBadge();
-                        }
-                    } catch (e) {}
-                } else {
-                    const creatorAdminLink = document.getElementById('sidebarCreatorAdminLink');
-                    if (creatorAdminLink) creatorAdminLink.style.display = 'none';
-                    if (showSocialLockedForGuests) {
-                        if (friendsLink) friendsLink.style.display = '';
-                        if (messagesLink) {
-                            messagesLink.style.display = '';
-                            setMessagesHref(true);
-                        }
-                        if (watchTogetherLink) watchTogetherLink.style.display = '';
-                    } else {
-                        if (friendsLink) friendsLink.style.display = 'none';
-                        if (messagesLink) {
-                            messagesLink.style.display = '';
-                            setMessagesHref(true);
-                        }
-                        if (watchTogetherLink) watchTogetherLink.style.display = 'none';
-                    }
-                    resetAuthButtons('guest');
+                if (topRegisterBtn) {
+                    topRegisterBtn.style.display = mode === 'guest' ? 'flex' : 'none';
                 }
-            } catch (e) {
-                // Игнорируем ошибки
+                if (topLogoutBtn) {
+                    topLogoutBtn.style.display = mode === 'user' ? 'flex' : 'none';
+                }
+            };
+            const creatorAdminLink = document.getElementById('sidebarCreatorAdminLink');
+            if (user && !user.isAnonymous) {
+                let isSiteCreatorAcc =
+                    typeof window.reminkoIsSiteCreatorProfile === 'function' &&
+                    window.reminkoIsSiteCreatorProfile(user);
+                if (!isSiteCreatorAcc && typeof window.reminkoIsUserSiteCreator === 'function') {
+                    try {
+                        isSiteCreatorAcc = await window.reminkoIsUserSiteCreator();
+                    } catch (_) {
+                        /* ignore */
+                    }
+                }
+                if (creatorAdminLink) {
+                    const em = (user.email || '').toLowerCase().trim();
+                    creatorAdminLink.style.display =
+                        isSiteCreatorAcc || em === 'creator@reminko.com' ? '' : 'none';
+                }
+                resetAuthButtons('user');
+            } else {
+                if (creatorAdminLink) creatorAdminLink.style.display = 'none';
+                resetAuthButtons('guest');
             }
+        } catch (e) {
+            /* ignore */
         }
     }
 

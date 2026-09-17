@@ -1849,12 +1849,6 @@ async function renderAnimeDetail(anime) {
                         `).join('')}
                     </div>
 
-                    <div class="anime-detail-actions">
-                        <button type="button" class="btn btn-secondary favorite-btn" id="favoriteBtn" onclick="handleFavoriteClick(${animeIdInt})">
-                            ${typeof isInFavorites === 'function' && isInFavorites(animeIdInt) ? '❤️ В избранном' : '🤍 В избранное'}
-                        </button>
-                    </div>
-                    
                     ${isAnnounced ? '' : animeNextEpisodeCountdownBarHtml()}
                     <div class="anime-franchise-strip anime-franchise-strip--empty" id="animeFranchiseStrip" aria-label="Сезоны"></div>
                 </div>

@@ -10,8 +10,6 @@ const USER_ROUTES = [
     '/',
     '/catalog/anime.html',
     '/anime/view.html?id=1',
-    '/favorites.html',
-    '/history.html',
     '/terms-of-service.html',
     '/privacy-policy.html',
     '/account-deletion.html',
@@ -22,8 +20,6 @@ const PRIMARY_TOUCH_ROUTES = [
     '/',
     '/catalog/anime.html',
     '/anime/view.html?id=1',
-    '/favorites.html',
-    '/history.html',
     '/reset-password.html'
 ];
 

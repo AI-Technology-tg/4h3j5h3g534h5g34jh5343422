@@ -38,7 +38,6 @@
     <link rel="stylesheet" href="styles/loading.css">
 <link rel="stylesheet" href="styles/register-flow.css?v=20260726mobile1">
     <link rel="stylesheet" href="styles/admin-panel.css?v=20260728visit2">
-    <link rel="stylesheet" href="styles/minko-edit.css?v=20260726mobile2">
 </head>
 <body>
     <!-- Экран загрузки -->
@@ -67,10 +66,6 @@
                     <button class="admin-tab" data-tab="users">👥 Пользователи</button>
                     <button class="admin-tab" data-tab="team">🤝 Команда</button>
                     <button class="admin-tab" data-tab="moderation">🛡️ Модерация</button>
-                    <button class="admin-tab" data-tab="notifications">🔔 Уведомления</button>
-                    <button class="admin-tab" data-tab="minkoServer">🤖 Сервер Minko AI</button>
-                    <button class="admin-tab" data-tab="giveaway">🎁 Розыгрыш</button>
-                    <button class="admin-tab" data-tab="anime4k">📺 ≈4K каталог</button>
                     <button class="admin-tab" data-tab="settings">⚙️ Настройки</button>
                     <button class="admin-tab" data-tab="tests">🧪 Тесты</button>
                 </div>
@@ -117,15 +112,6 @@
                             <p class="admin-inline-hint">Загрузка…</p>
                         </div>
                     </div>
-
-                    <div class="admin-section">
-                        <h2>💬 Чаты пользователей с Minko AI</h2>
-                        <p class="admin-inline-hint" style="margin: 0 0 0.75rem;">
-                            История подгружается из логов БД (сообщения сохраняются при ответах ИИ для залогиненных пользователей).
-                        </p>
-                        <button type="button" class="admin-btn" id="openMinkoAiLogsModalBtn">Открыть окно истории</button>
-                    </div>
-
                     <div class="admin-section">
                         <h2>🔔 Последние события</h2>
                         <div id="recentActivity" class="activity-list">
@@ -295,210 +281,6 @@
                     </div>
                 </div>
 
-                <!-- Уведомления -->
-                <div class="admin-tab-content" id="tabNotifications">
-                    <div class="admin-section">
-                        <h2>🔔 Управление уведомлениями</h2>
-                        
-                        <div class="notification-types">
-                            <button class="admin-btn" onclick="showSendNotificationModal('single')">📨 Отправить одному</button>
-                            <button class="admin-btn" onclick="showSendNotificationModal('bulk')">📢 Массовая рассылка</button>
-                            <button class="admin-btn" onclick="showSendNotificationModal('all')">🌐 Всем пользователям</button>
-                        </div>
-
-                        <div id="notificationsManagement" class="notifications-management">
-                            <!-- Управление уведомлениями -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Удалённый сервер Minko AI (Netlify + Supabase) -->
-                <div class="admin-tab-content" id="tabMinkoServer">
-                    <div class="admin-section">
-                        <h2>🤖 Управление сервером Minko AI</h2>
-                        <p class="admin-inline-hint" style="max-width: 56rem; line-height: 1.55;">
-                            Чат работает через <strong>Netlify Functions</strong> (папка проекта <code>minko-netlify-proxy</code>) — отдельный постоянный сервер не нужен.
-                            Здесь можно <strong>выключить чат для всех</strong> (без деплоя), задать текст посетителям и <strong>перезапустить деплой</strong> на Netlify (Build hook).
-                            Логи ошибок подтягиваются из базы (запись с функции при ошибках, если задан <code>SUPABASE_SERVICE_ROLE_KEY</code> в Netlify).
-                        </p>
-                        <div class="setting-card" style="margin-top: 1rem;">
-                            <label class="setting-item" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                                <input type="checkbox" id="minkoSrvEnabled" checked />
-                                <span><strong>Minko AI включена</strong> (снять — чат и прокси недоступны посетителям)</span>
-                            </label>
-                            <label class="setting-item" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 0.55rem;">
-                                <input type="checkbox" id="minkoSrvOfflineExceptCreator" />
-                                <span><strong>Офлайн для всех, кроме создателя</strong> (только создатель сможет пользоваться чатом)</span>
-                            </label>
-                        </div>
-                        <div class="setting-card" style="margin-top: 1rem;">
-                            <label for="minkoSrvMessage" style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Сообщение при отключении</label>
-                            <textarea id="minkoSrvMessage" class="filter-input" rows="3" style="width: 100%; max-width: 40rem; resize: vertical;" placeholder="Например: Технические работы, вернёмся через час 💤"></textarea>
-                        </div>
-                        <div class="setting-card" style="margin-top: 1rem;">
-                            <label for="minkoSrvSearchProvider" style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Поисковик для фактов Minko</label>
-                            <p class="admin-inline-hint" style="margin: 0 0 0.5rem; max-width: 40rem;">
-                                Чтобы сверить качество: <strong>Авто</strong> (SearchX → бесплатный scrape → Tavily только после лимита),
-                                <strong>Только бесплатный</strong> (без Tavily), <strong>Только Tavily</strong>.
-                            </p>
-                            <select id="minkoSrvSearchProvider" class="filter-input" style="max-width: 22rem;">
-                                <option value="auto">Авто (экономно)</option>
-                                <option value="free">Только бесплатный (SearchX / scrape)</option>
-                                <option value="tavily">Только Tavily</option>
-                            </select>
-                        </div>
-                        <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
-                            <button type="button" class="admin-btn" id="minkoSrvSaveBtn">💾 Сохранить состояние</button>
-                        </div>
-                        <p id="minkoSrvSaveStatus" class="admin-inline-hint" style="margin-top: 0.75rem;"></p>
-                    </div>
-                </div>
-
-                <div class="admin-tab-content" id="tabGiveaway">
-                    <div class="admin-section">
-                        <h2>🎁 Розыгрыш — итоги</h2>
-                        <p class="admin-inline-hint" style="max-width: 42rem; line-height: 1.55;">
-                            Публичный набор участников закрыт. На сайте (Инфо → Розыгрыш) — благодарность и победители:
-                            <strong>s1ckle</strong> (TikTok @re.zero.865) и <strong>2 победителя</strong>, попросившие анонимность.
-                        </p>
-                        <p class="admin-inline-hint" style="max-width: 42rem; line-height: 1.55; margin-top: 0.75rem;">
-                            Старая таблица участников в интерфейсе отключена. Данные в Supabase при необходимости можно смотреть через SQL.
-                        </p>
-                        <div id="giveawayAdminSummary" class="admin-giveaway-summary" hidden></div>
-                        <button type="button" class="admin-btn" id="giveawayAdminRefreshBtn" hidden>Обновить</button>
-                        <span id="giveawayAdminStatus" class="admin-inline-hint" hidden></span>
-                        <table class="users-table" id="giveawayAdminTable" hidden>
-                            <tbody id="giveawayAdminTableBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- ≈4K каталог -->
-                <div class="admin-tab-content" id="tabAnime4k">
-                    <div class="admin-section anime4k-admin">
-                        <header class="anime4k-admin__header">
-                            <div>
-                                <h2 class="anime4k-admin__title">≈4K каталог</h2>
-                                <p class="anime4k-admin__subtitle">
-                                    Отдельный каталог и плеер. ID на сайте = <strong>22&nbsp;000&nbsp;000 + MAL</strong>.
-                                    Видео — прямая ссылка MP4 (Bunny CDN, R2) или Supabase Storage.
-                                </p>
-                            </div>
-                            <div class="anime4k-admin__header-actions">
-                                <span id="anime4kAdminStatus" class="anime4k-admin__status" aria-live="polite"></span>
-                                <button type="button" class="admin-btn admin-btn-small" id="anime4kAdminRefreshBtn">Обновить</button>
-                            </div>
-                        </header>
-
-                        <div class="anime4k-admin__layout">
-                            <aside class="anime4k-admin__list-panel">
-                                <div class="anime4k-admin__list-head">
-                                    <h3>Тайтлы</h3>
-                                    <span id="anime4kAdminCount" class="anime4k-admin__count">0</span>
-                                </div>
-                                <div class="anime4k-admin__search">
-                                    <label class="anime4k-admin__field-label" for="anime4kAdminTitleSearch">Поиск id по названию</label>
-                                    <div class="anime4k-admin__search-row">
-                                        <input type="search" id="anime4kAdminTitleSearch" class="admin-input" placeholder="Человек-бензопила, Re:Zero…" autocomplete="off" enterkeyhint="search">
-                                        <button type="button" class="admin-btn admin-btn-small" id="anime4kAdminTitleSearchBtn">Найти</button>
-                                    </div>
-                                    <p class="anime4k-admin__search-hint">Jikan + Shikimori · MAL id и site id (22&nbsp;000&nbsp;000 + MAL) для поля ниже</p>
-                                    <div id="anime4kAdminSearchResults" class="anime4k-admin__search-results" hidden></div>
-                                </div>
-                                <div class="anime4k-admin__quick-add">
-                                    <label class="anime4k-admin__field-label" for="anime4kAdminMalInput">Новый MAL id</label>
-                                    <div class="anime4k-admin__quick-add-row">
-                                        <input type="number" id="anime4kAdminMalInput" class="admin-input" placeholder="62352" min="1" step="1">
-                                        <button type="button" class="admin-btn admin-btn-small" id="anime4kAdminFetchJikanBtn" title="Jikan → карточка">+ Jikan</button>
-                                        <button type="button" class="admin-btn admin-btn-small" id="anime4kAdminFetchFallbackBtn" title="Shikimori / Kodik">+ без Jikan</button>
-                                    </div>
-                                </div>
-                                <div id="anime4kAdminList" class="anime4k-admin__list">
-                                    <p class="anime4k-admin__empty">Загрузка…</p>
-                                </div>
-                            </aside>
-
-                            <section class="anime4k-admin__editor" id="anime4kAdminEditor">
-                                <div class="anime4k-admin__editor-empty" id="anime4kAdminEditorEmpty">
-                                    <p>Выберите тайтл слева или добавьте по MAL id.</p>
-                                </div>
-                                <form class="anime4k-admin__editor-form" id="anime4kAdminEditorForm" hidden>
-                                    <div class="anime4k-admin__editor-top">
-                                        <div class="anime4k-admin__ids">
-                                            <span class="anime4k-admin__badge">MAL <strong id="anime4kEditorMal">—</strong></span>
-                                            <span class="anime4k-admin__badge">Site id <strong id="anime4kEditorSiteId">—</strong></span>
-                                            <span class="anime4k-admin__badge anime4k-admin__badge--meta" id="anime4kEditorMetaSource"></span>
-                                        </div>
-                                        <div class="anime4k-admin__editor-links">
-                                            <a href="#" target="_blank" rel="noopener" id="anime4kEditorViewLink" class="anime4k-admin__link">Страница ≈4K</a>
-                                            <a href="#" target="_blank" rel="noopener" id="anime4kEditorCatalogLink" class="anime4k-admin__link">Каталог</a>
-                                        </div>
-                                    </div>
-
-                                    <div class="anime4k-admin__editor-grid">
-                                        <div class="anime4k-admin__editor-main">
-                                            <label class="anime4k-admin__field">
-                                                <span class="anime4k-admin__field-label">Название (RU) — на сайте</span>
-                                                <input type="text" id="anime4kEditorTitleRu" class="admin-input" placeholder="Человек-бензопила: …" maxlength="240">
-                                            </label>
-                                            <p class="anime4k-admin__field-hint" id="anime4kEditorTitleEn">EN: —</p>
-                                            <label class="anime4k-admin__field">
-                                                <span class="anime4k-admin__field-label">Описание (RU)</span>
-                                                <textarea id="anime4kEditorDescRu" class="admin-input anime4k-admin__textarea" rows="8" placeholder="Текст на странице просмотра…"></textarea>
-                                            </label>
-                                        </div>
-                                        <div class="anime4k-admin__editor-side">
-                                            <div class="anime4k-admin__poster-wrap">
-                                                <img id="anime4kEditorPosterPreview" class="anime4k-admin__poster" alt="" hidden>
-                                                <div id="anime4kEditorPosterPh" class="anime4k-admin__poster-ph">Постер</div>
-                                            </div>
-                                            <label class="anime4k-admin__field">
-                                                <span class="anime4k-admin__field-label">URL постера</span>
-                                                <input type="url" id="anime4kEditorPosterUrl" class="admin-input" placeholder="https://…/poster.jpg">
-                                            </label>
-                                            <label class="anime4k-admin__field">
-                                                <span class="anime4k-admin__field-label">URL видео MP4</span>
-                                                <input type="url" id="anime4kEditorVideoUrl" class="admin-input" placeholder="https://….b-cdn.net/….mp4">
-                                            </label>
-                                            <label class="anime4k-admin__check">
-                                                <input type="checkbox" id="anime4kEditorPublished" checked>
-                                                <span>Опубликовано в каталоге ≈4K</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div class="anime4k-admin__editor-actions">
-                                        <button type="button" class="admin-btn" id="anime4kAdminSaveEditorBtn">Сохранить карточку</button>
-                                        <button type="button" class="admin-btn admin-btn-small" id="anime4kAdminRefreshMetaBtn">Обновить из Jikan / Shiki</button>
-                                        <button type="button" class="admin-btn admin-btn-small admin-btn-danger" id="anime4kAdminDeleteEditorBtn">Удалить</button>
-                                    </div>
-                                </form>
-                            </section>
-                        </div>
-
-                        <details class="anime4k-admin__details">
-                            <summary>Загрузка MP4 в Supabase Storage (до <span id="anime4kAdminMaxUploadLabel">50 MB</span>)</summary>
-                            <div class="anime4k-admin__details-body">
-                                <p class="admin-inline-hint anime4k-admin__warn">
-                                    Для файлов <strong>5 GB</strong> используйте <strong>Bunny.net</strong> или R2 — вставьте CDN-ссылку в поле «URL видео» выше.
-                                    Supabase Free не примет большой MP4.
-                                </p>
-                                <p class="admin-inline-hint" id="anime4kAdminFileHint">H.264 + AAC. MAL id берётся из выбранной карточки.</p>
-                                <div class="anime4k-admin__upload-row">
-                                    <input type="file" id="anime4kAdminFileInput" accept="video/mp4,video/webm">
-                                    <button type="button" class="admin-btn" id="anime4kAdminUploadBtn">Загрузить в Storage</button>
-                                </div>
-                                <div class="anime4k-admin-upload-progress" id="anime4kAdminUploadProgress" hidden>
-                                    <div class="anime4k-admin-upload-progress__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                                        <div class="anime4k-admin-upload-progress__bar" id="anime4kAdminUploadProgressBar"></div>
-                                    </div>
-                                    <p class="anime4k-admin-upload-progress__text" id="anime4kAdminUploadProgressText">0%</p>
-                                </div>
-                            </div>
-                        </details>
-                    </div>
-                </div>
-
                 <!-- Настройки сайта -->
                 <div class="admin-tab-content" id="tabSettings">
                     <div class="admin-section">
@@ -592,15 +374,6 @@
                         </div>
                         <p id="settingsChatAutomodStatus" class="admin-inline-hint" style="margin-top: 0.75rem;"></p>
                     </div>
-
-                    <div class="admin-section">
-                        <h2>Уведомления пользователям</h2>
-                        <p class="admin-inline-hint" style="max-width: 52rem; line-height: 1.5;">
-                            Рассылка в колокольчик и тосты на сайте — на отдельной вкладке.
-                        </p>
-                        <button type="button" class="admin-btn admin-btn-secondary" id="settingsGoNotificationsBtn">Перейти к уведомлениям</button>
-                    </div>
-
                     <div class="admin-section">
                         <h2>Служебная информация</h2>
                         <div class="setting-card" style="margin-top: 1rem;">
@@ -629,7 +402,6 @@
 
                         <div class="admin-tests-subtabs" role="tablist" aria-label="Разделы тестов">
                             <button type="button" class="admin-tests-subtab active" data-test-tab="mobile" aria-selected="true">Мобильный вид</button>
-                            <button type="button" class="admin-tests-subtab" data-test-tab="minkoEdit" aria-selected="false">Minko Edit</button>
                         </div>
 
                         <section class="admin-tests-panel active" id="testPanelMobile" data-test-panel="mobile">
@@ -736,41 +508,10 @@
                                                     <span>ТВ-1</span><span>OVA</span><span>ТВ-2</span><span>ТВ-3</span><span>ТВ-4</span>
                                                 </div>
                                             </section>
-
-                                            <section class="mobile-site-view" data-mobile-demo-panel="messages">
-                                                <div class="mobile-site-topbar">
-                                                    <button type="button" class="mobile-site-menu-btn">☰</button>
-                                                    <div>
-                                                        <span>Сообщения</span>
-                                                        <strong>Личные диалоги</strong>
-                                                    </div>
-                                                </div>
-                                                <div class="mobile-dialog-list">
-                                                    <button type="button"><span>D</span><strong>dubina</strong><small>Новый ответ по сайту</small></button>
-                                                    <button type="button"><span>M</span><strong>Minko AI</strong><small>Подборка готова</small></button>
-                                                </div>
-                                            </section>
-
-                                            <section class="mobile-site-view" data-mobile-demo-panel="profile">
-                                                <div class="mobile-profile-card">
-                                                    <div class="mobile-profile-avatar">M</div>
-                                                    <strong>Мой профиль</strong>
-                                                    <span>История, избранное, друзья, настройки</span>
-                                                </div>
-                                                <div class="mobile-profile-grid">
-                                                    <button type="button">Избранное</button>
-                                                    <button type="button">История</button>
-                                                    <button type="button">Друзья</button>
-                                                    <button type="button">Настройки</button>
-                                                </div>
-                                            </section>
                                         </div>
                                         <nav class="mobile-site-bottom-nav" aria-label="Навигация мобильного макета">
                                             <button type="button" class="active" data-mobile-demo-tab="home">⌂<span>Главная</span></button>
                                             <button type="button" data-mobile-demo-tab="catalog">▦<span>Каталог</span></button>
-                                            <button type="button" data-mobile-demo-tab="search">⌕<span>Поиск</span></button>
-                                            <button type="button" data-mobile-demo-tab="messages">✉<span>ЛС</span></button>
-                                            <button type="button" data-mobile-demo-tab="profile">☻<span>Профиль</span></button>
                                         </nav>
                                     </div>
                                     <div class="tablet-frame">
@@ -799,7 +540,7 @@
                                 </article>
                                 <article class="mobile-design-card">
                                     <h4>Навигация</h4>
-                                    <p>На телефоне боковое меню заменяется нижней панелью: главная, поиск, смотреть, сообщения, профиль.</p>
+                                    <p>На телефоне боковое меню заменяется нижней панелью: главная и каталог аниме.</p>
                                 </article>
                             </div>
 
@@ -812,77 +553,6 @@
                                     <li>Оптимизировать страницу просмотра: липкий плеер, крупные кнопки серий, меньше длинных блоков подряд.</li>
                                     <li>Проверить планшеты отдельно: там лучше оставить боковое меню, но сделать контент шире и сетки плотнее.</li>
                                 </ol>
-                            </div>
-                        </section>
-
-                        <section class="admin-tests-panel" id="testPanelMinkoEdit" data-test-panel="minkoEdit" hidden>
-                            <div class="minko-edit-creator" id="minkoEditCreatorViewInTests">
-                                <header class="minko-edit-creator-head">
-                                    <p class="minko-edit-creator-kicker">Перенесено в Тесты</p>
-                                    <h2>Minko Edit — шаблон коротких видео</h2>
-                                    <p>Вертикальная лента как в TikTok, но внутри Re-Minko: аниме-эдиты, лайки, сохранения, комментарии, подборки и переход к тайтлу.</p>
-                                </header>
-
-                                <div class="minko-edit-creator-layout">
-                                    <section class="minko-edit-phone-mock" aria-label="Превью ленты Minko Edit">
-                                        <div class="minko-edit-phone-top">
-                                            <span class="active">Для вас</span>
-                                            <span>Подписки</span>
-                                        </div>
-                                        <div class="minko-edit-phone-video">
-                                            <div class="minko-edit-video-gradient"></div>
-                                            <div class="minko-edit-video-caption">
-                                                <strong>@akira.editz</strong>
-                                                <p>AMV: Solo Leveling x Night Drive</p>
-                                                <small>#amv #sololeveling #edits</small>
-                                            </div>
-                                            <div class="minko-edit-video-actions">
-                                                <button type="button">❤️<span>12.4K</span></button>
-                                                <button type="button">💬<span>842</span></button>
-                                                <button type="button">🔖<span>3.1K</span></button>
-                                                <button type="button">↗<span>Поделиться</span></button>
-                                            </div>
-                                        </div>
-                                        <div class="minko-edit-phone-bottom">
-                                            <span>🏠</span><span>🔍</span><span class="plus">＋</span><span>🔔</span><span>👤</span>
-                                        </div>
-                                    </section>
-
-                                    <section class="minko-edit-creator-grid">
-                                        <article class="minko-edit-creator-card">
-                                            <h3>Функционал ленты</h3>
-                                            <ul>
-                                                <li>Свайп вверх/вниз, автоплей, бесконечный фид.</li>
-                                                <li>Привязка ролика к аниме, сезону и эпизоду.</li>
-                                                <li>Кнопка «Смотреть тайтл» прямо из видео.</li>
-                                            </ul>
-                                        </article>
-                                        <article class="minko-edit-creator-card">
-                                            <h3>Кабинет публикации</h3>
-                                            <ul>
-                                                <li>Загрузка видео, превью и обложки.</li>
-                                                <li>Описание, хэштеги, музыка/звук, отметка спойлера.</li>
-                                                <li>Планировщик публикаций и черновики.</li>
-                                            </ul>
-                                        </article>
-                                        <article class="minko-edit-creator-card">
-                                            <h3>Ваш контроль</h3>
-                                            <ul>
-                                                <li>Жёсткая модерация: скрыть, удалить, ограничить автора.</li>
-                                                <li>Режимы доступа: только creator / beta / public.</li>
-                                                <li>Лимиты на длину, вес и тип файла.</li>
-                                            </ul>
-                                        </article>
-                                        <article class="minko-edit-creator-card">
-                                            <h3>Аналитика</h3>
-                                            <ul>
-                                                <li>Досмотры 25/50/95%, удержание и повторные просмотры.</li>
-                                                <li>Топ роликов, топ авторов, топ звуков за период.</li>
-                                                <li>Сигналы в рекомендации по интересам пользователя.</li>
-                                            </ul>
-                                        </article>
-                                    </section>
-                                </div>
                             </div>
                         </section>
                     </div>
@@ -899,8 +569,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.94.0"></script>
     <script src="scripts/supabase-config.js?v=20260728visit2"></script>
     <script src="scripts/creator-privileges.js"></script>
-    <script src="scripts/direct-messages.js"></script>
-    <script src="scripts/oauth-auth.js"></script>
+<script src="scripts/oauth-auth.js"></script>
     <script src="scripts/oauth-profile-setup.js?v=20260727security3"></script>
     <script src="scripts/utils.js?v=20260727wheel1"></script>
     <script src="scripts/utils-notifications.js"></script>
@@ -917,8 +586,7 @@
     <script src="scripts/shikimori-api.js"></script>
     <script src="scripts/admin-panel.js"></script>
     <script src="scripts/admin-panel-creator.js?v=20260724e"></script>
-    <script src="scripts/ai-subscription.js"></script>
-    <script src="scripts/loading.js"></script>
+<script src="scripts/loading.js"></script>
     <script src="scripts/admin-panel-creator-ui.js?v=20260728visit2"></script>
     <script src="scripts/apply-navigation.js?v=20260727nav2"></script>
 </body>

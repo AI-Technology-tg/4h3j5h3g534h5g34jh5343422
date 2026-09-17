@@ -18,9 +18,7 @@ const filesToMinify = [
     'loading.css',
     'register-flow.css',
     'catalog.css',
-    'anime-view.css',
-    'profile.css',
-    'live2d-widget.css'
+    'anime-view.css'
 ];
 
 function minifyFile(filePath, outputPath) {

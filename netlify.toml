@@ -94,6 +94,16 @@
   status = 301
 
 [[redirects]]
+  from = "/favorites.html"
+  to = "/catalog/anime.html"
+  status = 301
+
+[[redirects]]
+  from = "/history.html"
+  to = "/index.html"
+  status = 301
+
+[[redirects]]
   from = "/favorites-manga.html"
   to = "/catalog/anime.html"
   status = 301

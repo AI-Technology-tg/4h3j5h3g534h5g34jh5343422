@@ -20,8 +20,6 @@ test.describe('mobile device contract', () => {
             for (const route of [
                 '/',
                 '/catalog/anime.html',
-                '/favorites.html',
-                '/history.html',
                 '/reset-password.html'
             ]) {
                 await openRoute(page, route, 'white');
@@ -160,22 +158,6 @@ test.describe('mobile device contract', () => {
             );
         expect(ranges.length).toBeGreaterThan(0);
         expect(ranges.every((height) => height >= 44)).toBeTruthy();
-
-        await openRoute(page, '/history.html', 'white');
-        await page.evaluate(() => {
-            const list = document.querySelector('.watch-history-list');
-            if (!list) return;
-            list.innerHTML = `
-                <article class="watch-history-item">
-                    <div class="watch-history-poster"></div>
-                    <div class="watch-history-info">
-                        <div class="watch-history-title">${'ОченьДлинноеНазваниеБезПробелов'.repeat(12)}</div>
-                    </div>
-                </article>
-            `;
-        });
-        let layout = await readLayout(page);
-        expect(layout.rootOverflow).toBeLessThanOrEqual(1);
     });
 
     test('reduced motion отключает декоративные анимации', async ({ page }, testInfo) => {
