@@ -5,6 +5,7 @@
  * GET  ?action=ping
  * GET  ?action=memory
  * POST ?action=lookup     { said }
+ * POST ?action=correct    { said }
  * POST ?action=remember   { said, intent, section, title }
  * POST ?action=chat       { model, temperature, max_tokens, messages }
  * POST ?action=transcribe { wavBase64 }
@@ -103,18 +104,34 @@ async function requireDevice(event, body = {}) {
 const SHARED_SEED = [
   { said: 'открой каталог', intent: 'OpenSection', section: 'catalog' },
   { said: 'покажи каталог', intent: 'OpenSection', section: 'catalog' },
+  { said: 'каталог', intent: 'OpenSection', section: 'catalog' },
+  { said: 'в каталог', intent: 'OpenSection', section: 'catalog' },
+  { said: 'открой аниме', intent: 'OpenSection', section: 'catalog' },
   { said: 'открой мангу', intent: 'OpenSection', section: 'manga' },
   { said: 'покажи мангу', intent: 'OpenSection', section: 'manga' },
+  { said: 'манга', intent: 'OpenSection', section: 'manga' },
   { said: 'открой календарь', intent: 'OpenSection', section: 'calendar' },
   { said: 'покажи календарь', intent: 'OpenSection', section: 'calendar' },
+  { said: 'календарь', intent: 'OpenSection', section: 'calendar' },
   { said: 'открой главную', intent: 'OpenSection', section: 'home' },
   { said: 'на главную', intent: 'OpenSection', section: 'home' },
+  { said: 'главная', intent: 'OpenSection', section: 'home' },
+  { said: 'домой', intent: 'OpenSection', section: 'home' },
   { said: 'открой чат', intent: 'OpenSection', section: 'ai' },
+  { said: 'открой минко', intent: 'OpenSection', section: 'ai' },
+  { said: 'чат', intent: 'OpenSection', section: 'ai' },
   { said: 'открой друзей', intent: 'OpenSection', section: 'friends' },
+  { said: 'друзья', intent: 'OpenSection', section: 'friends' },
   { said: 'открой настройки', intent: 'OpenSection', section: 'settings' },
+  { said: 'настройки', intent: 'OpenSection', section: 'settings' },
   { said: 'открой профиль', intent: 'OpenSection', section: 'profile' },
+  { said: 'профиль', intent: 'OpenSection', section: 'profile' },
   { said: 'открой комнаты', intent: 'OpenSection', section: 'party' },
-  { said: 'случайное аниме', intent: 'RandomAnime', section: null }
+  { said: 'комнаты', intent: 'OpenSection', section: 'party' },
+  { said: 'открой вип', intent: 'OpenSection', section: 'vip' },
+  { said: 'случайное аниме', intent: 'RandomAnime', section: null },
+  { said: 'случайное', intent: 'RandomAnime', section: null },
+  { said: 'рандом', intent: 'RandomAnime', section: null }
 ];
 
 let seedPromise = null;
@@ -131,6 +148,30 @@ function tokens(value) {
   return normalizeSaid(value).split(/\s+/).filter((item) => item.length >= 3);
 }
 
+function levenshtein(left, right) {
+  if (left === right) return 0;
+  if (!left.length) return right.length;
+  if (!right.length) return left.length;
+  const prev = Array.from({ length: right.length + 1 }, (_, i) => i);
+  const next = new Array(right.length + 1);
+  for (let i = 1; i <= left.length; i += 1) {
+    next[0] = i;
+    for (let j = 1; j <= right.length; j += 1) {
+      const cost = left[i - 1] === right[j - 1] ? 0 : 1;
+      next[j] = Math.min(next[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    for (let j = 0; j <= right.length; j += 1) prev[j] = next[j];
+  }
+  return prev[right.length];
+}
+
+function tokenClose(left, right) {
+  if (!left || !right) return false;
+  if (left === right) return true;
+  if (left.length >= 4 && right.length >= 4 && (left.includes(right) || right.includes(left))) return true;
+  return Math.min(left.length, right.length) >= 5 && levenshtein(left, right) <= 2;
+}
+
 function closePhrase(text, phrase) {
   const left = normalizeSaid(text);
   const right = normalizeSaid(phrase);
@@ -140,16 +181,22 @@ function closePhrase(text, phrase) {
   if (right.startsWith(left) && left.length >= (right.length * 4) / 5) return true;
   const leftTokens = tokens(left);
   const rightTokens = tokens(right);
-  return (
-    rightTokens.length > 0 &&
-    rightTokens.every((item) =>
-      leftTokens.some((token) => token === item || token.includes(item) || item.includes(token))
-    )
-  );
+  if (!leftTokens.length || !rightTokens.length) return false;
+  const rightInLeft = rightTokens.every((item) => leftTokens.some((token) => tokenClose(token, item)));
+  const leftInRight = leftTokens.every((item) => rightTokens.some((token) => tokenClose(token, item)));
+  return rightInLeft || leftInRight;
 }
 
 function findClose(items, said) {
-  return (items || []).find((item) => closePhrase(said, item.said)) || null;
+  const hits = (items || []).filter(
+    (item) =>
+      closePhrase(said, item.said) ||
+      closePhrase(item.said, said) ||
+      (item.title && (closePhrase(said, item.title) || closePhrase(item.title, said)))
+  );
+  if (!hits.length) return null;
+  hits.sort((a, b) => Number(Boolean(b.title)) - Number(Boolean(a.title)) || b.said.length - a.said.length);
+  return hits[0];
 }
 
 async function ensureSharedSeed() {
@@ -201,7 +248,7 @@ function mapMemoryRow(row) {
 async function getMemory(hash) {
   const rows = await supabaseRequest(
     `/rest/v1/desktop_minko_memory?or=(device_hash.eq.shared,device_hash.eq.${encodeURIComponent(hash)})` +
-      `&kind=eq.voice-command&select=said,intent,section,title,hits,payload,scope,updated_at&limit=200`
+      `&kind=eq.voice-command&select=said,intent,section,title,hits,payload,scope,updated_at&limit=400`
   );
   return Array.isArray(rows) ? rows.map(mapMemoryRow) : [];
 }
@@ -266,6 +313,134 @@ async function remember(hash, body) {
   }
 
   return json(200, { ok: true, existed: false });
+}
+
+const ALLOWED_INTENTS = new Set(['OpenSection', 'FindAnime', 'RandomAnime']);
+const ALLOWED_SECTIONS = new Set([
+  'catalog',
+  'manga',
+  'calendar',
+  'home',
+  'ai',
+  'friends',
+  'settings',
+  'profile',
+  'party',
+  'vip'
+]);
+
+async function saveCommand(hash, said, intent, section, title) {
+  const existing = findClose(await getMemory(hash), said);
+  if (existing) {
+    return {
+      said: existing.said,
+      intent: existing.intent,
+      section: existing.section,
+      title: existing.title || title || null
+    };
+  }
+  const now = new Date().toISOString();
+  const row = {
+    device_hash: hash,
+    scope: 'device',
+    kind: 'voice-command',
+    said,
+    intent,
+    section,
+    title,
+    hits: 1,
+    payload: {},
+    updated_at: now
+  };
+  await insertMemory(row);
+  await insertMemory({ ...row, device_hash: 'shared', scope: 'shared' });
+  return { said, intent, section, title, hits: 1 };
+}
+
+async function correctWithOpenAi(said) {
+  const response = await fetchWithTimeout(
+    'https://api.openai.com/v1/chat/completions',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${OPENAI_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: CHAT_MODEL,
+        temperature: 0,
+        max_tokens: 180,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Нормализуй голосовую команду приложения Re-Minko. Верни только JSON ' +
+              '{"intent":"OpenSection|FindAnime|RandomAnime|None","section":"catalog|manga|calendar|home|ai|friends|settings|profile|party|vip|null","title":"каноническое название или null","canonical":"правильная короткая фраза","alias":"как сказал пользователь"}. ' +
+              'Если это поиск аниме с опечаткой, title должно быть правильным известным названием: «атака киканов» → «Атака титанов». ' +
+              'Исполнять нужно исправленный тайтл, не сырую опечатку. Не выдумывай неизвестные названия.'
+          },
+          { role: 'user', content: said }
+        ]
+      })
+    },
+    16000
+  );
+  if (!response.ok) return null;
+  const payload = await readJsonWithLimit(response, 64 * 1024, 4000);
+  const text = String(payload?.choices?.[0]?.message?.content || '');
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[0]);
+    const intent = safeText(parsed.intent, 40);
+    if (!ALLOWED_INTENTS.has(intent)) return null;
+    const section = parsed.section ? safeText(parsed.section, 40) : null;
+    if (intent === 'OpenSection' && !ALLOWED_SECTIONS.has(section || '')) return null;
+    const title =
+      intent === 'FindAnime' ? safeText(parsed.title || parsed.canonical || '', 80) : null;
+    if (intent === 'FindAnime' && (!title || title.length < 2)) return null;
+    return {
+      intent,
+      section: intent === 'OpenSection' ? section : null,
+      title,
+      canonical: normalizeSaid(safeText(parsed.canonical || title || said, 80)),
+      alias: normalizeSaid(safeText(parsed.alias || said, 80))
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+async function correct(hash, rawSaid) {
+  const said = normalizeSaid(safeText(rawSaid, 80));
+  if (said.length < 3) return json(400, { error: 'invalid_entry' });
+  const existing = await lookup(hash, said);
+  if (existing) return json(200, { item: existing, existed: true });
+  if (!OPENAI_KEY) return json(200, { item: null, existed: false });
+
+  const parsed = await correctWithOpenAi(said);
+  if (!parsed) return json(200, { item: null, existed: false });
+
+  if (parsed.alias) {
+    await saveCommand(hash, parsed.alias, parsed.intent, parsed.section, parsed.title);
+  }
+  const item = await saveCommand(
+    hash,
+    parsed.canonical || parsed.title || said,
+    parsed.intent,
+    parsed.section,
+    parsed.title
+  );
+  return json(200, {
+    item: {
+      said: parsed.canonical || item.said,
+      intent: parsed.intent,
+      section: parsed.section,
+      title: parsed.title
+    },
+    existed: false,
+    corrected: true
+  });
 }
 
 async function proxyChat(body) {
@@ -355,6 +530,12 @@ exports.handler = async (event) => {
     if (action === 'lookup' && event.httpMethod === 'POST') {
       const item = await lookup(gate.hash, body.said || '');
       return json(200, { item });
+    }
+
+    if (action === 'correct' && event.httpMethod === 'POST') {
+      const limit = await consumeRateLimit('desktop-minko-correct', gate.hash, 60, 3600);
+      if (!limit.allowed) return json(429, { error: 'rate_limited' });
+      return correct(gate.hash, body.said || '');
     }
 
     if (action === 'remember' && event.httpMethod === 'POST') {
