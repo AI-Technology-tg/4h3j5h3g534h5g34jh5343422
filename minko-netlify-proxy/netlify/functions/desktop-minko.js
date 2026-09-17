@@ -429,32 +429,54 @@ async function saveCommand(hash, said, intent, section, title) {
   return { said, intent, section, title, hits: 1 };
 }
 
-function snapTitle(title, candidates) {
-  const wanted = normalizeSaid(title);
+function spokenWantsSeason(said) {
+  const text = normalizeSaid(said);
+  return /\b(сезон|season|часть|part|финал|final)\b/.test(text)
+    || /\b(?:тв|tv)\s*[1-8]\b/.test(text)
+    || /\b[1-8]\s*$/.test(text)
+    || /\b(один|одна|два|две|двое|три|трое|четыре|пять)\s*$/.test(text);
+}
+
+function franchiseName(title) {
+  let value = safeText(title, 80);
+  value = value.replace(/\s*[\[(][^\]\)]*[)\]]/g, ' ');
+  value = value.replace(/\s+[—–−-]\s+.*$/, ' ');
+  value = normalizeSaid(value);
+  value = value.replace(/\s+\b(тв|tv|season|сезон|часть|part|ova|ona|фильм|movie|финал|final)\b\s*\d*\s*$/gi, ' ');
+  value = value.replace(/\b[1-8]\s*$/g, ' ');
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function snapTitle(title, candidates, said) {
+  const wanted = franchiseName(title) || normalizeSaid(title);
   if (!wanted) return '';
+  const raw = safeText(title, 80);
   const list = (candidates || []).map((item) => safeText(item, 80)).filter(Boolean);
-  if (!list.length) return safeText(title, 80);
-  const exact = list.find((item) => normalizeSaid(item) === wanted);
-  if (exact) return exact;
-  let best = list[0];
+  if (!list.length) return spokenWantsSeason(said) ? raw : franchiseName(raw) || raw;
+  const exact = list.find((item) => normalizeSaid(item) === normalizeSaid(raw) || franchiseName(item) === wanted);
+  if (exact) return spokenWantsSeason(said) ? exact : franchiseName(exact) || exact;
+
+  let best = '';
   let bestDist = 99;
   for (const item of list) {
-    const dist = levenshtein(wanted, normalizeSaid(item));
+    const name = franchiseName(item) || normalizeSaid(item);
+    const dist = levenshtein(wanted, name);
     if (dist < bestDist) {
-      best = item;
+      best = spokenWantsSeason(said) ? item : name || item;
       bestDist = dist;
     }
   }
-  return bestDist <= 8 ? best : '';
+  if (bestDist <= 6) return best;
+  return spokenWantsSeason(said) ? raw : wanted || raw;
 }
 
 async function correctWithOpenAi(said, candidates) {
-  const list = (candidates || []).map((item) => safeText(item, 80)).filter(Boolean).slice(0, 28);
+  const list = [...new Set((candidates || []).map((item) => franchiseName(item) || safeText(item, 80)).filter(Boolean))].slice(0, 24);
   const catalogBlock = list.length
-    ? `Если это поиск аниме, title возьми ТОЛЬКО из списка каталога, буква в букву:\n${list
+    ? `Подсказки из каталога (это франшизы, не сезоны). Можешь взять ближайшее имя или короткое официальное русское название, даже если формулировка чуть другая:\n${list
         .map((item, index) => `${index + 1}. ${item}`)
-        .join('\n')}\nЕсли ничего не подходит — intent None.`
-    : 'Если это поиск аниме, верни официальное название. Не выдумывай редкие тайтлы.';
+        .join('\n')}`
+    : 'Верни короткое официальное русское название тайтла. Не выдумывай редкие тайтлы.';
   const response = await fetchWithTimeout(
     'https://api.openai.com/v1/chat/completions',
     {
@@ -466,17 +488,19 @@ async function correctWithOpenAi(said, candidates) {
       body: JSON.stringify({
         model: CHAT_MODEL,
         temperature: 0,
-        max_tokens: 180,
+        max_tokens: 220,
         messages: [
           {
             role: 'system',
             content:
-              'Нормализуй голосовую команду приложения Re-Minko. Верни только JSON ' +
+              'Нормализуй голосовую команду приложения Re-Minko. Распознавание речи может быть кривым — сначала восстанови, что человек хотел сказать. Верни только JSON ' +
               '{"intent":"OpenSection|FindAnime|RandomAnime|None","section":"catalog|manga|calendar|home|ai|friends|settings|profile|party|vip|null","title":"каноническое название или null","canonical":"правильная короткая фраза","alias":"как сказал пользователь"}. ' +
-              'Кашу в названии превращай в официальный тайтл. Исполнять нужно исправленное название, не сырую опечатку. ' +
+              'Для поиска аниме title — короткое официальное имя БЕЗ сезона, части, OVA, фильма и подзаголовка после тире, если пользователь сам не назвал номер сезона, часть или финал. ' +
+              'Пример: «кагуя» → «госпожа кагуя в любви как на войне», не третий сезон и не спин-офф. «записки аптекаря» → «записки аптекаря», не «аптека в другом мире». ' +
+              'Исполнять нужно исправленное имя для поиска, не сырую опечатку. ' +
               catalogBlock
           },
-          { role: 'user', content: said }
+          { role: 'user', content: `Распознанный голос: ${said}` }
         ]
       })
     },
@@ -495,7 +519,7 @@ async function correctWithOpenAi(said, candidates) {
     if (intent === 'OpenSection' && !ALLOWED_SECTIONS.has(section || '')) return null;
     const title =
       intent === 'FindAnime'
-        ? snapTitle(parsed.title || parsed.canonical || '', candidates)
+        ? snapTitle(parsed.title || parsed.canonical || '', candidates, said)
         : null;
     if (intent === 'FindAnime' && (!title || title.length < 2)) return null;
     return {
