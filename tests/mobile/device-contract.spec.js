@@ -20,8 +20,8 @@ test.describe('mobile device contract', () => {
             for (const route of [
                 '/',
                 '/catalog/anime.html',
-                '/profile.html',
-                '/info.html',
+                '/favorites.html',
+                '/history.html',
                 '/reset-password.html'
             ]) {
                 await openRoute(page, route, 'white');
@@ -175,13 +175,6 @@ test.describe('mobile device contract', () => {
             `;
         });
         let layout = await readLayout(page);
-        expect(layout.rootOverflow).toBeLessThanOrEqual(1);
-
-        await openRoute(page, '/catalog/calendar.html', 'white');
-        await page.locator('.calendar-meta').evaluate((meta) => {
-            meta.textContent = 'ДлиннаяСтрокаКалендаряБезПробелов'.repeat(12);
-        });
-        layout = await readLayout(page);
         expect(layout.rootOverflow).toBeLessThanOrEqual(1);
     });
 

@@ -1,71 +1,6 @@
 // Общий компонент навигации для всех страниц
 // Автоматически определяет текущую страницу и применяет активный класс
 
-const REMINKO_ONLINE_BOOST = { min: 49, max: 84 };
-const REMINKO_ONLINE_STORAGE_KEY = 'reminko_online_display_v2';
-const REMINKO_ONLINE_BIAS_KEY = 'reminko_online_bias_v2';
-
-/** Целевое «онлайн» по времени суток — плавно, без рандома на каждый тик. */
-function reminkoComputeBoostedOnlineTarget(date = new Date()) {
-    const { min, max } = REMINKO_ONLINE_BOOST;
-    const hour = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
-    const t = date.getTime();
-
-    const eveningPeak = Math.exp(-Math.pow((hour - 21.2) / 3.4, 2));
-    const afternoon = Math.exp(-Math.pow((hour - 15.5) / 4.2, 2)) * 0.55;
-    const nightDip = Math.exp(-Math.pow((hour - 4.5) / 2.8, 2)) * 0.35;
-    let dayCurve = 0.28 + eveningPeak * 0.52 + afternoon * 0.22 - nightDip * 0.18;
-    dayCurve = Math.max(0.08, Math.min(0.96, dayCurve));
-
-    const dow = date.getDay();
-    const weekend =
-        dow === 6 ? 1.09 : dow === 0 ? 1.06 : dow === 5 ? 1.04 : dow === 4 ? 1.02 : 1;
-
-    const slowWave = Math.sin((t / (1000 * 60 * 41)) * Math.PI * 2) * 0.055;
-    const dayWave = Math.sin((date.getDate() + 1) * 1.73) * 0.03;
-
-    let bias = 0;
-    try {
-        const raw = sessionStorage.getItem(REMINKO_ONLINE_BIAS_KEY);
-        if (raw == null) {
-            bias = Math.floor(Math.random() * 7) - 3;
-            sessionStorage.setItem(REMINKO_ONLINE_BIAS_KEY, String(bias));
-        } else {
-            bias = Number(raw) || 0;
-        }
-    } catch (_) {
-        bias = 0;
-    }
-
-    const norm = Math.max(0, Math.min(1, dayCurve + slowWave + dayWave));
-    let value = min + norm * (max - min) * weekend + bias;
-    return Math.round(Math.max(min, Math.min(max, value)));
-}
-
-function reminkoReadBoostedOnlineDisplay() {
-    try {
-        const raw = sessionStorage.getItem(REMINKO_ONLINE_STORAGE_KEY);
-        const n = Number(raw);
-        if (Number.isFinite(n) && n >= REMINKO_ONLINE_BOOST.min && n <= REMINKO_ONLINE_BOOST.max) return n;
-    } catch (_) {
-        /* ignore */
-    }
-    return null;
-}
-
-function reminkoWriteBoostedOnlineDisplay(n) {
-    try {
-        sessionStorage.setItem(REMINKO_ONLINE_STORAGE_KEY, String(n));
-    } catch (_) {
-        /* ignore */
-    }
-}
-
-function reminkoScheduleBoostedOnlineTick(fn) {
-    const delay = 9000 + Math.floor(Math.random() * 7000);
-    return setTimeout(fn, delay);
-}
-
 class NavigationManager {
     constructor() {
         this.currentPage = this.detectCurrentPage();
@@ -78,29 +13,18 @@ class NavigationManager {
         const filename = path.split('/').pop() || 'index.html';
         
         if (filename === 'index.html' || path.endsWith('/')) return 'home';
-        if (filename.includes('anime-4k.html')) return 'catalog-4k';
         if (filename.includes('anime.html')) return 'catalog';
-        if (filename === 'calendar.html') return 'calendar';
-        if (filename.includes('manga.html')) return 'manga';
-        if (filename === 'profile.html') return 'profile';
         if (filename === 'favorites.html') return 'favorites';
-        if (filename === 'favorites-manga.html') return 'favorites-manga';
         if (filename === 'history.html') return 'history';
         if (filename === 'friends.html') return 'friends';
         if (filename === 'watch-together.html') return 'watch-together';
         if (filename === 'minko-ai.html') return 'ai';
         if (filename === 'minko-edit.html') return 'minko-edit';
         if (filename === 'messages.html') return 'messages';
-        if (filename === 'info.html') return 'info';
         if (filename === 'privacy-policy.html') return 'privacy';
         if (filename === 'terms-of-service.html') return 'terms';
         if (filename === 'admin.html') return 'admin';
-        if (filename.includes('view.html')) {
-            if (path.includes('anime')) return 'anime-view';
-            if (path.includes('manga')) return 'manga-view';
-        }
-        if (filename === 'view-4k.html') return 'anime-view-4k';
-        if (filename === 'reader.html') return 'manga-reader';
+        if (filename.includes('view.html') && path.includes('anime')) return 'anime-view';
         
         return 'home';
     }
@@ -130,12 +54,6 @@ class NavigationManager {
                         <img src="${this.basePath}Fons/fonG.jpg" alt="Re-Minko Logo" class="top-logo-img" width="32" height="32" decoding="async" fetchpriority="high">
                         <span class="top-logo-text">Re-Minko</span>
                     </a>
-                    <div class="top-online-widget" id="topOnlineWidget" title="Сейчас на сайте" aria-live="polite">
-                        <span class="top-online-dot" aria-hidden="true"></span>
-                        <span class="top-online-label">Онлайн</span>
-                        <strong class="top-online-count" id="topOnlineCount">—</strong>
-                    </div>
-                    
                     <div class="top-search-wrapper">
                         <div class="top-search-input-wrapper">
                             <svg class="top-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -163,20 +81,6 @@ class NavigationManager {
                         >
                     </span>
                     <div class="top-nav-actions">
-                        <button class="top-notifications-btn" id="topNotificationsBtn" style="display: none;" title="Уведомления" aria-label="Уведомления">
-                            <svg class="top-notifications-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path d="M12 3c-2.2 0-3.9 1.55-3.9 3.45v.85c0 2.15-1.05 3.9-2.7 4.95-.2.15-.35.4-.4.65-.05.25 0 .5.15.7.15.2.4.35.65.35h12.4c.25 0 .5-.15.65-.35.15-.2.2-.45.15-.7-.05-.25-.2-.5-.4-.65-1.65-1.05-2.7-2.8-2.7-4.95v-.85C15.9 4.55 14.2 3 12 3z" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M10 19a2 2 0 004 0" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
-                            </svg>
-                            <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
-                        </button>
-                        <a href="${this.basePath}profile.html" class="top-nav-link" id="topProfileLink" style="display: none;" data-maint-lock="profile">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="12" cy="7" r="4"></circle>
-                            </svg>
-                            Профиль
-                        </a>
                         <a href="#" class="top-nav-link btn-top-login" id="topLoginBtn">Войти</a>
                         <a href="#" class="top-nav-link btn-top-register" id="topRegisterBtn" data-maint-lock="register">Регистрация</a>
                         <a href="#" class="top-nav-link btn-top-logout" id="topLogoutBtn" style="display: none;">Выйти</a>
@@ -188,12 +92,8 @@ class NavigationManager {
 
     // Проверка, показывать ли фильтры каталога (только в каталогах)
     shouldShowCatalogFilters() {
-        return this.currentPage === 'catalog' || 
-               this.currentPage === 'catalog-4k' ||
-               this.currentPage === 'manga' || 
-               this.currentPage === 'anime-view' || 
-               this.currentPage === 'anime-view-4k' ||
-               this.currentPage === 'manga-view';
+        return this.currentPage === 'catalog' ||
+               this.currentPage === 'anime-view';
     }
 
     // Создание боковой панели
@@ -217,39 +117,11 @@ class NavigationManager {
                         </svg>
                         <span>Каталог аниме</span>
                     </a>
-                    <a href="${this.basePath}catalog/calendar.html" class="sidebar-link ${activeClass('calendar')}" data-page="calendar" data-maint-lock="calendar">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                        <span>Календарь</span>
-                    </a>
-                    <a href="${this.basePath}catalog/anime-4k.html" class="sidebar-link ${activeClass('catalog-4k')} ${activeClass('anime-view-4k')}" data-page="catalog-4k" data-maint-lock="anime_4k">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
-                            <path d="M8 21h8"></path>
-                            <path d="M12 17v4"></path>
-                            <path d="m7 7 3 3 7-7"></path>
-                        </svg>
-                        <span>≈4K каталог</span>
-                    </a>
                     <p class="sidebar-close-note">
                         Сайт больше не развивается. Остались каталог и плееры.
                         <a href="${this.basePath}index.html#homeCloseBanner">Почему</a>
                     </p>
                     <div class="sidebar-divider"></div>
-                    <a href="${this.basePath}info.html" class="sidebar-link ${activeClass('info')}" data-page="info">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <line x1="10" y1="9" x2="8" y2="9"></line>
-                        </svg>
-                        <span>Инфо</span>
-                    </a>
                     <a href="${this.basePath}admin.html" class="sidebar-link sidebar-link-creator ${activeClass('admin')}" id="sidebarCreatorAdminLink" data-page="admin" style="display: none;" title="Панель Создателя" data-maint-lock="admin">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
@@ -318,12 +190,6 @@ class NavigationManager {
         const loadNavScriptOnce = (file) => {
             const src = `${basePath}scripts/${file}`;
             if (navScriptLoads[src]) return navScriptLoads[src];
-            if (file === 'anime4k-catalog-store.js' && window.Anime4kCatalogStore) {
-                return Promise.resolve();
-            }
-            if (file === 'anime4k-data.js' && typeof searchAnime4k === 'function') {
-                return Promise.resolve();
-            }
             navScriptLoads[src] = new Promise((resolve) => {
                 const existing = document.querySelector(`script[src="${src}"]`);
                 if (existing) {
@@ -345,22 +211,6 @@ class NavigationManager {
             return navScriptLoads[src];
         };
 
-        const ensureAnime4kSearchReady = async () => {
-            if (typeof searchAnime4k !== 'function') {
-                if (!window.Anime4kCatalogStore) {
-                    await loadNavScriptOnce('anime4k-catalog-store.js');
-                }
-                await loadNavScriptOnce('anime4k-data.js');
-            }
-            if (typeof window.Anime4kCatalogStore?.load === 'function') {
-                try {
-                    await window.Anime4kCatalogStore.load();
-                } catch (_) {
-                    /* ignore */
-                }
-            }
-        };
-        
         const performSearch = () => {
             const query = topSearchInput.value.trim();
             if (query.length < 2) {
@@ -373,9 +223,9 @@ class NavigationManager {
             window.location.href = `${basePath}catalog/anime.html?search=${encodeURIComponent(query)}`;
         };
         
-        const searchPosterFromCache = (item, isManga) => {
+        const searchPosterFromCache = (item) => {
             if (typeof getPosterFromCacheV3 !== 'function') return null;
-            const type = isManga ? 'manga' : 'anime';
+            const type = 'anime';
             const ph = typeof window.POSTER_PLACEHOLDER === 'string' ? window.POSTER_PLACEHOLDER : '';
             const titles = [item.titleAlt, item.title].filter(Boolean);
             for (const t of titles) {
@@ -398,7 +248,7 @@ class NavigationManager {
                 const title = item.titleAlt || item.title;
                 if (!title) continue;
                 try {
-                    const url = await getPosterFast(title, item._isManga ? 'manga' : 'anime');
+                    const url = await getPosterFast(title, 'anime');
                     if (url && url !== ph) {
                         const img = document.createElement('img');
                         img.className = 'search-item-poster-img';
@@ -437,23 +287,9 @@ class NavigationManager {
                 return;
             }
 
-            await ensureAnime4kSearchReady();
             await ensureKodikCatalogForSearch();
             
-            let defaultAnime = searchAnime(query).slice(0, 10);
-            let anime4kHits = typeof searchAnime4k === 'function' ? searchAnime4k(query).slice(0, 6) : [];
-            
-            // Also search manga if available
-            let mangaResults = [];
-            if (typeof window.searchManga === 'function') {
-                mangaResults = window.searchManga(query).slice(0, 4);
-            }
-
-            const results = [
-                ...anime4kHits.map((a) => ({ ...a, _catalog: '4k', _isAnime4k: true })),
-                ...defaultAnime.map((a) => ({ ...a, _catalog: 'default' })),
-                ...mangaResults.map((m) => ({ ...m, _isManga: true }))
-            ];
+            const results = searchAnime(query).slice(0, 10);
             
             if (results.length === 0) {
                 dropdown.innerHTML = '<div class="search-dropdown-empty">Ничего не найдено</div>';
@@ -463,16 +299,7 @@ class NavigationManager {
             
             dropdown.replaceChildren();
             for (const item of results) {
-                const isManga = item._isManga;
-                const is4k = item._isAnime4k || item.isAnime4k;
-                let href;
-                if (isManga) {
-                    href = `${basePath}manga/view.html?id=${encodeURIComponent(item.id || '')}`;
-                } else if (is4k) {
-                    href = `${basePath}anime/view-4k.html?id=${encodeURIComponent(item.id || '')}`;
-                } else {
-                    href = `${basePath}anime/view.html?id=${encodeURIComponent(item.id || '')}`;
-                }
+                const href = `${basePath}anime/view.html?id=${encodeURIComponent(item.id || '')}`;
                 const generatedGradient =
                     typeof generateGradient === 'function' ? generateGradient(item.id) : '';
                 const gradient =
@@ -480,7 +307,7 @@ class NavigationManager {
                     /^linear-gradient\([^;{}]+\)$/i.test(generatedGradient)
                         ? generatedGradient
                         : 'linear-gradient(135deg, #6366f1, #8b5cf6)';
-                const cached = searchPosterFromCache(item, isManga);
+                const cached = searchPosterFromCache(item);
 
                 const link = document.createElement('a');
                 link.href = href;
@@ -510,10 +337,8 @@ class NavigationManager {
                 title.className = 'search-item-title';
                 title.appendChild(document.createTextNode(String(item.title || 'Без названия')));
                 const badge = document.createElement('span');
-                badge.className = `search-item-badge ${
-                    isManga ? 'badge-manga' : is4k ? 'badge-4k' : 'badge-anime'
-                }`;
-                badge.textContent = isManga ? 'Манга' : is4k ? '≈4K' : 'Каталог';
+                badge.className = 'search-item-badge badge-anime';
+                badge.textContent = 'Каталог';
                 title.appendChild(badge);
 
                 const meta = document.createElement('div');
@@ -537,12 +362,6 @@ class NavigationManager {
                 footer.textContent = label;
                 dropdown.appendChild(footer);
             };
-            if (anime4kHits.length) {
-                appendFooter(
-                    `${basePath}catalog/anime-4k.html?search=${encodeURIComponent(query)}`,
-                    'Все в каталоге ≈4K'
-                );
-            }
             appendFooter(
                 `${basePath}catalog/anime.html?search=${encodeURIComponent(query)}`,
                 'Все в каталоге аниме'
@@ -589,9 +408,7 @@ class NavigationManager {
             return;
         }
         
-        // Определяем, какой каталог - аниме или манга
-        const isManga = this.currentPage === 'manga' || this.currentPage === 'manga-view' || this.currentPage === 'manga-reader';
-        const catalogPath = isManga ? `${this.basePath}catalog/manga.html` : `${this.basePath}catalog/anime.html`;
+        const catalogPath = `${this.basePath}catalog/anime.html`;
         
         const adultHide =
             (typeof window !== 'undefined' && Array.isArray(window.reminkoAdultGenreLabels)
@@ -813,56 +630,12 @@ class NavigationManager {
         }
     }
 
-    initSiteOnlineWidget() {
-        const countEl = document.getElementById('topOnlineCount');
-        if (!countEl) return;
-
-        if (window.__reminkoOnlineWidgetTimer) {
-            clearTimeout(window.__reminkoOnlineWidgetTimer);
-            window.__reminkoOnlineWidgetTimer = null;
-        }
-
-        let displayed = reminkoReadBoostedOnlineDisplay();
-        if (displayed == null) {
-            displayed = reminkoComputeBoostedOnlineTarget();
-            reminkoWriteBoostedOnlineDisplay(displayed);
-        }
-        countEl.textContent = String(displayed);
-
-        const tick = () => {
-            if (!countEl.isConnected) return;
-
-            const target = reminkoComputeBoostedOnlineTarget();
-            const diff = target - displayed;
-
-            if (diff === 0) {
-                if (Math.random() < 0.12) {
-                    const dir = Math.random() < 0.5 ? -1 : 1;
-                    const next = displayed + dir;
-                    if (next >= REMINKO_ONLINE_BOOST.min && next <= REMINKO_ONLINE_BOOST.max) {
-                        displayed = next;
-                    }
-                }
-            } else {
-                const step = Math.min(Math.abs(diff), Math.random() < 0.75 ? 1 : 2);
-                displayed += diff > 0 ? step : -step;
-            }
-
-            displayed = Math.max(REMINKO_ONLINE_BOOST.min, Math.min(REMINKO_ONLINE_BOOST.max, displayed));
-            countEl.textContent = String(displayed);
-            reminkoWriteBoostedOnlineDisplay(displayed);
-
-            window.__reminkoOnlineWidgetTimer = reminkoScheduleBoostedOnlineTick(tick);
-        };
-
-        window.__reminkoOnlineWidgetTimer = reminkoScheduleBoostedOnlineTick(tick);
-    }
+    initSiteOnlineWidget() {}
 
     /** Общая инициализация после вставки/обновления шапки и сайдбара */
     finishNavigationInit(preservedMain) {
         this.initTopSearch();
         this.initTopRandomAnime();
-        this.initNotifications();
         this.initMobileMenu();
         this.initNavigationPrefetch();
         this.initProtectedLinks();
@@ -878,7 +651,6 @@ class NavigationManager {
         }
         this.initYandexMetrika();
         const initIdleNetwork = () => {
-            this.initSiteOnlineWidget();
             if (
                 typeof reminkoEnsureSiteCreatorUserIdCached === 'function' &&
                 typeof supabaseClient !== 'undefined'
@@ -893,14 +665,6 @@ class NavigationManager {
         }
 
         const navManagerInstance = this;
-        setTimeout(() => {
-            if (window.navigationManager && typeof window.navigationManager.updateNotificationBadge === 'function') {
-                window.navigationManager.updateNotificationBadge();
-            } else if (typeof navManagerInstance.updateNotificationBadge === 'function') {
-                navManagerInstance.updateNotificationBadge();
-            }
-        }, 500);
-
         if (typeof initLoginRegisterHandlers === 'function') {
             setTimeout(() => {
                 initLoginRegisterHandlers();
@@ -1292,8 +1056,6 @@ class NavigationManager {
                 const friendsLink = document.getElementById('friendsLink');
                 const messagesLink = document.getElementById('messagesLink');
                 const watchTogetherLink = document.getElementById('watchTogetherLink');
-                const topProfileLink = document.getElementById('topProfileLink');
-                const notificationsBtn = document.getElementById('topNotificationsBtn');
                 const topLoginBtn = document.getElementById('topLoginBtn');
                 const topRegisterBtn = document.getElementById('topRegisterBtn');
                 const topLogoutBtn = document.getElementById('topLogoutBtn');
@@ -1342,18 +1104,7 @@ class NavigationManager {
                     if (friendsLink) friendsLink.style.display = '';
                     if (messagesLink) messagesLink.style.display = '';
                     if (watchTogetherLink) watchTogetherLink.style.display = '';
-                    if (topProfileLink) topProfileLink.style.display = 'flex';
-                    if (notificationsBtn) notificationsBtn.style.display = 'flex';
                     resetAuthButtons('user');
-
-                    // Обновляем счетчик уведомлений
-                    try {
-                        if (window.navigationManager && typeof window.navigationManager.updateNotificationBadge === 'function') {
-                            window.navigationManager.updateNotificationBadge();
-                        }
-                    } catch (e) {
-                        // Игнорируем ошибки обновления бейджа
-                    }
 
                     // Обновляем счетчик заявок в друзья
                     try {
@@ -1386,8 +1137,6 @@ class NavigationManager {
                         messagesLink.style.display = '';
                         setMessagesHref(true);
                     }
-                    if (topProfileLink) topProfileLink.style.display = 'none';
-                    if (notificationsBtn) notificationsBtn.style.display = 'none';
                     resetAuthButtons('guest');
                     try {
                         if (typeof window.reminkoUpdateDmBadge === 'function') {
@@ -1412,8 +1161,6 @@ class NavigationManager {
                         }
                         if (watchTogetherLink) watchTogetherLink.style.display = 'none';
                     }
-                    if (topProfileLink) topProfileLink.style.display = 'none';
-                    if (notificationsBtn) notificationsBtn.style.display = 'none';
                     resetAuthButtons('guest');
                 }
             } catch (e) {
@@ -1421,164 +1168,11 @@ class NavigationManager {
             }
         }
     }
-    
-    // Обновить бейдж уведомлений
-    updateNotificationBadge() {
-        if (typeof window.notificationService === 'undefined' || !window.notificationService) {
-            return;
-        }
 
-        const badge = document.getElementById('notificationBadge');
-        if (!badge) return;
+    updateNotificationBadge() {}
 
-        const unreadCount = window.notificationService.unreadCount || 0;
-        
-        if (unreadCount > 0) {
-            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-            badge.style.display = 'flex';
-        } else {
-            badge.style.display = 'none';
-        }
-    }
+    initNotifications() {}
 
-    // Инициализация уведомлений
-    initNotifications() {
-        const notificationsBtn = document.getElementById('topNotificationsBtn');
-        if (!notificationsBtn) return;
-
-        const notifyPrefsScriptPath = (() => {
-            const depth = (window.location.pathname.match(/\//g) || []).length - 1;
-            const prefix = depth > 0 ? '../'.repeat(depth) : '';
-            return prefix + 'scripts/notification-preferences.js';
-        })();
-
-        const ensureNotificationPrefsLoaded = () => {
-            if (typeof window.reminkoOpenNotificationPrefsModal === 'function') {
-                return Promise.resolve();
-            }
-            return new Promise((resolve) => {
-                const existing = document.querySelector('script[data-reminko-notify-prefs]');
-                if (existing) {
-                    existing.addEventListener('load', () => resolve(), { once: true });
-                    existing.addEventListener('error', () => resolve(), { once: true });
-                    return;
-                }
-                const s = document.createElement('script');
-                s.src = notifyPrefsScriptPath;
-                s.dataset.reminkoNotifyPrefs = '1';
-                s.onload = () => resolve();
-                s.onerror = () => resolve();
-                document.head.appendChild(s);
-            });
-        };
-
-        const closeNotificationsUi = () => {
-            const panel = document.getElementById('notificationsPanel');
-            const backdrop = document.getElementById('notificationsBackdrop');
-            if (panel) {
-                panel.classList.remove('active');
-                panel.setAttribute('aria-hidden', 'true');
-            }
-            if (backdrop) {
-                backdrop.classList.remove('active');
-                backdrop.setAttribute('aria-hidden', 'true');
-            }
-            document.body.classList.remove('notifications-sheet-open');
-        };
-
-        // Создаём затемнение и панель-«шторку»
-        if (!document.getElementById('notificationsPanel')) {
-            const backdrop = document.createElement('div');
-            backdrop.id = 'notificationsBackdrop';
-            backdrop.className = 'notifications-backdrop';
-            backdrop.setAttribute('aria-hidden', 'true');
-
-            const panel = document.createElement('div');
-            panel.id = 'notificationsPanel';
-            panel.className = 'notifications-panel notifications-panel--sheet';
-            panel.setAttribute('role', 'dialog');
-            panel.setAttribute('aria-modal', 'true');
-            panel.setAttribute('aria-labelledby', 'notificationsPanelTitle');
-            panel.setAttribute('aria-hidden', 'true');
-            panel.innerHTML = `
-                <div class="notifications-panel-header">
-                    <div class="notifications-panel-title" id="notificationsPanelTitle">Уведомления</div>
-                    <button type="button" class="notifications-panel-close" id="notificationsPanelCloseBtn" aria-label="Закрыть">×</button>
-                </div>
-                <div class="notifications-panel-body" id="notificationsList">
-                    <div class="notifications-loading">Загрузка...</div>
-                </div>
-                <div class="notifications-footer" id="notificationsFooter">
-                    <div class="notifications-footer-actions">
-                        <button type="button" class="notifications-foot-btn notifications-foot-btn--prefs" id="notificationsPrefsBtn">Настройки</button>
-                        <button type="button" class="notifications-foot-btn notifications-foot-btn--secondary" id="notificationsMarkReadBtn">Все прочитаны</button>
-                        <button type="button" class="notifications-foot-btn notifications-foot-btn--danger" id="notificationsClearAllBtn">Очистить</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(backdrop);
-            document.body.appendChild(panel);
-
-            panel.querySelector('#notificationsPanelCloseBtn')?.addEventListener('click', closeNotificationsUi);
-            panel.querySelector('#notificationsMarkReadBtn')?.addEventListener('click', () => {
-                if (window.notificationService) void window.notificationService.markAllAsRead();
-            });
-            panel.querySelector('#notificationsPrefsBtn')?.addEventListener('click', () => {
-                closeNotificationsUi();
-                void ensureNotificationPrefsLoaded().then(() => {
-                    if (typeof window.reminkoOpenNotificationPrefsModal === 'function') {
-                        window.reminkoOpenNotificationPrefsModal();
-                    }
-                });
-            });
-            panel.querySelector('#notificationsClearAllBtn')?.addEventListener('click', () => {
-                if (window.notificationService) {
-                    void window.notificationService.deleteAllNotifications();
-                }
-            });
-        }
-
-        notificationsBtn.addEventListener('click', () => {
-            const panel = document.getElementById('notificationsPanel');
-            const backdrop = document.getElementById('notificationsBackdrop');
-            if (panel) {
-                const isActive = panel.classList.contains('active');
-                if (isActive) {
-                    closeNotificationsUi();
-                } else {
-                    backdrop?.classList.add('active');
-                    backdrop?.setAttribute('aria-hidden', 'false');
-                    panel.classList.add('active');
-                    panel.setAttribute('aria-hidden', 'false');
-                    document.body.classList.add('notifications-sheet-open');
-                }
-                if (panel.classList.contains('active') && window.notificationService) {
-                    window.notificationService.renderNotifications();
-                    setTimeout(() => {
-                        if (window.navigationManager && typeof window.navigationManager.updateNotificationBadge === 'function') {
-                            window.navigationManager.updateNotificationBadge();
-                        }
-                    }, 100);
-                }
-            }
-        });
-        
-        // Обновляем бейдж каждые 60 секунд (реже, чтобы не нагружать сервер)
-        // Используем один интервал для всех страниц
-        if (!window.notificationUpdateInterval) {
-            const navManager = this;
-            window.notificationUpdateInterval = setInterval(() => {
-                if (window.notificationService) {
-                    // Обновляем только бейдж, не загружаем все уведомления
-                    if (typeof navManager.updateNotificationBadge === 'function') {
-                        navManager.updateNotificationBadge();
-                    }
-                }
-            }, 60000); // 60 секунд вместо 30
-        }
-        
-    }
-    
     // Убедиться, что модальные окна есть на странице
     ensureModalsExist() {
         // Модальное окно входа

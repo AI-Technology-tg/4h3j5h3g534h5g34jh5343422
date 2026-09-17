@@ -311,8 +311,8 @@
         }
         const back = document.querySelector('.page-header a.btn');
         if (back && isOther) {
-            back.href = 'profile.html?user=' + encodeURIComponent(viewUserId);
-            back.textContent = '← К профилю';
+            back.href = 'index.html';
+            back.textContent = '← На главную';
         }
 
         try {
@@ -332,7 +332,7 @@
             if (empty) {
                 empty.style.display = 'block';
                 empty.innerHTML = isOther
-                    ? `<h2>Нет избранных аниме</h2><p>У этого пользователя пока пусто</p><a href="profile.html?user=${encodeURIComponent(viewUserId)}" class="btn btn-primary">К профилю</a>`
+                    ? `<h2>Нет избранных аниме</h2><p>У этого пользователя пока пусто</p><a href="index.html" class="btn btn-primary">На главную</a>`
                     : `<h2>У вас пока нет избранных аниме</h2><p>Добавьте аниме в избранное, чтобы они отображались здесь</p><a href="catalog/anime.html" class="btn btn-primary">Перейти в каталог</a>`;
             }
             return;

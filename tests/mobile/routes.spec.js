@@ -9,14 +9,9 @@ const {
 const USER_ROUTES = [
     '/',
     '/catalog/anime.html',
-    '/catalog/calendar.html',
-    '/catalog/anime-4k.html',
     '/anime/view.html?id=1',
-    '/anime/view-4k.html?id=1',
-    '/profile.html',
     '/favorites.html',
     '/history.html',
-    '/info.html',
     '/terms-of-service.html',
     '/privacy-policy.html',
     '/account-deletion.html',
@@ -26,12 +21,9 @@ const USER_ROUTES = [
 const PRIMARY_TOUCH_ROUTES = [
     '/',
     '/catalog/anime.html',
-    '/catalog/calendar.html',
     '/anime/view.html?id=1',
-    '/profile.html',
     '/favorites.html',
     '/history.html',
-    '/info.html',
     '/reset-password.html'
 ];
 
@@ -103,9 +95,7 @@ test.describe('mobile interaction contract', () => {
             .locator('.sidebar .sidebar-link[href]')
             .evaluateAll((links) => links.map((link) => link.getAttribute('href') || ''));
         for (const expectedHref of [
-            'catalog/anime.html',
-            'catalog/calendar.html',
-            'info.html'
+            'catalog/anime.html'
         ]) {
             expect(
                 hrefs.some((href) => href.includes(expectedHref)),

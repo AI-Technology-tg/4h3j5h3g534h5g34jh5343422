@@ -9,7 +9,6 @@
     "build:public": "node scripts/build/build-public.js",
     "build:kodik": "node scripts/build/kodik-build-catalog.js",
     "build:home-strips": "node scripts/build/kodik-build-home-strips.js",
-    "build:remanga": "node scripts/build/remanga-build-catalog.js",
     "build:sitemap": "node scripts/build/generate-sitemap.js",
     "fetch:kodik": "node scripts/build/kodik-api-sync.js",
     "automate:anime": "npm run build:kodik && node scripts/build/anime-automation.js && npm run build:home-strips && npm run build:sitemap",

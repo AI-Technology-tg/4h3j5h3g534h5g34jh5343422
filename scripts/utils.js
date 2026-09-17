@@ -977,11 +977,7 @@ function loadAnimePosterLazy(card, title, fallbackGradient) {
 function reminkoContentViewUrl(kind, contentId) {
     const prefix = typeof reminkoGetHtmlBasePath === 'function' ? reminkoGetHtmlBasePath() : '';
     const id = contentId != null && String(contentId).trim() !== '' ? String(contentId) : '';
-    const is4k =
-        kind === 'anime4k' ||
-        (typeof window.Anime4kCatalogStore?.isAnime4kId === 'function' &&
-            window.Anime4kCatalogStore.isAnime4kId(id));
-    const page = kind === 'manga' ? 'manga/view.html' : is4k ? 'anime/view-4k.html' : 'anime/view.html';
+    const page = 'anime/view.html';
     return id ? `${prefix}${page}?id=${encodeURIComponent(id)}` : `${prefix}${page}`;
 }
 

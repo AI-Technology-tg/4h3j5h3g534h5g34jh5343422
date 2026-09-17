@@ -109,6 +109,31 @@
   status = 301
 
 [[redirects]]
+  from = "/catalog/calendar.html"
+  to = "/catalog/anime.html"
+  status = 301
+
+[[redirects]]
+  from = "/catalog/anime-4k.html"
+  to = "/catalog/anime.html"
+  status = 301
+
+[[redirects]]
+  from = "/anime/view-4k.html"
+  to = "/catalog/anime.html"
+  status = 301
+
+[[redirects]]
+  from = "/info.html"
+  to = "/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/profile.html"
+  to = "/index.html"
+  status = 301
+
+[[redirects]]
   from = "/payment-success.html"
   to = "/index.html"
   status = 301

@@ -366,7 +366,6 @@ function formatHeroStatCount(n) {
 
 function updateHeroStats() {
     const animeCountEl = document.getElementById('statAnimeCount');
-    const mangaCountEl = document.getElementById('statMangaCount');
 
     if (animeCountEl) {
         const stripsMeta =
@@ -396,9 +395,6 @@ function updateHeroStats() {
         }
 
         animeCountEl.textContent = formatHeroStatCount(animeCount);
-    }
-    if (mangaCountEl) {
-        mangaCountEl.textContent = 'В работе';
     }
 
     const seasonBadge = document.querySelector('.badge-season');

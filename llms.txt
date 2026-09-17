@@ -6,9 +6,6 @@
 
 - Главная: https://re-minko-anime.com/
 - Каталог аниме: https://re-minko-anime.com/catalog/anime.html
-- Календарь выхода: https://re-minko-anime.com/catalog/calendar.html
-- ≈4K каталог: https://re-minko-anime.com/catalog/anime-4k.html
-- О закрытии сайта: https://re-minko-anime.com/info.html
 
 ## Sitemap
 

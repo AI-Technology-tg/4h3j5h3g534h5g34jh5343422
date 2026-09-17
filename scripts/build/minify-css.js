@@ -17,7 +17,6 @@ const filesToMinify = [
     'sidebar-layout.css',
     'loading.css',
     'register-flow.css',
-    'notifications.css',
     'catalog.css',
     'anime-view.css',
     'profile.css',
