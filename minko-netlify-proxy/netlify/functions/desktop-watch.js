@@ -119,11 +119,22 @@ async function getProfile(hash) {
 async function getProfiles(hashes) {
   const unique = [...new Set(hashes.filter(Boolean))];
   if (!unique.length) return [];
-  const filter = unique.map((item) => `"${item}"`).join(',');
-  const rows = await supabaseRequest(
-    `/rest/v1/desktop_profiles?device_hash=in.(${filter})&select=*`
-  );
-  return Array.isArray(rows) ? rows : [];
+  if (unique.length === 1) {
+    const row = await getProfile(unique[0]);
+    return row ? [row] : [];
+  }
+  const or = unique.map((item) => `device_hash.eq.${encodeURIComponent(item)}`).join(',');
+  try {
+    const rows = await supabaseRequest(`/rest/v1/desktop_profiles?or=(${or})&select=*`);
+    return Array.isArray(rows) ? rows : [];
+  } catch (_) {
+    const collected = [];
+    for (const hash of unique) {
+      const row = await getProfile(hash).catch(() => null);
+      if (row) collected.push(row);
+    }
+    return collected;
+  }
 }
 
 async function getRoomById(id) {
@@ -494,14 +505,17 @@ function mapFriend(profile, room, now) {
 
 async function socialInbox(actor) {
   const now = Date.now();
-  const [friendRows, inviteRows] = await Promise.all([
-    supabaseRequest(
-      `/rest/v1/desktop_friendships?or=(requester_hash.eq.${encodeURIComponent(actor.hash)},addressee_hash.eq.${encodeURIComponent(actor.hash)})&select=*`
-    ),
-    supabaseRequest(
+  const friendRows = await supabaseRequest(
+    `/rest/v1/desktop_friendships?or=(requester_hash.eq.${encodeURIComponent(actor.hash)},addressee_hash.eq.${encodeURIComponent(actor.hash)})&select=*`
+  );
+  let inviteRows = [];
+  try {
+    inviteRows = await supabaseRequest(
       `/rest/v1/desktop_watch_invites?or=(from_hash.eq.${encodeURIComponent(actor.hash)},to_hash.eq.${encodeURIComponent(actor.hash)})&status=eq.pending&select=*`
-    )
-  ]);
+    );
+  } catch (_) {
+    inviteRows = [];
+  }
   const friendships = Array.isArray(friendRows) ? friendRows : [];
   const invites = Array.isArray(inviteRows) ? inviteRows : [];
   const hashes = new Set([actor.hash]);
@@ -513,7 +527,7 @@ async function socialInbox(actor) {
     hashes.add(row.from_hash);
     hashes.add(row.to_hash);
   }
-  const profiles = await getProfiles([...hashes]);
+  const profiles = await getProfiles([...hashes]).catch(() => []);
   const profileMap = new Map(profiles.map((item) => [item.device_hash, item]));
   const accepted = friendships.filter((row) => row.status === 'accepted');
   const friendHashes = accepted.map((row) =>
@@ -521,11 +535,15 @@ async function socialInbox(actor) {
   );
   const rooms = {};
   for (const hash of friendHashes) {
-    const room = await findOpenRoomFor(hash, true);
-    if (room) rooms[hash] = room;
+    try {
+      const room = await findOpenRoomFor(hash, true);
+      if (room) rooms[hash] = room;
+    } catch (_) {}
   }
-  const myHostedRoom = await findOpenRoomFor(actor.hash, true);
-  const membership = await findOpenRoomFor(actor.hash, false);
+  let myHostedRoom = null;
+  let membership = null;
+  try { myHostedRoom = await findOpenRoomFor(actor.hash, true); } catch (_) {}
+  try { membership = await findOpenRoomFor(actor.hash, false); } catch (_) {}
   const friends = friendHashes
     .map((hash) => profileMap.get(hash))
     .filter(Boolean)
@@ -556,7 +574,8 @@ async function socialInbox(actor) {
   for (const row of invites) {
     if (row.to_hash !== actor.hash) continue;
     const from = profileMap.get(row.from_hash);
-    const room = await getRoomById(row.room_id);
+    let room = null;
+    try { room = await getRoomById(row.room_id); } catch (_) { room = null; }
     if (!room) continue;
     roomInvites.push({
       id: row.id,
@@ -568,13 +587,17 @@ async function socialInbox(actor) {
       actionLabel: row.kind === 'invite' ? 'Принять приглашение' : 'Принять заявку'
     });
   }
+  let activeRoom = null;
+  if (membership) {
+    try { activeRoom = await snapshot(membership, actor.hash); } catch (_) {}
+  }
   return json(200, {
     friends,
     incomingFriends,
     outgoingFriends,
     roomInvites,
     myRoomId: myHostedRoom?.id || null,
-    activeRoom: membership ? await snapshot(membership, actor.hash) : null
+    activeRoom
   });
 }
 
