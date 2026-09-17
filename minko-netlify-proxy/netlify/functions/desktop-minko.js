@@ -101,38 +101,108 @@ async function requireDevice(event, body = {}) {
   return { deviceId, hash: deviceHash(deviceId), role: device.staff_role || 'tester_pr' };
 }
 
-const SHARED_SEED = [
-  { said: 'открой каталог', intent: 'OpenSection', section: 'catalog' },
-  { said: 'покажи каталог', intent: 'OpenSection', section: 'catalog' },
-  { said: 'каталог', intent: 'OpenSection', section: 'catalog' },
-  { said: 'в каталог', intent: 'OpenSection', section: 'catalog' },
-  { said: 'открой аниме', intent: 'OpenSection', section: 'catalog' },
-  { said: 'открой мангу', intent: 'OpenSection', section: 'manga' },
-  { said: 'покажи мангу', intent: 'OpenSection', section: 'manga' },
-  { said: 'манга', intent: 'OpenSection', section: 'manga' },
-  { said: 'открой календарь', intent: 'OpenSection', section: 'calendar' },
-  { said: 'покажи календарь', intent: 'OpenSection', section: 'calendar' },
-  { said: 'календарь', intent: 'OpenSection', section: 'calendar' },
-  { said: 'открой главную', intent: 'OpenSection', section: 'home' },
-  { said: 'на главную', intent: 'OpenSection', section: 'home' },
-  { said: 'главная', intent: 'OpenSection', section: 'home' },
-  { said: 'домой', intent: 'OpenSection', section: 'home' },
-  { said: 'открой чат', intent: 'OpenSection', section: 'ai' },
-  { said: 'открой минко', intent: 'OpenSection', section: 'ai' },
-  { said: 'чат', intent: 'OpenSection', section: 'ai' },
-  { said: 'открой друзей', intent: 'OpenSection', section: 'friends' },
-  { said: 'друзья', intent: 'OpenSection', section: 'friends' },
-  { said: 'открой настройки', intent: 'OpenSection', section: 'settings' },
-  { said: 'настройки', intent: 'OpenSection', section: 'settings' },
-  { said: 'открой профиль', intent: 'OpenSection', section: 'profile' },
-  { said: 'профиль', intent: 'OpenSection', section: 'profile' },
-  { said: 'открой комнаты', intent: 'OpenSection', section: 'party' },
-  { said: 'комнаты', intent: 'OpenSection', section: 'party' },
-  { said: 'открой вип', intent: 'OpenSection', section: 'vip' },
-  { said: 'случайное аниме', intent: 'RandomAnime', section: null },
-  { said: 'случайное', intent: 'RandomAnime', section: null },
-  { said: 'рандом', intent: 'RandomAnime', section: null }
+const SECTION_NAMES = {
+  catalog: [
+    'каталог',
+    'каталога',
+    'каталу',
+    'аниме каталог',
+    'раздел аниме',
+    'список аниме',
+    'все аниме',
+    'catalog'
+  ],
+  manga: ['манга', 'мангу', 'манги', 'раздел манги', 'manga'],
+  calendar: [
+    'календарь',
+    'календаря',
+    'календар',
+    'расписание',
+    'новые серии',
+    'календарь серий',
+    'calendar'
+  ],
+  home: ['главную', 'главная', 'главной', 'домой', 'на главную', 'домашняя', 'home'],
+  ai: [
+    'чат',
+    'чат минко',
+    'минко ии',
+    'помощницу',
+    'помощница',
+    'минко чат',
+    'искусственный интеллект',
+    'chat'
+  ],
+  friends: ['друзей', 'друзья', 'друга', 'друзьям', 'список друзей', 'friends'],
+  settings: ['настройки', 'настройку', 'настроек', 'параметры', 'settings'],
+  profile: ['профиль', 'профиля', 'мой профиль', 'аккаунт', 'profile'],
+  party: ['комнаты', 'комнату', 'комнат', 'пати', 'вместе', 'watch party', 'party', 'rooms'],
+  vip: ['вип', 'vip', 'подписку', 'подписка', 'премиум']
+};
+
+const SECTION_VERBS = [
+  'открой',
+  'открыть',
+  'покажи',
+  'показать',
+  'включи',
+  'перейди в',
+  'зайди в',
+  'открой мне',
+  'давай откроем',
+  'хочу',
+  'open'
 ];
+
+const RANDOM_PHRASES = [
+  'случайное аниме',
+  'случайное',
+  'рандом',
+  'рандомное аниме',
+  'рандом аниме',
+  'любое аниме',
+  'случайный тайтл',
+  'посоветуй случайное',
+  'открой случайное',
+  'покажи случайное',
+  'включи случайное',
+  'random anime',
+  'random'
+];
+
+function buildSharedSeed() {
+  const items = [];
+  const seen = new Set();
+  const add = (said, intent, section = null) => {
+    const key = String(said || '')
+      .toLowerCase()
+      .replace(/ё/g, 'е')
+      .replace(/[^\p{L}\p{Nd}]+/gu, ' ')
+      .trim();
+    if (key.length < 3 || seen.has(key)) return;
+    seen.add(key);
+    items.push({ said: key, intent, section });
+  };
+
+  for (const [section, names] of Object.entries(SECTION_NAMES)) {
+    for (const name of names) {
+      add(name, 'OpenSection', section);
+      add(`в ${name}`, 'OpenSection', section);
+      for (const verb of SECTION_VERBS) add(`${verb} ${name}`, 'OpenSection', section);
+    }
+  }
+
+  add('открой аниме', 'OpenSection', 'catalog');
+  add('покажи аниме', 'OpenSection', 'catalog');
+  add('открой минко', 'OpenSection', 'ai');
+  add('вернись домой', 'OpenSection', 'home');
+  add('назад на главную', 'OpenSection', 'home');
+
+  for (const phrase of RANDOM_PHRASES) add(phrase, 'RandomAnime', null);
+  return items;
+}
+
+const SHARED_SEED = buildSharedSeed();
 
 let seedPromise = null;
 
@@ -206,23 +276,25 @@ async function ensureSharedSeed() {
       '/rest/v1/desktop_minko_memory?device_hash=eq.shared&kind=eq.voice-command&select=said'
     );
     const have = new Set((Array.isArray(rows) ? rows : []).map((row) => normalizeSaid(row.said)));
-    for (const item of SHARED_SEED) {
-      if (have.has(item.said)) continue;
+    const missing = SHARED_SEED.filter((item) => !have.has(item.said));
+    const now = new Date().toISOString();
+    for (let i = 0; i < missing.length; i += 80) {
+      const chunk = missing.slice(i, i + 80).map((item) => ({
+        device_hash: 'shared',
+        scope: 'shared',
+        kind: 'voice-command',
+        said: item.said,
+        intent: item.intent,
+        section: item.section,
+        title: null,
+        hits: 1,
+        payload: {},
+        updated_at: now
+      }));
       await supabaseRequest('/rest/v1/desktop_minko_memory', {
         method: 'POST',
         headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({
-          device_hash: 'shared',
-          scope: 'shared',
-          kind: 'voice-command',
-          said: item.said,
-          intent: item.intent,
-          section: item.section,
-          title: null,
-          hits: 1,
-          payload: {},
-          updated_at: new Date().toISOString()
-        })
+        body: JSON.stringify(chunk)
       }).catch(() => {});
     }
   })().catch((error) => {
@@ -248,7 +320,7 @@ function mapMemoryRow(row) {
 async function getMemory(hash) {
   const rows = await supabaseRequest(
     `/rest/v1/desktop_minko_memory?or=(device_hash.eq.shared,device_hash.eq.${encodeURIComponent(hash)})` +
-      `&kind=eq.voice-command&select=said,intent,section,title,hits,payload,scope,updated_at&limit=400`
+      `&kind=eq.voice-command&select=said,intent,section,title,hits,payload,scope,updated_at&limit=1000`
   );
   return Array.isArray(rows) ? rows.map(mapMemoryRow) : [];
 }
