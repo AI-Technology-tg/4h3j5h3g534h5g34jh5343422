@@ -20,8 +20,6 @@ const filesToMinify = [
     'notifications.css',
     'catalog.css',
     'anime-view.css',
-    'manga-reader.css',
-    'minko-ai.css',
     'profile.css',
     'live2d-widget.css'
 ];

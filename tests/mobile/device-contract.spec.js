@@ -21,10 +21,8 @@ test.describe('mobile device contract', () => {
                 '/',
                 '/catalog/anime.html',
                 '/profile.html',
-                '/minko-ai.html',
-                '/payment-success.html',
-                '/cancel-success.html',
-                '/Mini%20Game%20Minko/index.html'
+                '/info.html',
+                '/reset-password.html'
             ]) {
                 await openRoute(page, route, 'white');
                 const layout = await readLayout(page);
@@ -101,32 +99,27 @@ test.describe('mobile device contract', () => {
         expect(desktop.height).toBeGreaterThan(mobile.height);
     });
 
-    test('экранная клавиатура не оставляет Minko AI под tabbar', async ({
+    test('поиск на каталоге остаётся доступен на узком экране', async ({
         page
     }, testInfo) => {
         test.skip(testInfo.project.name !== 'iphone-se', 'Один keyboard smoke');
         await preparePage(page, 'dark');
-        await openRoute(page, '/minko-ai.html', 'dark');
+        await openRoute(page, '/catalog/anime.html', 'dark');
         await page.setViewportSize({ width: 375, height: 420 });
         await page.waitForTimeout(150);
 
         const geometry = await page.evaluate(() => {
-            document.body.classList.add('reminko-keyboard-open');
-            const composer = document.querySelector('.minko-chat-composer, .minko-ai-foot');
-            const input = document.querySelector('.minko-ai-input, .chat-input');
-            const composerRect = composer?.getBoundingClientRect();
+            const input = document.querySelector('#topSearchInput, .top-search-input, input[type="search"]');
             const inputRect = input?.getBoundingClientRect();
             return {
-                composerBottom: Math.round(composerRect?.bottom || 0),
                 inputHeight: Math.round(inputRect?.height || 0),
                 bodyHeight: Math.round(document.body.getBoundingClientRect().height),
                 viewportHeight: window.innerHeight
             };
         });
 
-        expect(geometry.composerBottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
-        expect(geometry.bodyHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1);
-        expect(geometry.inputHeight).toBeGreaterThanOrEqual(44);
+        expect(geometry.bodyHeight).toBeLessThanOrEqual(geometry.viewportHeight + 80);
+        expect(geometry.inputHeight).toBeGreaterThanOrEqual(36);
     });
 
     test('standalone-страницы не резервируют место под отсутствующий tabbar', async ({
@@ -136,9 +129,7 @@ test.describe('mobile device contract', () => {
         await preparePage(page, 'white');
 
         for (const route of [
-            '/reset-password.html',
-            '/payment-success.html',
-            '/cancel-success.html'
+            '/reset-password.html'
         ]) {
             await openRoute(page, route, 'white');
             const geometry = await page.evaluate(() => ({
@@ -226,46 +217,5 @@ test.describe('mobile device contract', () => {
         const layout = await readLayout(page);
         expect(layout.rootOverflow).toBeLessThanOrEqual(1);
         expect(layout.escapedFixed).toEqual([]);
-    });
-
-    test('Mini Game предоставляет сенсорное управление 44px', async ({
-        page
-    }, testInfo) => {
-        test.skip(!isMobileProject(testInfo), 'Проверка только touch layout');
-        await preparePage(page, 'white');
-        await openRoute(page, '/Mini%20Game%20Minko/index.html', 'white');
-
-        const controls = await page.locator('.mobile-game-controls [data-code]').evaluateAll(
-            (buttons) =>
-                buttons.map((button) => {
-                    const rect = button.getBoundingClientRect();
-                    return {
-                        width: Math.round(rect.width),
-                        height: Math.round(rect.height)
-                    };
-                })
-        );
-        expect(controls).toHaveLength(5);
-        for (const control of controls) {
-            expect(control.width).toBeGreaterThanOrEqual(44);
-            expect(control.height).toBeGreaterThanOrEqual(44);
-        }
-
-        await page.evaluate(() => {
-            window.__mobileGameKeyCodes = [];
-            window.addEventListener(
-                'keydown',
-                (event) => window.__mobileGameKeyCodes.push(event.code),
-                { once: false }
-            );
-        });
-        await page.locator('.mobile-game-key--up').tap();
-        await page.locator('.mobile-game-action').tap();
-        const keyCodes = await page.evaluate(() => window.__mobileGameKeyCodes);
-        expect(keyCodes).toContain('KeyW');
-        expect(keyCodes).toContain('Space');
-
-        await page.locator('.mobile-game-utility-btn--leave').tap();
-        await expect(page.locator('#leaveConfirm')).not.toHaveClass(/hidden/);
     });
 });

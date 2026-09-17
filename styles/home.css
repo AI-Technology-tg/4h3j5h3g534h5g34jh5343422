@@ -1014,6 +1014,54 @@
 }
 
 /* Бета-уведомление на главной */
+.home-close-banner {
+    margin: 0 0 2rem;
+    padding: 1.25rem 1.4rem 1.35rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(15, 23, 42, 0.55));
+    border: 1px solid rgba(167, 139, 250, 0.4);
+}
+
+.home-close-banner-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    max-width: 46rem;
+}
+
+.home-close-pill {
+    align-self: flex-start;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #fff;
+    background: linear-gradient(135deg, #7c3aed, #a78bfa);
+}
+
+.home-close-title {
+    margin: 0;
+    font-size: 1.35rem;
+    line-height: 1.25;
+    color: var(--text-color);
+}
+
+.home-close-text {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--text-color);
+}
+
+.home-close-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 0.25rem;
+}
+
 .home-beta-banner {
     margin: 0 0 2rem;
     padding: 1rem 1.25rem;
@@ -1998,9 +2046,14 @@ html.home-carousel-auto-off .home-section--kodik .home-horizontal-scroll {
         justify-content: space-between;
     }
 
+    .home-close-banner,
     .home-beta-banner {
         margin-bottom: 1rem;
         padding: 0.85rem;
+    }
+
+    .home-close-title {
+        font-size: 1.15rem;
     }
 
     .quick-links-grid {

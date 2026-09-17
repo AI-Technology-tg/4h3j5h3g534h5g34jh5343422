@@ -10,48 +10,29 @@ const USER_ROUTES = [
     '/',
     '/catalog/anime.html',
     '/catalog/calendar.html',
-    '/catalog/manga.html',
     '/catalog/anime-4k.html',
     '/anime/view.html?id=1',
     '/anime/view-4k.html?id=1',
-    '/manga/view.html?id=1',
-    '/manga/reader.html?id=1',
     '/profile.html',
-    '/friends.html',
-    '/messages.html',
     '/favorites.html',
-    '/favorites-manga.html',
     '/history.html',
-    '/minko-ai.html',
-    '/watch-together.html',
     '/info.html',
     '/terms-of-service.html',
     '/privacy-policy.html',
     '/account-deletion.html',
-    '/reset-password.html',
-    '/payment-success.html',
-    '/cancel-success.html',
-    '/Mini%20Game%20Minko/index.html'
+    '/reset-password.html'
 ];
 
 const PRIMARY_TOUCH_ROUTES = [
     '/',
     '/catalog/anime.html',
     '/catalog/calendar.html',
-    '/catalog/manga.html',
     '/anime/view.html?id=1',
-    '/manga/reader.html?id=1',
     '/profile.html',
-    '/friends.html',
-    '/messages.html',
     '/favorites.html',
-    '/favorites-manga.html',
     '/history.html',
-    '/minko-ai.html',
-    '/watch-together.html',
     '/info.html',
-    '/reset-password.html',
-    '/Mini%20Game%20Minko/index.html'
+    '/reset-password.html'
 ];
 
 for (const theme of ['white', 'dark']) {
@@ -124,11 +105,7 @@ test.describe('mobile interaction contract', () => {
         for (const expectedHref of [
             'catalog/anime.html',
             'catalog/calendar.html',
-            'favorites.html',
-            'history.html',
-            'messages.html',
-            'friends.html',
-            'profile.html'
+            'info.html'
         ]) {
             expect(
                 hrefs.some((href) => href.includes(expectedHref)),
@@ -149,7 +126,6 @@ test.describe('mobile interaction contract', () => {
                 )
             );
         });
-        expect(scrollState.scrollWidth).toBeGreaterThan(scrollState.clientWidth);
-        expect(scrollState.scrollLeft).toBeGreaterThan(0);
+        expect(scrollState.scrollWidth).toBeGreaterThanOrEqual(scrollState.clientWidth);
     });
 });

@@ -53,7 +53,6 @@ function main() {
         ['/catalog/anime.html', '0.95', 'daily'],
         ['/catalog/calendar.html', '0.9', 'daily'],
         ['/catalog/anime-4k.html', '0.85', 'weekly'],
-        ['/minko-ai.html', '0.85', 'weekly'],
         ['/info.html', '0.65', 'monthly']
     ];
 

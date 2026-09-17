@@ -226,13 +226,6 @@ class NavigationManager {
                         </svg>
                         <span>Календарь</span>
                     </a>
-                    <a href="${this.basePath}catalog/manga.html" class="sidebar-link ${activeClass('manga')} ${activeClass('manga-view')} ${activeClass('manga-reader')}" data-page="manga" data-maint-lock="manga_catalog">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                        </svg>
-                        <span>Каталог манги</span>
-                    </a>
                     <a href="${this.basePath}catalog/anime-4k.html" class="sidebar-link ${activeClass('catalog-4k')} ${activeClass('anime-view-4k')}" data-page="catalog-4k" data-maint-lock="anime_4k">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="2" y="3" width="20" height="14" rx="2"></rect>
@@ -242,50 +235,11 @@ class NavigationManager {
                         </svg>
                         <span>≈4K каталог</span>
                     </a>
+                    <p class="sidebar-close-note">
+                        Сайт больше не развивается. Остались каталог и плееры.
+                        <a href="${this.basePath}index.html#homeCloseBanner">Почему</a>
+                    </p>
                     <div class="sidebar-divider"></div>
-                    <a href="${this.basePath}minko-ai.html" class="sidebar-link ${activeClass('ai')}" data-page="ai" data-maint-lock="minko_ai">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                            <path d="M2 17l10 5 10-5"></path>
-                            <path d="M2 12l10 5 10-5"></path>
-                        </svg>
-                        <span>Minko AI</span>
-                    </a>
-                    <a href="#" class="sidebar-link sidebar-link-disabled" data-page="minko-edit" data-reminko-disabled-link="true" aria-disabled="true" title="А нужно ли это здесь?">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="3" width="20" height="18" rx="3"></rect>
-                            <polygon points="10 8 16 12 10 16 10 8"></polygon>
-                        </svg>
-                        <span>Minko Edit</span>
-                        <span class="contemplation-badge">В размышлении</span>
-                    </a>
-                    <a href="${this.basePath}friends.html" class="sidebar-link ${activeClass('friends')}" data-page="friends" id="friendsLink" data-maint-lock="friends">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        <span>Друзья</span>
-                        <span class="friends-badge hidden" id="friendsBadge">0</span>
-                    </a>
-                    <a href="${this.basePath}watch-together.html" class="sidebar-link ${activeClass('watch-together')}" data-page="watch-together" id="watchTogetherLink" data-maint-lock="watch_together">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                            <circle cx="19" cy="5" r="3"></circle>
-                        </svg>
-                        <span>Смотреть вместе</span>
-                        <span class="vip-badge">VIP</span>
-                    </a>
-                    <div class="sidebar-divider"></div>
-                    <a href="${this.basePath}messages.html" class="sidebar-link ${activeClass('messages')}" data-page="messages" id="messagesLink" data-maint-lock="messages">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                            <polyline points="22,6 12,13 2,6"></polyline>
-                        </svg>
-                        <span>Сообщения</span>
-                        <span class="friends-badge hidden" id="dmBadge">0</span>
-                    </a>
                     <a href="${this.basePath}info.html" class="sidebar-link ${activeClass('info')}" data-page="info">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -301,13 +255,6 @@ class NavigationManager {
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                         </svg>
                         <span>Создатель</span>
-                    </a>
-                    <a href="#" class="sidebar-link" id="supportMinkoSidebarLink" data-page="support-minko" title="Поддержка Минко AI" data-maint-lock="support">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 18.72a9.09 9.09 0 0 0 2.27-.7 1 1 0 0 0 .64-1.11 6.48 6.48 0 0 0-1.28-3.12 1 1 0 0 0-.16-.22l-.8-.96a1 1 0 0 0-1.58.38 4 4 0 0 1-6.78 0 1 1 0 0 0-1.58-.38l-.8.96a1 1 0 0 0-.16.22 6.48 6.48 0 0 0-1.28 3.12 1 1 0 0 0 .64 1.11A9.09 9.09 0 0 0 18 18.72z"></path>
-                            <circle cx="12" cy="8" r="4"></circle>
-                        </svg>
-                        <span>Поддержка</span>
                     </a>
                     <a href="#" class="sidebar-link" id="minkoRustSidebarLink" data-page="minko-rust" title="Наш сервер Rust">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

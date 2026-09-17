@@ -68,6 +68,61 @@
   to = "/index.html?gref=:code"
   status = 302
 
+[[redirects]]
+  from = "/friends.html"
+  to = "/index.html#homeCloseBanner"
+  status = 301
+
+[[redirects]]
+  from = "/messages.html"
+  to = "/index.html#homeCloseBanner"
+  status = 301
+
+[[redirects]]
+  from = "/watch-together.html"
+  to = "/index.html#homeCloseBanner"
+  status = 301
+
+[[redirects]]
+  from = "/minko-ai.html"
+  to = "/index.html#homeCloseBanner"
+  status = 301
+
+[[redirects]]
+  from = "/minko-edit.html"
+  to = "/index.html#homeCloseBanner"
+  status = 301
+
+[[redirects]]
+  from = "/favorites-manga.html"
+  to = "/catalog/anime.html"
+  status = 301
+
+[[redirects]]
+  from = "/catalog/manga.html"
+  to = "/catalog/anime.html"
+  status = 301
+
+[[redirects]]
+  from = "/manga/*"
+  to = "/catalog/anime.html"
+  status = 301
+
+[[redirects]]
+  from = "/payment-success.html"
+  to = "/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/cancel-success.html"
+  to = "/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/Mini Game Minko/*"
+  to = "/index.html"
+  status = 301
+
 # Android App Links: verification file (оба пути кладутся в public-build)
 [[headers]]
   for = "/.well-known/assetlinks.json"

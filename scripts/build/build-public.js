@@ -10,8 +10,7 @@ const PUBLIC_DATA_FILES = [
     'kodik-anime-catalog.json',
     'kodik-announced.json',
     'kodik-calendar.json',
-    'kodik-home-strips.json',
-    'remanga-manga-catalog.json'
+    'kodik-home-strips.json'
 ];
 const ROOT_PUBLIC_FILES = [
     '_headers',
@@ -210,13 +209,9 @@ function main() {
 
     copyTree('anime', (source) => path.extname(source).toLowerCase() === '.html');
     copyTree('catalog', (source) => path.extname(source).toLowerCase() === '.html');
-    copyTree('manga', (source) => path.extname(source).toLowerCase() === '.html');
     copyTree('styles', (source) => path.extname(source).toLowerCase() === '.css');
     copyTree('sound', (source) => path.extname(source).toLowerCase() === '.mp3');
     copyTree('Fons', (source) => MEDIA_EXTENSIONS.has(path.extname(source).toLowerCase()));
-    copyTree('Mini Game Minko', (source) =>
-        MEDIA_EXTENSIONS.has(path.extname(source).toLowerCase())
-    );
     copyTree('scripts', (source, relative) => {
         const normalized = relative.split(path.sep).join('/');
         return (

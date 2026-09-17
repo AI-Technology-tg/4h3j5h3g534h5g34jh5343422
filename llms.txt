@@ -1,6 +1,6 @@
 # Re-Minko (re-minko-anime.com)
 
-> Re-Minko — русскоязычный аниме-сайт: каталог, просмотр онлайн, календарь выхода и помощник Minko AI.
+> Re-Minko больше не развивается как сайт. Остались главная, каталог аниме Kodik и страницы с плеерами. Новости — в соцсетях. Дальнейшая разработка идёт в программе для ПК, ТВ, телефонов и позже VR.
 
 ## Основные страницы
 
@@ -8,8 +8,7 @@
 - Каталог аниме: https://re-minko-anime.com/catalog/anime.html
 - Календарь выхода: https://re-minko-anime.com/catalog/calendar.html
 - ≈4K каталог: https://re-minko-anime.com/catalog/anime-4k.html
-- Minko AI: https://re-minko-anime.com/minko-ai.html
-- О проекте: https://re-minko-anime.com/info.html
+- О закрытии сайта: https://re-minko-anime.com/info.html
 
 ## Sitemap
 
