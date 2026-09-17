@@ -70,27 +70,27 @@
 
 [[redirects]]
   from = "/friends.html"
-  to = "/index.html#homeCloseBanner"
+  to = "/index.html"
   status = 301
 
 [[redirects]]
   from = "/messages.html"
-  to = "/index.html#homeCloseBanner"
+  to = "/index.html"
   status = 301
 
 [[redirects]]
   from = "/watch-together.html"
-  to = "/index.html#homeCloseBanner"
+  to = "/index.html"
   status = 301
 
 [[redirects]]
   from = "/minko-ai.html"
-  to = "/index.html#homeCloseBanner"
+  to = "/index.html"
   status = 301
 
 [[redirects]]
   from = "/minko-edit.html"
-  to = "/index.html#homeCloseBanner"
+  to = "/index.html"
   status = 301
 
 [[redirects]]

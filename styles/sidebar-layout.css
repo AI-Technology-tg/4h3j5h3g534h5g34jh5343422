@@ -529,22 +529,6 @@
     min-height: calc(100vh - 52px - 2rem);
 }
 
-.sidebar-close-note {
-    margin: 0.35rem 0 0.15rem;
-    padding: 0.65rem 0.7rem;
-    border-radius: 10px;
-    font-size: 0.75rem;
-    line-height: 1.4;
-    color: var(--text-secondary, #cbd5e1);
-    background: rgba(124, 58, 237, 0.12);
-    border: 1px solid rgba(167, 139, 250, 0.28);
-}
-
-.sidebar-close-note a {
-    color: #c4b5fd;
-    font-weight: 600;
-}
-
 .sidebar-analytics-footer {
     position: absolute;
     width: 1px;
