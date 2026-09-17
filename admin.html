@@ -57,7 +57,7 @@
             <div class="admin-container">
                 <div class="admin-header">
                     <h1>🛡️ Панель Создателя</h1>
-                    <p class="admin-subtitle">Полное управление сайтом Re-Minko</p>
+                    <p class="admin-subtitle">Каталог, плеер и аккаунты сайта</p>
                 </div>
 
                 <!-- Табы -->
@@ -65,9 +65,7 @@
                     <button class="admin-tab active" data-tab="dashboard">📊 Дашборд</button>
                     <button class="admin-tab" data-tab="users">👥 Пользователи</button>
                     <button class="admin-tab" data-tab="team">🤝 Команда</button>
-                    <button class="admin-tab" data-tab="moderation">🛡️ Модерация</button>
                     <button class="admin-tab" data-tab="settings">⚙️ Настройки</button>
-                    <button class="admin-tab" data-tab="tests">🧪 Тесты</button>
                 </div>
 
                 <!-- Дашборд -->
@@ -83,35 +81,6 @@
                         </div>
                     </div>
 
-                    <div class="admin-section visitor-analytics-section" id="visitorAnalyticsSection">
-                        <header class="va-compact__head">
-                            <div>
-                                <h2 class="va-compact__title">Посетители</h2>
-                                <p class="va-compact__sub">Анонимный id в браузере · аккаунт, если вошёл · admin не считается</p>
-                            </div>
-                            <div class="va-compact__toolbar">
-                                <select id="visitorAnalyticsPeriod" class="filter-select va-compact__select" title="Период сводки">
-                                    <option value="1">1 д</option>
-                                    <option value="7" selected>7 д</option>
-                                    <option value="30">30 д</option>
-                                    <option value="90">90 д</option>
-                                </select>
-                                <select id="visitorOnlineWindow" class="filter-select va-compact__select" title="Окно «в сети»">
-                                    <option value="5" selected>5 мин</option>
-                                    <option value="10">10 мин</option>
-                                    <option value="15">15 мин</option>
-                                </select>
-                                <button type="button" class="admin-btn admin-btn-small" id="visitorAnalyticsRefreshBtn">Обновить</button>
-                                <label class="va-compact__live">
-                                    <input type="checkbox" id="visitorAnalyticsRealtimeToggle" checked>
-                                    Live
-                                </label>
-                            </div>
-                        </header>
-                        <div id="visitorAnalyticsContent" class="visitor-analytics-content va-compact">
-                            <p class="admin-inline-hint">Загрузка…</p>
-                        </div>
-                    </div>
                     <div class="admin-section">
                         <h2>🔔 Последние события</h2>
                         <div id="recentActivity" class="activity-list">
@@ -122,22 +91,13 @@
                     <div class="admin-section">
                         <h2>🧾 Лог аудита действий создателя</h2>
                         <p class="admin-inline-hint" style="margin: 0 0 0.8rem;">
-                            Фиксируются критические действия: баны, муты, подписки, уведомления, настройки и полное удаление аккаунта.
+                            Фиксируются баны, удаление аккаунта и смена режима сайта.
                         </p>
                         <div class="filters-row" style="margin-bottom:0.8rem;">
                             <select class="filter-select" id="creatorAuditActionFilter" title="Фильтр по типу действия">
                                 <option value="">Все действия</option>
                                 <option value="user_delete_full">Полное удаление аккаунта</option>
                                 <option value="user_ban_toggle">Бан / разбан</option>
-                                <option value="user_chat_mute">Мут в чате</option>
-                                <option value="chat_message_delete">Удаление сообщения чата</option>
-                                <option value="vip_subscription_manage">VIP подписка</option>
-                                <option value="ai_subscription_manage">AI подписка</option>
-                                <option value="notification_send_single">Уведомление одному</option>
-                                <option value="notification_send_bulk">Массовое уведомление</option>
-                                <option value="chat_automod_settings_save">Автомодерация чата</option>
-                                <option value="chat_automod_state_reset">Сброс автомодерации пользователя</option>
-                                <option value="minko_server_settings_save">Состояние Minko AI</option>
                                 <option value="maintenance_settings_save">Режим разработки</option>
                             </select>
                             <button type="button" class="admin-btn" id="creatorAuditRefreshBtn">Обновить лог</button>
@@ -177,14 +137,12 @@
                                         <th>ID</th>
                                         <th>Email</th>
                                         <th>Имя</th>
-                                        <th>VIP «Вместе»</th>
                                         <th>Статус</th>
-                                        <th>Активность</th>
                                         <th>Действия</th>
                                     </tr>
                                 </thead>
                                 <tbody id="usersTableBody">
-                                    <tr><td colspan="7" style="text-align: center; padding: 2rem;">Загрузка...</td></tr>
+                                    <tr><td colspan="5" style="text-align: center; padding: 2rem;">Загрузка...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -192,8 +150,7 @@
                         <div class="pagination" id="usersPagination"></div>
 
                         <p class="admin-hint" style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary, #aaa); line-height: 1.45;">
-                            VIP продаётся только для <strong>«Смотреть вместе»</strong> — в профиле (⚙️ → услуги). Minko AI у всех в режиме <strong>«Сонная Minko»</strong> без отдельной подписки.
-                            Ваша учётка создателя в этом списке <strong>не показывается</strong>; VIP «Вместе» для неё <strong>навсегда</strong> без строки в таблице подписок.
+                            Ваша учётка создателя в этом списке <strong>не показывается</strong>.
                         </p>
                     </div>
                 </div>
@@ -234,53 +191,6 @@
                     </div>
                 </div>
 
-                <!-- Модерация -->
-                <div class="admin-tab-content" id="tabModeration">
-                    <div class="moderation-tabs">
-                        <button class="mod-tab-btn active" data-mod="chat">💬 Чат</button>
-                    </div>
-
-                    <!-- Модерация чата -->
-                    <div id="modChat" class="mod-section active">
-                        <div class="admin-section">
-                            <h2>🛡️ Автомодерация чата</h2>
-                            <p class="admin-inline-hint" style="margin:0 0 0.75rem;">
-                                Серверная автомодерация работает централизованно для всех устройств пользователя.
-                            </p>
-                            <div class="filters-row" style="align-items:center;">
-                                <label class="visitor-analytics-period-label" style="gap:0.45rem;">
-                                    <input type="checkbox" id="chatAutomodEnabledToggle">
-                                    Автомодерация включена
-                                </label>
-                                <input type="text" class="filter-input" id="chatAutomodRuleSearchInput" placeholder="Поиск по ключу/описанию правила...">
-                                <button type="button" class="admin-btn admin-btn-secondary" id="chatAutomodRefreshBtn">Обновить</button>
-                                <button type="button" class="admin-btn" id="chatAutomodSaveBtn">Сохранить</button>
-                            </div>
-                            <div class="filters-row" style="align-items:center;">
-                                <input type="text" class="filter-input" id="chatAutomodResetUserId" placeholder="UUID пользователя для сброса страйков/авто-мута">
-                                <button type="button" class="admin-btn admin-btn-danger" id="chatAutomodResetUserBtn">Сбросить пользователю</button>
-                            </div>
-                            <div id="chatAutomodSaveStatus" class="admin-inline-hint" style="margin-bottom:0.6rem;"></div>
-                            <div id="chatAutomodRulesList" class="activity-list">
-                                <p class="activity-empty">Загрузка правил автомодерации…</p>
-                            </div>
-                            <h3 class="visitor-analytics-subh">Последние срабатывания</h3>
-                            <div id="chatAutomodEventsList" class="activity-list">
-                                <p class="activity-empty">Загрузка событий автомодерации…</p>
-                            </div>
-                        </div>
-                        <div class="admin-section">
-                            <h2>💬 Модерация чата</h2>
-                            <div class="filters-row">
-                                <input type="text" class="filter-input" id="chatSearchInput" placeholder="Поиск в чате...">
-                                <input type="date" class="filter-input" id="chatDateFrom" placeholder="От" title="Дата начала">
-                                <input type="date" class="filter-input" id="chatDateTo" placeholder="До" title="Дата окончания">
-                            </div>
-                            <div id="chatMessagesMod" class="messages-list"></div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Настройки сайта -->
                 <div class="admin-tab-content" id="tabSettings">
                     <div class="admin-section">
@@ -316,32 +226,6 @@
                     </div>
 
                     <div class="admin-section">
-                        <h2>Minko AI — быстрые переключатели</h2>
-                        <p class="admin-inline-hint" style="max-width: 52rem; line-height: 1.5;">
-                            То же состояние, что на вкладке «Сервер Minko AI». Можно выключить чат для всех без деплоя.
-                        </p>
-                        <div class="setting-card" style="margin-top: 1rem;">
-                            <label class="setting-item" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                                <input type="checkbox" id="settingsMinkoEnabled" checked />
-                                <span><strong>Minko AI включена</strong></span>
-                            </label>
-                            <label class="setting-item" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 0.55rem;">
-                                <input type="checkbox" id="settingsMinkoOfflineExceptCreator" />
-                                <span><strong>Офлайн для всех, кроме создателя</strong></span>
-                            </label>
-                        </div>
-                        <div class="setting-card" style="margin-top: 1rem;">
-                            <label for="settingsMinkoMessage" style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Сообщение при отключении</label>
-                            <textarea id="settingsMinkoMessage" class="filter-input" rows="2" style="width: 100%; max-width: 40rem; resize: vertical;" placeholder="Технические работы…"></textarea>
-                        </div>
-                        <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                            <button type="button" class="admin-btn" id="settingsMinkoSaveBtn">Сохранить Minko AI</button>
-                            <button type="button" class="admin-btn admin-btn-secondary" id="settingsGoMinkoTabBtn">Подробнее → Сервер Minko AI</button>
-                        </div>
-                        <p id="settingsMinkoSaveStatus" class="admin-inline-hint" style="margin-top: 0.75rem;"></p>
-                    </div>
-
-                    <div class="admin-section">
                         <h2>Netlify — деплой сайта</h2>
                         <p class="admin-inline-hint" style="max-width: 52rem; line-height: 1.5;">
                             Build hook из Netlify → Site settings → Build &amp; deploy → Build hooks. URL хранится в Supabase (только для создателя).
@@ -352,28 +236,11 @@
                         </div>
                         <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
                             <button type="button" class="admin-btn" id="settingsNetlifyHookSaveBtn">Сохранить hook</button>
-                            <button type="button" class="admin-btn admin-btn-secondary" id="settingsNetlifyDeployBtn">Запустить деплой</button>
+                            <button type="button" class="admin-btn" id="settingsNetlifyDeployBtn">Запустить деплой</button>
                         </div>
                         <p id="settingsNetlifyStatus" class="admin-inline-hint" style="margin-top: 0.75rem;"></p>
                     </div>
 
-                    <div class="admin-section">
-                        <h2>Автомодерация чата</h2>
-                        <p class="admin-inline-hint" style="max-width: 52rem; line-height: 1.5;">
-                            Главный переключатель серверной автомодерации. Правила и события — на вкладке «Модерация».
-                        </p>
-                        <div class="setting-card" style="margin-top: 1rem;">
-                            <label class="setting-item" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                                <input type="checkbox" id="settingsChatAutomodEnabled" />
-                                <span>Автомодерация включена</span>
-                            </label>
-                        </div>
-                        <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                            <button type="button" class="admin-btn" id="settingsChatAutomodSaveBtn">Сохранить</button>
-                            <button type="button" class="admin-btn admin-btn-secondary" id="settingsGoModerationBtn">Правила → Модерация</button>
-                        </div>
-                        <p id="settingsChatAutomodStatus" class="admin-inline-hint" style="margin-top: 0.75rem;"></p>
-                    </div>
                     <div class="admin-section">
                         <h2>Служебная информация</h2>
                         <div class="setting-card" style="margin-top: 1rem;">
@@ -383,178 +250,6 @@
                                 <div><dt>Email создателя</dt><dd>creator@reminko.com</dd></div>
                             </dl>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Тесты и прототипы только для Создателя -->
-                <div class="admin-tab-content" id="tabTests">
-                    <div class="admin-section admin-tests-shell">
-                        <div class="admin-tests-head">
-                            <div>
-                                <p class="admin-tests-kicker">Лаборатория интерфейса</p>
-                                <h2>Тесты</h2>
-                                <p class="admin-inline-hint">
-                                    Здесь собраны черновики будущих функций и визуальные макеты. Посетители сайта эту вкладку не видят.
-                                </p>
-                            </div>
-                            <span class="admin-tests-badge">Creator only</span>
-                        </div>
-
-                        <div class="admin-tests-subtabs" role="tablist" aria-label="Разделы тестов">
-                            <button type="button" class="admin-tests-subtab active" data-test-tab="mobile" aria-selected="true">Мобильный вид</button>
-                        </div>
-
-                        <section class="admin-tests-panel active" id="testPanelMobile" data-test-panel="mobile">
-                            <div class="mobile-design-hero">
-                                <div class="mobile-design-copy">
-                                    <p class="admin-tests-kicker">Как я бы сделал адаптив</p>
-                                    <h3>Телефон без урезания функций ПК-версии</h3>
-                                    <p>
-                                        На телефоне остаются каталог, поиск, профиль, друзья, сообщения, Minko AI и просмотр.
-                                        Меняется только подача: нижняя навигация, крупные карточки, липкий поиск и быстрые действия большим пальцем.
-                                    </p>
-                                    <div class="mobile-design-tags">
-                                        <span>Bottom nav</span>
-                                        <span>Карточки 2 в ряд</span>
-                                        <span>Поиск сверху</span>
-                                        <span>Плеер 16:9</span>
-                                        <span>Планшетная сетка</span>
-                                    </div>
-                                </div>
-                                <div class="mobile-device-row" aria-label="Интерактивный макет мобильного сайта">
-                                    <div class="mobile-site-phone-frame">
-                                        <div class="mobile-site-status"><span>9:41</span><strong>Re-Minko</strong><span>5G</span></div>
-                                        <div class="mobile-site-screen">
-                                            <section class="mobile-site-view active" data-mobile-demo-panel="home">
-                                                <div class="mobile-site-topbar">
-                                                    <button type="button" class="mobile-site-menu-btn">☰</button>
-                                                    <div>
-                                                        <span>Главная</span>
-                                                        <strong>Что смотрим?</strong>
-                                                    </div>
-                                                    <button type="button" class="mobile-site-avatar">M</button>
-                                                </div>
-                                                <button type="button" class="mobile-site-search-pill" data-mobile-demo-open="search">Поиск аниме, жанра, серии...</button>
-                                                <div class="mobile-site-hero-card">
-                                                    <span>Продолжить</span>
-                                                    <strong>Поднятие уровня в одиночку</strong>
-                                                    <small>Серия 11 · 24 мин</small>
-                                                    <button type="button" data-mobile-demo-open="watch">Смотреть</button>
-                                                </div>
-                                                <div class="mobile-site-section-head"><strong>Сейчас выходит</strong><span>Все</span></div>
-                                                <div class="mobile-site-row-scroll">
-                                                    <button type="button" class="mobile-anime-mini-card" data-mobile-demo-open="watch"><span></span><strong>Re:Zero</strong><small>серия 4</small></button>
-                                                    <button type="button" class="mobile-anime-mini-card"><span></span><strong>Магия</strong><small>серия 8</small></button>
-                                                    <button type="button" class="mobile-anime-mini-card"><span></span><strong>Герой</strong><small>анонс</small></button>
-                                                </div>
-                                            </section>
-
-                                            <section class="mobile-site-view" data-mobile-demo-panel="catalog">
-                                                <div class="mobile-site-topbar">
-                                                    <button type="button" class="mobile-site-menu-btn">☰</button>
-                                                    <div>
-                                                        <span>Каталог</span>
-                                                        <strong>Аниме</strong>
-                                                    </div>
-                                                    <button type="button" class="mobile-site-filter-btn">Фильтр</button>
-                                                </div>
-                                                <div class="mobile-site-chip-row">
-                                                    <button type="button" class="active">Онгоинг</button>
-                                                    <button type="button">Анонсы</button>
-                                                    <button type="button">Фильмы</button>
-                                                </div>
-                                                <div class="mobile-site-catalog-grid">
-                                                    <button type="button" class="mobile-catalog-card" data-mobile-demo-open="watch"><span></span><strong>Re:Zero</strong><small>2026 · ТВ-4</small></button>
-                                                    <button type="button" class="mobile-catalog-card"><span></span><strong>Дандадан</strong><small>2025 · ТВ</small></button>
-                                                    <button type="button" class="mobile-catalog-card"><span></span><strong>Блич</strong><small>2024 · ТВ</small></button>
-                                                    <button type="button" class="mobile-catalog-card"><span></span><strong>Кайдзю</strong><small>2024 · ТВ</small></button>
-                                                </div>
-                                            </section>
-
-                                            <section class="mobile-site-view" data-mobile-demo-panel="search">
-                                                <div class="mobile-site-topbar">
-                                                    <button type="button" class="mobile-site-menu-btn" data-mobile-demo-open="home">‹</button>
-                                                    <div>
-                                                        <span>Поиск</span>
-                                                        <strong>Быстрый доступ</strong>
-                                                    </div>
-                                                </div>
-                                                <input class="mobile-site-search-input" id="mobileDemoSearchInput" type="search" value="Re:Zero" aria-label="Поиск в мобильном макете">
-                                                <div class="mobile-search-results" id="mobileDemoSearchResults">
-                                                    <button type="button" data-title="Re:Zero" data-mobile-demo-open="watch"><span></span><strong>Re:Zero. Жизнь с нуля</strong><small>Франшиза · 12 частей</small></button>
-                                                    <button type="button" data-title="Solo Leveling"><span></span><strong>Поднятие уровня в одиночку</strong><small>Онгоинг · 11 серий</small></button>
-                                                    <button type="button" data-title="Dandadan"><span></span><strong>Дандадан</strong><small>Комедия · Экшен</small></button>
-                                                </div>
-                                            </section>
-
-                                            <section class="mobile-site-view" data-mobile-demo-panel="watch">
-                                                <div class="mobile-site-topbar">
-                                                    <button type="button" class="mobile-site-menu-btn" data-mobile-demo-open="home">‹</button>
-                                                    <div>
-                                                        <span>Просмотр</span>
-                                                        <strong>Re:Zero ТВ-4</strong>
-                                                    </div>
-                                                </div>
-                                                <div class="mobile-site-player"><span></span></div>
-                                                <div class="mobile-episode-strip">
-                                                    <button type="button">1</button><button type="button">2</button><button type="button">3</button><button type="button" class="active">4</button>
-                                                </div>
-                                                <div class="mobile-watch-info">
-                                                    <strong>Жизнь в альтернативном мире с нуля</strong>
-                                                    <p>Плеер сверху, серии крупно, описание сворачивается, ниже франшиза и похожие.</p>
-                                                </div>
-                                                <div class="mobile-site-section-head"><strong>Франшиза</strong><span>1 → последний</span></div>
-                                                <div class="mobile-franchise-strip">
-                                                    <span>ТВ-1</span><span>OVA</span><span>ТВ-2</span><span>ТВ-3</span><span>ТВ-4</span>
-                                                </div>
-                                            </section>
-                                        </div>
-                                        <nav class="mobile-site-bottom-nav" aria-label="Навигация мобильного макета">
-                                            <button type="button" class="active" data-mobile-demo-tab="home">⌂<span>Главная</span></button>
-                                            <button type="button" data-mobile-demo-tab="catalog">▦<span>Каталог</span></button>
-                                        </nav>
-                                    </div>
-                                    <div class="tablet-frame">
-                                        <div class="tablet-sidebar"></div>
-                                        <div class="tablet-content">
-                                            <div class="tablet-search"></div>
-                                            <div class="tablet-hero"></div>
-                                            <div class="tablet-grid"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="mobile-design-grid">
-                                <article class="mobile-design-card">
-                                    <h4>Главная</h4>
-                                    <p>Секции идут вертикально: анонсы, онгоинги, популярное. У каждой секции горизонтальная прокрутка карточек.</p>
-                                </article>
-                                <article class="mobile-design-card">
-                                    <h4>Каталог</h4>
-                                    <p>Фильтры открываются отдельным bottom sheet, карточки становятся 2 в ряд на телефоне и 3-4 на планшете.</p>
-                                </article>
-                                <article class="mobile-design-card">
-                                    <h4>Просмотр</h4>
-                                    <p>Плеер сверху, ниже крупный выбор серии, описание сворачивается, франшиза и похожее идут каруселями.</p>
-                                </article>
-                                <article class="mobile-design-card">
-                                    <h4>Навигация</h4>
-                                    <p>На телефоне боковое меню заменяется нижней панелью: главная и каталог аниме.</p>
-                                </article>
-                            </div>
-
-                            <div class="mobile-design-roadmap">
-                                <h4>Что потом реально редактировать</h4>
-                                <ol>
-                                    <li>Переписать `sidebar-layout.css` под mobile-first: нижняя навигация до 768px, компактный topbar.</li>
-                                    <li>Сделать единые размеры карточек каталога, чтобы сетка не прыгала от разных постеров и названий.</li>
-                                    <li>Добавить mobile bottom sheet для фильтров, сортировки, жанров и статуса выхода.</li>
-                                    <li>Оптимизировать страницу просмотра: липкий плеер, крупные кнопки серий, меньше длинных блоков подряд.</li>
-                                    <li>Проверить планшеты отдельно: там лучше оставить боковое меню, но сделать контент шире и сетки плотнее.</li>
-                                </ol>
-                            </div>
-                        </section>
                     </div>
                 </div>
             </div>
@@ -585,9 +280,9 @@
     <script src="scripts/jikan-api.js"></script>
     <script src="scripts/shikimori-api.js"></script>
     <script src="scripts/admin-panel.js"></script>
-    <script src="scripts/admin-panel-creator.js?v=20260724e"></script>
+    <script src="scripts/admin-panel-creator.js?v=20260917clean3"></script>
 <script src="scripts/loading.js"></script>
-    <script src="scripts/admin-panel-creator-ui.js?v=20260728visit2"></script>
+    <script src="scripts/admin-panel-creator-ui.js?v=20260917clean3"></script>
     <script src="scripts/apply-navigation.js?v=20260917clean2"></script>
 </body>
 </html>

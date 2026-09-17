@@ -136,22 +136,8 @@ class AdminPanel {
                 .from('profiles')
                 .select('*', { count: 'exact', head: true });
 
-            // Подсчет сообщений в общем чате
-            const { count: chatMessagesCount } = await supabaseClient
-                .from('global_chat_messages')
-                .select('*', { count: 'exact', head: true })
-                .is('deleted_at', null);
-
-            // Подсчет активных сессий просмотра
-            const { count: watchSessionsCount } = await supabaseClient
-                .from('watch_together_sessions')
-                .select('*', { count: 'exact', head: true })
-                .eq('is_active', true);
-
             return {
-                users: usersCount || 0,
-                chatMessages: chatMessagesCount || 0,
-                activeWatchSessions: watchSessionsCount || 0
+                users: usersCount || 0
             };
         } catch (error) {
             // Не логируем ошибки статистики

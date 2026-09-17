@@ -119,7 +119,6 @@ function switchTab(tabName) {
     });
 
     window.creatorAdminPanel.currentTab = tabName;
-    if (tabName !== 'dashboard') stopVisitorRealtime();
 
     if (tabName === 'dashboard') {
         void loadDashboard();
@@ -127,17 +126,6 @@ function switchTab(tabName) {
         void loadUsersAdvanced(1);
     } else if (tabName === 'team') {
         void loadTeamPanel();
-    } else if (tabName === 'moderation') {
-        void loadChatAutomodPanel();
-        void loadChatMessagesMod();
-    } else if (tabName === 'notifications') {
-        void loadNotificationsManagement();
-    } else if (tabName === 'minkoServer') {
-        void loadMinkoAiServerPanel();
-    } else if (tabName === 'giveaway') {
-        void loadGiveawayAdminPanel();
-    } else if (tabName === 'anime4k') {
-        void loadAnime4kAdminPanel();
     } else if (tabName === 'settings') {
         void loadCreatorSettingsTab();
     }
@@ -1184,24 +1172,14 @@ async function loadDashboard() {
                 <div class="stat-change positive">+${stats?.newUsersToday || 0} сегодня</div>
             </div>
             <div class="stat-card">
-                <h3>💬 Сообщения в чате</h3>
-                <div class="stat-value">${stats?.chatMessages || 0}</div>
-                <div class="stat-change positive">+${stats?.chatMessagesToday || 0} сегодня</div>
-            </div>
-            <div class="stat-card">
-                <h3>💎 VIP подписки</h3>
-                <div class="stat-value">${stats?.vipSubscriptions || 0}</div>
-                <div class="stat-change">активные</div>
-            </div>
-            <div class="stat-card">
                 <h3>🚫 Забанены</h3>
                 <div class="stat-value">${stats?.bannedUsers || 0}</div>
                 <div class="stat-change">пользователей</div>
             </div>
             <div class="stat-card">
-                <h3>📊 Активные за 7 дней</h3>
-                <div class="stat-value">${stats?.activeUsers || 0}</div>
-                <div class="stat-change">уникальные</div>
+                <h3>📅 За неделю</h3>
+                <div class="stat-value">${stats?.newUsersWeek || 0}</div>
+                <div class="stat-change">новых аккаунтов</div>
             </div>
         `;
     }
@@ -1213,12 +1191,8 @@ async function loadDashboard() {
                 <div class="quick-stat-value">${stats?.newUsersWeek || 0}</div>
             </div>
             <div class="quick-stat-item">
-                <div class="quick-stat-label">Сообщений в час (среднее)</div>
-                <div class="quick-stat-value">${Math.floor((stats?.chatMessagesToday || 0) / 24)}</div>
-            </div>
-            <div class="quick-stat-item">
-                <div class="quick-stat-label">Всего сообщений</div>
-                <div class="quick-stat-value">${stats?.chatMessages || 0}</div>
+                <div class="quick-stat-label">Всего аккаунтов</div>
+                <div class="quick-stat-value">${stats?.users || 0}</div>
             </div>
         `;
     }
@@ -1227,7 +1201,7 @@ async function loadDashboard() {
         const rows = await window.creatorAdminPanel.getRecentDashboardActivity(12);
         if (!rows.length) {
             recentEl.innerHTML =
-                '<p class="activity-empty">Пока нет недавних событий. Здесь появятся регистрации, входы и сообщения чата.</p>';
+                '<p class="activity-empty">Пока нет недавних регистраций.</p>';
         } else {
             recentEl.innerHTML = rows
                 .map((r) => {
@@ -1246,9 +1220,7 @@ async function loadDashboard() {
         }
     }
 
-    await loadVisitorAnalyticsPanel();
     await loadCreatorAuditLogsPanel();
-    refreshVisitorRealtimeState();
 }
 
 async function loadCreatorAuditLogsPanel() {
@@ -1511,7 +1483,7 @@ async function loadUsersAdvanced(page = 1) {
     if (!result.users.length) {
         cards.innerHTML = '<div class="users-card-empty">Пользователи не найдены</div>';
         tableBody.innerHTML =
-            '<tr><td colspan="7" style="text-align:center;padding:2rem;">Пользователи не найдены</td></tr>';
+            '<tr><td colspan="5" style="text-align:center;padding:2rem;">Пользователи не найдены</td></tr>';
         updateUsersPagination(0, page);
         return;
     }
@@ -1521,11 +1493,6 @@ async function loadUsersAdvanced(page = 1) {
             const statusChip = u.is_banned
                 ? '<span class="users-card-chip users-card-chip--bad">Забанен</span>'
                 : '<span class="users-card-chip users-card-chip--ok">Активен</span>';
-            const vipText = u.vip
-                ? `<span style="color:#ffd700;">VIP до ${
-                      u.vip.expires_at ? new Date(u.vip.expires_at).toLocaleDateString('ru-RU') : '—'
-                  }</span>`
-                : 'Нет';
             const usernameCell = `${adminPanelEscapeHtml(u.username || 'Без имени')}${
                 u.is_site_creator_account
                     ? ' <span style="color:#e9d5ff;font-size:0.78rem;font-weight:700;">[Создатель]</span>'
@@ -1543,9 +1510,6 @@ async function loadUsersAdvanced(page = 1) {
                     <div><strong>ID:</strong> <span style="font-family:ui-monospace,monospace;">${adminPanelEscapeHtml(
                         String(u.id || '').slice(0, 8)
                     )}…</span></div>
-                    <div><strong>VIP:</strong> ${vipText}</div>
-                    <div><strong>Чат:</strong> ${Number(u.activity?.chat_messages || 0)}</div>
-                    <div><strong>Вход:</strong> ${Number(u.activity?.logins || 0)}</div>
                 </div>
                 <div class="users-card-actions">
                     ${
@@ -1553,9 +1517,6 @@ async function loadUsersAdvanced(page = 1) {
                             ? `<button class="users-card-btn" onclick="toggleBan('${u.id}', false)">✅ Разбан</button>`
                             : `<button class="users-card-btn users-card-btn--danger" onclick="toggleBan('${u.id}', true)">🚫 Бан</button>`
                     }
-                    <button class="users-card-btn" onclick="muteUserChatAction('${u.id}')">🔇 Мут</button>
-                    <button class="users-card-btn" onclick="showEditSubscriptions('${u.id}')">💎 VIP</button>
-                    <button class="users-card-btn" onclick="showAiSubscriptionEditor('${u.id}')">🤖 AI</button>
                     <button class="users-card-btn" onclick="showUserActions('${u.id}')">⚙️ Меню</button>
                     <button class="users-card-btn users-card-btn--danger" onclick="confirmFullDeleteUser('${u.id}')">⛔ Удалить</button>
                 </div>
@@ -1567,18 +1528,11 @@ async function loadUsersAdvanced(page = 1) {
             const status = u.is_banned
                 ? '<span style="color:#ef4444;">Забанен</span>'
                 : '<span style="color:#10b981;">Активен</span>';
-            const vip = u.vip
-                ? `<span style="color:#ffd700;">VIP до ${
-                      u.vip.expires_at ? new Date(u.vip.expires_at).toLocaleDateString('ru-RU') : '—'
-                  }</span>`
-                : 'Нет';
             return `<tr>
                 <td style="font-family:monospace;font-size:0.85rem;">${adminPanelEscapeHtml(String(u.id || '').slice(0, 8))}...</td>
                 <td>${adminPanelEscapeHtml(u.email || 'Не указан')}</td>
                 <td>${adminPanelEscapeHtml(u.username || 'Без имени')}</td>
-                <td>${vip}</td>
                 <td>${status}</td>
-                <td><small>💬 ${u.activity?.chat_messages || 0}</small></td>
                 <td><button class="admin-btn" onclick="showUserActions('${u.id}')" style="padding:0.5rem;font-size:0.85rem;">⚙️</button></td>
             </tr>`;
         })
@@ -1631,11 +1585,6 @@ async function showUserActions(userId) {
                             : `<button class="admin-btn admin-btn-danger" onclick="toggleBan('${userId}', true)">🚫 Забанить</button>`
                     }
                     <button class="admin-btn" onclick="showEditUserUsername('${userId}')">✏️ Изменить имя</button>
-                    <button class="admin-btn" onclick="showEditSubscriptions('${userId}')">💎 VIP «Смотреть вместе»</button>
-                    <button class="admin-btn" onclick="showAiSubscriptionEditor('${userId}')">🤖 Тариф Minko AI</button>
-                    <button class="admin-btn" onclick="showUserActivity('${userId}')">📊 Активность</button>
-                    <button class="admin-btn" onclick="sendNotificationToUser('${userId}')">🔔 Уведомление</button>
-                    <button class="admin-btn" onclick="muteUserChatAction('${userId}')">🔇 Мут в чате</button>
                     <button class="admin-btn admin-btn-danger" onclick="confirmFullDeleteUser('${userId}')">⛔ Полностью удалить аккаунт</button>
                 </div>
             </div>
@@ -2128,21 +2077,7 @@ async function saveMinkoAiServerPanel() {
 const MAINT_ROUTE_OPTIONS = [
     ['home', 'Главная'],
     ['register', 'Регистрация (кнопка в шапке)'],
-    ['messages', 'Личные сообщения'],
-    ['friends', 'Друзья'],
-    ['watch_together', 'Смотреть вместе'],
-    ['profile', 'Профиль'],
-    ['favorites', 'Избранное (аниме)'],
-    ['info', 'Страница «Инфо»'],
-    ['history', 'История просмотра'],
-    ['favorites-manga', 'Избранное (манга)'],
-    ['manga_catalog', 'Каталог манги'],
-    ['calendar', 'Календарь аниме'],
-    ['anime_4k', 'Каталог ≈4K'],
-    ['minko_ai', 'Minko AI'],
     ['admin', 'Панель создателя'],
-    ['support', 'Чат поддержки'],
-    ['reader', 'Читалка манги'],
     ['privacy', 'Политика конфиденциальности'],
     ['terms', 'Условия использования'],
 ];
@@ -2219,13 +2154,8 @@ function initCreatorSettingsSection() {
     window.__reminkoCreatorSettingsBound = true;
 
     document.getElementById('settingsDeployMarkBtn')?.addEventListener('click', () => void touchSettingsDeployMark());
-    document.getElementById('settingsMinkoSaveBtn')?.addEventListener('click', () => void saveSettingsMinkoQuick());
-    document.getElementById('settingsGoMinkoTabBtn')?.addEventListener('click', () => switchTab('minkoServer'));
     document.getElementById('settingsNetlifyHookSaveBtn')?.addEventListener('click', () => void saveSettingsNetlifyHook());
     document.getElementById('settingsNetlifyDeployBtn')?.addEventListener('click', () => void triggerSettingsNetlifyDeploy());
-    document.getElementById('settingsChatAutomodSaveBtn')?.addEventListener('click', () => void saveSettingsChatAutomodShortcut());
-    document.getElementById('settingsGoModerationBtn')?.addEventListener('click', () => switchTab('moderation'));
-    document.getElementById('settingsGoNotificationsBtn')?.addEventListener('click', () => switchTab('notifications'));
 }
 
 async function loadCreatorSettingsTab() {
@@ -2233,9 +2163,7 @@ async function loadCreatorSettingsTab() {
     initCreatorSettingsSection();
     await loadMaintenanceSettings();
     await loadSettingsDeployMark();
-    await loadSettingsMinkoQuick();
     await loadSettingsNetlifyHook();
-    await loadSettingsChatAutomodShortcut();
     renderSettingsSiteInfo();
 }
 
@@ -2337,15 +2265,19 @@ async function saveSettingsMinkoQuick() {
 async function loadSettingsNetlifyHook() {
     const input = document.getElementById('settingsNetlifyHookInput');
     const statusEl = document.getElementById('settingsNetlifyStatus');
-    if (!window.creatorAdminPanel) return;
+    if (!supabaseClient) return;
     if (statusEl) statusEl.textContent = '';
 
-    const bundle = await window.creatorAdminPanel.getMinkoAiServerBundle();
-    if (!bundle.ok) {
-        if (statusEl) statusEl.textContent = bundle.message || 'Ошибка загрузки hook';
+    const { data, error } = await supabaseClient
+        .from('site_maintenance_config')
+        .select('netlify_build_hook_url')
+        .eq('id', 1)
+        .maybeSingle();
+    if (error) {
+        if (statusEl) statusEl.textContent = error.message || 'Ошибка загрузки hook';
         return;
     }
-    if (input) input.value = bundle.secrets?.netlify_build_hook_url || '';
+    if (input) input.value = data?.netlify_build_hook_url || '';
 }
 
 async function saveSettingsNetlifyHook() {
@@ -2875,14 +2807,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindDashboardControls();
     initUsersSection();
     initTeamSection();
-    initModerationSection();
-    initNotificationsSection();
     initMaintenanceSettingsSection();
     initCreatorSettingsSection();
-    initMinkoAiServerPanel();
-    initGiveawaySection();
-    initAnime4kSection();
-    initTestsSection();
 
     await loadDashboard();
     hideAdminPageLoading();

@@ -350,81 +350,15 @@ class CreatorAdminPanel {
                         .gte('created_at', weekAgo.toISOString())
                 ]);
 
-            const [{ count: chatMessagesCount }, { count: chatMessagesToday }, { count: bannedCount }] =
-                await Promise.all([
-                    supabaseClient
-                        .from('global_chat_messages')
-                        .select('*', { count: 'exact', head: true })
-                        .is('deleted_at', null),
-                    supabaseClient
-                        .from('global_chat_messages')
-                        .select('*', { count: 'exact', head: true })
-                        .is('deleted_at', null)
-                        .gte('created_at', todayUtc.toISOString()),
-                    supabaseClient
-                        .from('profiles')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('is_banned', true)
-                ]);
-
-            let vipCount = 0;
-            const vipCandidates = [
-                () =>
-                    supabaseClient
-                        .from('vip_subscriptions')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('is_active', true),
-                () =>
-                    supabaseClient
-                        .from('ai_subscriptions')
-                        .select('*', { count: 'exact', head: true })
-                        .neq('subscription_type', 'free')
-            ];
-            for (const load of vipCandidates) {
-                try {
-                    const { count, error } = await load();
-                    if (!error) {
-                        vipCount = count || 0;
-                        break;
-                    }
-                } catch (_) {
-                    // следующая таблица
-                }
-            }
-
-            let activeUsers = 0;
-            try {
-                const [eventsRes, chatRes] = await Promise.all([
-                    supabaseClient
-                        .from('site_visit_events')
-                        .select('user_id')
-                        .gte('created_at', weekAgo.toISOString())
-                        .not('user_id', 'is', null)
-                        .limit(5000),
-                    supabaseClient
-                        .from('global_chat_messages')
-                        .select('user_id')
-                        .gte('created_at', weekAgo.toISOString())
-                        .is('deleted_at', null)
-                        .not('user_id', 'is', null)
-                        .limit(5000)
-                ]);
-                const uniq = new Set();
-                (eventsRes.data || []).forEach((r) => r.user_id && uniq.add(r.user_id));
-                (chatRes.data || []).forEach((r) => r.user_id && uniq.add(r.user_id));
-                activeUsers = uniq.size;
-            } catch (_) {
-                activeUsers = 0;
-            }
+            const { count: bannedCount } = await supabaseClient
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('is_banned', true);
 
             return {
                 users: usersCount || 0,
                 newUsersToday: newUsersToday || 0,
-                chatMessages: chatMessagesCount || 0,
-                chatMessagesToday: chatMessagesToday || 0,
-                vipSubscriptions: vipCount || 0,
                 bannedUsers: bannedCount || 0,
-                activeUsers: activeUsers || 0,
                 newUsersWeek: newUsersWeek || 0
             };
         } catch (error) {
@@ -432,18 +366,14 @@ class CreatorAdminPanel {
             return {
                 users: 0,
                 newUsersToday: 0,
-                chatMessages: 0,
-                chatMessagesToday: 0,
-                vipSubscriptions: 0,
                 bannedUsers: 0,
-                activeUsers: 0,
                 newUsersWeek: 0
             };
         }
     }
 
     /**
-     * Сводная лента для дашборда: чат и новые профили (последние по времени).
+     * Сводная лента для дашборда: новые профили.
      * @returns {Promise<Array<{ type: string, at: string, title: string, body: string }>>}
      */
     async getRecentDashboardActivity(limit = 12) {
@@ -457,70 +387,15 @@ class CreatorAdminPanel {
                 .replace(/"/g, '&quot;');
 
         try {
-            const [chatRes, profilesRes, loginRes] = await Promise.all([
-                supabaseClient
-                    .from('global_chat_messages')
-                    .select('message, created_at, user_id')
-                    .is('deleted_at', null)
-                    .order('created_at', { ascending: false })
-                    .limit(8),
-                supabaseClient
-                    .from('profiles')
-                    .select('username, created_at')
-                    .order('created_at', { ascending: false })
-                    .limit(8),
-                supabaseClient
-                    .from('site_visit_events')
-                    .select('created_at, user_id, meta')
-                    .eq('event_kind', 'action')
-                    .eq('event_label', 'login')
-                    .order('created_at', { ascending: false })
-                    .limit(10)
-            ]);
-
-            const chatRows = chatRes.data || [];
-            const chatUserIds = [...new Set(chatRows.map((r) => r.user_id).filter(Boolean))];
-            const loginRows = loginRes.data || [];
-            const loginUserIds = [...new Set(loginRows.map((r) => r.user_id).filter(Boolean))];
-            let chatNameById = new Map();
-            const nameIds = [...new Set([...chatUserIds, ...loginUserIds])];
-            if (nameIds.length) {
-                const { data: chatProfiles } = await supabaseClient
-                    .from('profiles')
-                    .select('id, username')
-                    .in('id', nameIds);
-                chatNameById = new Map((chatProfiles || []).map((p) => [p.id, p.username]));
-            }
+            const { data: profilesRes } = await supabaseClient
+                .from('profiles')
+                .select('username, created_at')
+                .order('created_at', { ascending: false })
+                .limit(12);
 
             const items = [];
 
-            chatRows.forEach((r) => {
-                const name = chatNameById.get(r.user_id) || 'Пользователь';
-                const msg = (r.message || '').trim();
-                items.push({
-                    type: 'chat',
-                    at: r.created_at,
-                    title: `💬 ${esc(name)}`,
-                    body: esc(msg.length > 140 ? `${msg.slice(0, 140)}…` : msg)
-                });
-            });
-
-            (loginRows || []).forEach((r) => {
-                if (!r.user_id) return;
-                const name = chatNameById.get(r.user_id) || 'Аккаунт';
-                const prov =
-                    r.meta && typeof r.meta === 'object' && r.meta.provider
-                        ? String(r.meta.provider)
-                        : 'вход';
-                items.push({
-                    type: 'login',
-                    at: r.created_at,
-                    title: `🔑 Вход: ${esc(name)}`,
-                    body: esc(prov)
-                });
-            });
-
-            (profilesRes.data || []).forEach((r) => {
+            (profilesRes || []).forEach((r) => {
                 const name = r.username || 'Без ника';
                 items.push({
                     type: 'join',
@@ -587,21 +462,6 @@ class CreatorAdminPanel {
                     const { data: emailData } = await supabaseClient
                         .rpc('get_user_email', { user_id: user.id });
                     
-                    // VIP подписка
-                    const { data: vip } = await supabaseClient
-                        .from('vip_subscriptions')
-                        .select('*')
-                        .eq('user_id', user.id)
-                        .eq('is_active', true)
-                        .maybeSingle();
-
-                    // Статистика активности
-                    const { count: chatMessages } = await supabaseClient
-                        .from('global_chat_messages')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('user_id', user.id)
-                        .is('deleted_at', null);
-
                     const emailStr = emailData || '';
                     const isCreatorAcc =
                         typeof isSiteCreatorEmail === 'function'
@@ -611,21 +471,11 @@ class CreatorAdminPanel {
                     return {
                         ...user,
                         email: emailData || 'Не указан',
-                        is_site_creator_account: isCreatorAcc,
-                        vip: vip
-                            ? {
-                                  is_active: true,
-                                  expires_at: vip.expires_at
-                              }
-                            : null,
-                        ai_subscription: { type: 'sleepy' },
-                        activity: {
-                            chat_messages: chatMessages || 0
-                        }
+                        is_site_creator_account: isCreatorAcc
                     };
                 } catch (err) {
                     console.error('Ошибка получения деталей пользователя:', err);
-                    return { ...user, email: 'Не указан', vip: null, ai_subscription: { type: 'sleepy' }, activity: { chat_messages: 0 } };
+                    return { ...user, email: 'Не указан' };
                 }
             }));
 
@@ -1717,14 +1567,10 @@ class CreatorAdminPanel {
         const a = await this._assertCallerIsSiteCreator();
         if (!a.ok) return { success: false, message: a.message };
         const url = String(hookUrl || '').trim();
-        const { error } = await supabaseClient.from('minko_ai_creator_secrets').upsert(
-            {
-                id: 1,
-                netlify_build_hook_url: url || null,
-                updated_at: new Date().toISOString()
-            },
-            { onConflict: 'id' }
-        );
+        const { error } = await supabaseClient
+            .from('site_maintenance_config')
+            .update({ netlify_build_hook_url: url || null })
+            .eq('id', 1);
         if (error) return { success: false, message: error.message };
         return { success: true, message: 'Build hook сохранён' };
     }
@@ -1734,7 +1580,7 @@ class CreatorAdminPanel {
         const a = await this._assertCallerIsSiteCreator();
         if (!a.ok) return { success: false, message: a.message };
         const { data, error } = await supabaseClient
-            .from('minko_ai_creator_secrets')
+            .from('site_maintenance_config')
             .select('netlify_build_hook_url')
             .eq('id', 1)
             .maybeSingle();
