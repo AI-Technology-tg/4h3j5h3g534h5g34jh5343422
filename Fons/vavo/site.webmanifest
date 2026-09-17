@@ -1,7 +1,7 @@
 {
-  "name": "Re-Minko — аниме и манга",
+  "name": "Re-Minko — смотреть аниме",
   "short_name": "Re-Minko",
-  "description": "Каталог аниме и манги, Minko AI, общий чат",
+  "description": "Каталог аниме и просмотр онлайн",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

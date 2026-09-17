@@ -52,7 +52,7 @@ function applyAnimeViewSeo(anime, extra) {
     const desc =
         extra?.description ||
         anime.description ||
-        `Смотреть «${title}» онлайн на Re-Minko — каталог аниме, плеер Kodik и «Смотреть вместе».`;
+        `Смотреть «${title}» онлайн на Re-Minko — каталог аниме и плеер Kodik.`;
     const poster = extra?.poster || anime.posterUrl || anime.poster || null;
     reminkoUpdatePageSeo({
         title: `${title} — смотреть онлайн | Re-Minko`,

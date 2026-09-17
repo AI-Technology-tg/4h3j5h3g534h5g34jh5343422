@@ -1,28 +1,14 @@
 User-agent: *
 Allow: /
 
-# Служебные и личные разделы
+# Только существующие служебные страницы — удалённые URL не прячем,
+# чтобы Google прошёл 301 из netlify.toml и выкинул их из индекса.
 Disallow: /admin.html
-Disallow: /minko-edit.html
-Disallow: /messages.html
-Disallow: /profile.html
-Disallow: /friends.html
-Disallow: /history.html
-Disallow: /favorites.html
-Disallow: /favorites-manga.html
-Disallow: /watch-together.html
 Disallow: /reset-password.html
-Disallow: /payment-success.html
-Disallow: /cancel-success.html
-
-# Юридические страницы остаются на сайте, но не для поисковой выдачи
 Disallow: /privacy-policy.html
 Disallow: /terms-of-service.html
 Disallow: /account-deletion.html
-
-# Манга временно вне индекса
-Disallow: /catalog/manga.html
-Disallow: /manga/
-Disallow: /data/remanga-manga-catalog.json
+Disallow: /data/
+Disallow: /.netlify/
 
 Sitemap: https://re-minko-anime.com/sitemap.xml

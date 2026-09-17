@@ -3,8 +3,10 @@
  * Генерация sitemap.xml для re-minko-anime.com
  * Запуск: node scripts/build/generate-sitemap.js
  *
- * В карту попадают только публичные страницы для поиска.
- * Политика / условия / удаление аккаунта — НЕ включаем (noindex + robots Disallow).
+ * В карту попадают только публичные страницы текущего сайта:
+ * главная, каталог аниме, страницы тайтлов с плеером.
+ * Не включаем: admin, reset-password, legal, удалённые разделы
+ * (профиль, календарь, 4K, манга, избранное и т.д.).
  */
 'use strict';
 
@@ -47,7 +49,7 @@ function main() {
     const urls = [];
     const stamp = todayStamp();
 
-    /** Публичные indexable-страницы (без legal / личного кабинета / манги). */
+    /** Публичные indexable-страницы: главная и каталог. Тайтлы — из kodik JSON. */
     const staticPages = [
         ['/', '1.0', 'daily'],
         ['/catalog/anime.html', '0.95', 'daily']
