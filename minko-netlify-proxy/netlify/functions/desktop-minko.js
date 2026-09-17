@@ -357,7 +357,32 @@ async function saveCommand(hash, said, intent, section, title) {
   return { said, intent, section, title, hits: 1 };
 }
 
-async function correctWithOpenAi(said) {
+function snapTitle(title, candidates) {
+  const wanted = normalizeSaid(title);
+  if (!wanted) return '';
+  const list = (candidates || []).map((item) => safeText(item, 80)).filter(Boolean);
+  if (!list.length) return safeText(title, 80);
+  const exact = list.find((item) => normalizeSaid(item) === wanted);
+  if (exact) return exact;
+  let best = list[0];
+  let bestDist = 99;
+  for (const item of list) {
+    const dist = levenshtein(wanted, normalizeSaid(item));
+    if (dist < bestDist) {
+      best = item;
+      bestDist = dist;
+    }
+  }
+  return bestDist <= 8 ? best : '';
+}
+
+async function correctWithOpenAi(said, candidates) {
+  const list = (candidates || []).map((item) => safeText(item, 80)).filter(Boolean).slice(0, 28);
+  const catalogBlock = list.length
+    ? `Если это поиск аниме, title возьми ТОЛЬКО из списка каталога, буква в букву:\n${list
+        .map((item, index) => `${index + 1}. ${item}`)
+        .join('\n')}\nЕсли ничего не подходит — intent None.`
+    : 'Если это поиск аниме, верни официальное название. Не выдумывай редкие тайтлы.';
   const response = await fetchWithTimeout(
     'https://api.openai.com/v1/chat/completions',
     {
@@ -376,8 +401,8 @@ async function correctWithOpenAi(said) {
             content:
               'Нормализуй голосовую команду приложения Re-Minko. Верни только JSON ' +
               '{"intent":"OpenSection|FindAnime|RandomAnime|None","section":"catalog|manga|calendar|home|ai|friends|settings|profile|party|vip|null","title":"каноническое название или null","canonical":"правильная короткая фраза","alias":"как сказал пользователь"}. ' +
-              'Если это поиск аниме с опечаткой, title должно быть правильным известным названием: «атака киканов» → «Атака титанов». ' +
-              'Исполнять нужно исправленный тайтл, не сырую опечатку. Не выдумывай неизвестные названия.'
+              'Кашу в названии превращай в официальный тайтл. Исполнять нужно исправленное название, не сырую опечатку. ' +
+              catalogBlock
           },
           { role: 'user', content: said }
         ]
@@ -397,7 +422,9 @@ async function correctWithOpenAi(said) {
     const section = parsed.section ? safeText(parsed.section, 40) : null;
     if (intent === 'OpenSection' && !ALLOWED_SECTIONS.has(section || '')) return null;
     const title =
-      intent === 'FindAnime' ? safeText(parsed.title || parsed.canonical || '', 80) : null;
+      intent === 'FindAnime'
+        ? snapTitle(parsed.title || parsed.canonical || '', candidates)
+        : null;
     if (intent === 'FindAnime' && (!title || title.length < 2)) return null;
     return {
       intent,
@@ -411,14 +438,14 @@ async function correctWithOpenAi(said) {
   }
 }
 
-async function correct(hash, rawSaid) {
+async function correct(hash, rawSaid, candidates = []) {
   const said = normalizeSaid(safeText(rawSaid, 80));
   if (said.length < 3) return json(400, { error: 'invalid_entry' });
   const existing = await lookup(hash, said);
   if (existing) return json(200, { item: existing, existed: true });
   if (!OPENAI_KEY) return json(200, { item: null, existed: false });
 
-  const parsed = await correctWithOpenAi(said);
+  const parsed = await correctWithOpenAi(said, candidates);
   if (!parsed) return json(200, { item: null, existed: false });
 
   if (parsed.alias) {
@@ -535,7 +562,7 @@ exports.handler = async (event) => {
     if (action === 'correct' && event.httpMethod === 'POST') {
       const limit = await consumeRateLimit('desktop-minko-correct', gate.hash, 60, 3600);
       if (!limit.allowed) return json(429, { error: 'rate_limited' });
-      return correct(gate.hash, body.said || '');
+      return correct(gate.hash, body.said || '', body.candidates || []);
     }
 
     if (action === 'remember' && event.httpMethod === 'POST') {
