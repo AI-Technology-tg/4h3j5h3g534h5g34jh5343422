@@ -237,6 +237,7 @@ function initHomeSocialPanel() {
     if (!panel) return;
 
     panel.querySelector('.home-social-panel__close')?.addEventListener('click', closeHomeSocialPanel);
+    panel.querySelector('.home-social-panel__backdrop')?.addEventListener('click', closeHomeSocialPanel);
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && panel && !panel.hidden) closeHomeSocialPanel();

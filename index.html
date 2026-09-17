@@ -151,6 +151,81 @@
                             </div>
                         </div>
                     </div>
+                    <aside class="home-hero-social" aria-label="Соцсети и приложения Re-Minko">
+                        <p class="home-hero-social-heading">Наши соцсети</p>
+                        <div class="home-hero-social-avatars">
+                            <button
+                                type="button"
+                                class="home-social-avatar"
+                                data-social="telegram"
+                                aria-label="Re-Minko в Telegram"
+                            >
+                                <img data-social-src="Fons/Sociale/Telegram.webp" src="Fons/Sociale/Telegram.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
+                            </button>
+                            <button
+                                type="button"
+                                class="home-social-avatar"
+                                data-social="tiktok"
+                                aria-label="Re-Minko в TikTok"
+                            >
+                                <img data-social-src="Fons/Sociale/TikTok.webp" src="Fons/Sociale/TikTok.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
+                            </button>
+                            <button
+                                type="button"
+                                class="home-social-avatar"
+                                data-social="instagram"
+                                aria-label="Re-Minko в Instagram"
+                            >
+                                <img data-social-src="Fons/Sociale/Instagram.webp" src="Fons/Sociale/Instagram.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
+                            </button>
+                            <button
+                                type="button"
+                                class="home-social-avatar"
+                                data-social="facebook"
+                                aria-label="Re-Minko в Facebook"
+                            >
+                                <img data-social-src="Fons/Sociale/Facebook.webp" src="Fons/Sociale/Facebook.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
+                            </button>
+                            <button
+                                type="button"
+                                class="home-social-avatar"
+                                data-social="twitter"
+                                aria-label="Re-Minko в Twitter"
+                            >
+                                <img data-social-src="Fons/Sociale/Twitter.webp" src="Fons/Sociale/Twitter.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
+                            </button>
+                            <button
+                                type="button"
+                                class="home-social-avatar"
+                                data-social="vk"
+                                aria-label="Re-Minko во ВКонтакте"
+                            >
+                                <img data-social-src="Fons/Sociale/VK.webp" src="Fons/Sociale/VK.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
+                            </button>
+                            <button
+                                type="button"
+                                class="home-social-avatar"
+                                data-social="discord"
+                                aria-label="Re-Minko в Discord"
+                            >
+                                <img data-social-src="Fons/Sociale/Discord.webp" src="Fons/Sociale/Discord.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
+                            </button>
+                            <button
+                                type="button"
+                                class="home-social-avatar home-social-avatar--app home-social-avatar--soon"
+                                id="homeAppAndroidBtn"
+                                data-social="android"
+                                aria-label="Приложения Re-Minko — Android, ПК и TV — в разработке"
+                                title="Приложения Re-Minko — скоро"
+                            >
+                                <img data-social-src="Fons/androids.webp" src="Fons/androids.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
+                                <span class="home-social-avatar-badge">скоро</span>
+                            </button>
+                        </div>
+                        <p class="home-hero-social-hint home-hero-social-hint--apps">
+                            Приложения Re-Minko — <strong>в разработке</strong>: Android, программа для&nbsp;ПК и&nbsp;приложение для&nbsp;телевизора (Smart&nbsp;TV).
+                        </p>
+                    </aside>
                 </div>
             </section>
 
@@ -172,6 +247,7 @@
                     </p>
                     <div class="home-close-actions">
                         <a class="hero-btn hero-btn-primary" href="catalog/anime.html">Открыть каталог</a>
+                        <a class="hero-btn hero-btn-secondary" href="https://telegram.me/re_minko" target="_blank" rel="noopener noreferrer">Новости в Telegram</a>
                     </div>
                 </div>
             </aside>
@@ -280,5 +356,27 @@
     <script src="scripts/kodik-home.js?v=20260727ann1" defer></script>
     <script src="scripts/apply-navigation.js?v=20260801gw1" defer></script>
     <script src="scripts/site-visit-tracker.js?v=20260728visit2" defer></script>
+    <div id="homeSocialPanel" class="home-social-panel" hidden>
+        <div class="home-social-panel__backdrop"></div>
+        <div class="home-social-panel__card" role="dialog" aria-modal="true" aria-labelledby="homeSocialPanelTitle">
+            <button type="button" class="home-social-panel__close" data-social-close aria-label="Закрыть">×</button>
+            <div class="home-social-panel__icon" id="homeSocialPanelIcon" aria-hidden="true"></div>
+            <h2 class="home-social-panel__title" id="homeSocialPanelTitle"></h2>
+            <p class="home-social-panel__text" id="homeSocialPanelText"></p>
+            <iframe
+                id="homeSocialPanelWidget"
+                class="home-social-panel__widget"
+                title="Виджет сообщества"
+                width="350"
+                height="380"
+                hidden
+                allowtransparency="true"
+                frameborder="0"
+                sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+            ></iframe>
+            <a class="home-social-panel__go btn btn-primary" id="homeSocialPanelGo" href="#" target="_blank" rel="noopener noreferrer"></a>
+            <div class="home-social-panel__apps" id="homeSocialPanelApps" hidden></div>
+        </div>
+    </div>
 </body>
 </html>
