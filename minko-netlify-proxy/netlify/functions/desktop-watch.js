@@ -89,7 +89,7 @@ async function findActivatedDevice(deviceId, token) {
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
 }
 
-async function requireDevice(event, body = {}) {
+async function requireDevice(event, body = {}, options = {}) {
   const deviceId = String(header(event, 'x-re-minko-device') || body.deviceId || '')
     .trim()
     .toLowerCase();
@@ -98,14 +98,16 @@ async function requireDevice(event, body = {}) {
   const device = await findActivatedDevice(deviceId, token);
   if (!device) return null;
   const hash = deviceHash(deviceId);
-  await supabaseRequest(
-    `/rest/v1/desktop_profiles?device_hash=eq.${encodeURIComponent(hash)}`,
-    {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({ last_seen_at: new Date().toISOString() })
-    }
-  ).catch(() => {});
+  if (options.touch !== false) {
+    await supabaseRequest(
+      `/rest/v1/desktop_profiles?device_hash=eq.${encodeURIComponent(hash)}`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ last_seen_at: new Date().toISOString() })
+      }
+    ).catch(() => {});
+  }
   return { deviceId, hash };
 }
 
@@ -145,6 +147,44 @@ async function getRoomById(id) {
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
 }
 
+async function getRoomsByIds(ids) {
+  const unique = [...new Set((ids || []).filter(Boolean))];
+  const map = {};
+  if (!unique.length) return map;
+  let rows;
+  if (unique.length === 1) {
+    const one = await getRoomById(unique[0]);
+    rows = one ? [one] : [];
+  } else {
+    const or = unique.map((id) => `id.eq.${encodeURIComponent(id)}`).join(',');
+    rows = await supabaseRequest(`/rest/v1/desktop_watch_rooms?or=(${or})&closed_at=is.null&select=*`);
+    rows = Array.isArray(rows) ? rows : [];
+  }
+  for (const room of rows) map[room.id] = room;
+  return map;
+}
+
+function playerPayload(room, hash, isHost, memberCount = 0) {
+  return {
+    selfPeerId: hash,
+    room: {
+      id: room.id,
+      title: room.title,
+      animeId: room.anime_id || '',
+      animeTitle: room.anime_title,
+      episode: Number(room.episode) || 1,
+      isPlaying: !!room.is_playing,
+      playbackTime: Number(room.playback_time) || 0,
+      updatedAt: room.updated_at || null,
+      voiceEnabled: !!room.voice_enabled,
+      memberCount: Number(memberCount) || 0,
+      isHost: !!isHost
+    },
+    participants: [],
+    messages: []
+  };
+}
+
 async function listParticipantsSafe(roomId) {
   const rows = await supabaseRequest(
     `/rest/v1/desktop_watch_participants?room_id=eq.${encodeURIComponent(roomId)}` +
@@ -178,6 +218,7 @@ async function snapshot(room, hash) {
       episode: Number(room.episode) || 1,
       isPlaying: !!room.is_playing,
       playbackTime: Number(room.playback_time) || 0,
+      updatedAt: room.updated_at || null,
       voiceEnabled: !!room.voice_enabled,
       memberCount: people.length,
       isHost: !!(me && me.is_host)
@@ -224,6 +265,60 @@ async function areFriends(a, b) {
     `/rest/v1/desktop_friendships?status=eq.accepted&or=(and(requester_hash.eq.${encodeURIComponent(a)},addressee_hash.eq.${encodeURIComponent(b)}),and(requester_hash.eq.${encodeURIComponent(b)},addressee_hash.eq.${encodeURIComponent(a)}))&select=id&limit=1`
   );
   return Array.isArray(rows) && rows[0];
+}
+
+async function findOpenRoomsByHashes(hashes, hostOnly = false) {
+  const unique = [...new Set((hashes || []).filter(Boolean))];
+  const result = {};
+  if (!unique.length) return result;
+  const hostFilter = hostOnly ? '&is_host=eq.true' : '';
+  let parts;
+  if (unique.length === 1) {
+    parts = await supabaseRequest(
+      `/rest/v1/desktop_watch_participants?device_hash=eq.${encodeURIComponent(unique[0])}` +
+        `${hostFilter}&select=device_hash,room_id,last_seen_at&order=last_seen_at.desc`
+    );
+  } else {
+    const or = unique.map((item) => `device_hash.eq.${encodeURIComponent(item)}`).join(',');
+    parts = await supabaseRequest(
+      `/rest/v1/desktop_watch_participants?or=(${or})${hostFilter}&select=device_hash,room_id,last_seen_at`
+    );
+  }
+  const list = (Array.isArray(parts) ? parts : []).sort(
+    (a, b) => new Date(b.last_seen_at || 0) - new Date(a.last_seen_at || 0)
+  );
+  const roomIds = [...new Set(list.map((row) => row.room_id).filter(Boolean))];
+  if (!roomIds.length) return result;
+  let rooms = [];
+  if (roomIds.length === 1) {
+    const one = await getRoomById(roomIds[0]);
+    rooms = one ? [one] : [];
+  } else {
+    const or = roomIds.map((id) => `id.eq.${encodeURIComponent(id)}`).join(',');
+    const rows = await supabaseRequest(
+      `/rest/v1/desktop_watch_rooms?or=(${or})&closed_at=is.null&select=*`
+    );
+    rooms = Array.isArray(rows) ? rows : [];
+  }
+  const roomMap = new Map(rooms.map((room) => [room.id, room]));
+  for (const row of list) {
+    const room = roomMap.get(row.room_id);
+    if (room && !result[row.device_hash]) result[row.device_hash] = room;
+  }
+  return result;
+}
+
+async function syncRoom(actor, body, query) {
+  const roomId = String(body.roomId || query.roomId || '');
+  const room = await getRoomById(roomId);
+  if (!room) return json(404, { error: 'room_not_found' });
+  const rows = await supabaseRequest(
+    `/rest/v1/desktop_watch_participants?room_id=eq.${encodeURIComponent(room.id)}` +
+      `&device_hash=eq.${encodeURIComponent(actor.hash)}&select=device_hash,is_host&limit=1`
+  );
+  const me = Array.isArray(rows) ? rows[0] : null;
+  if (!me) return json(403, { error: 'not_in_room' });
+  return json(200, playerPayload(room, actor.hash, me.is_host));
 }
 
 async function findOpenRoomFor(hash, hostOnly = false) {
@@ -362,7 +457,7 @@ async function setPlayer(actor, body) {
     `/rest/v1/desktop_watch_rooms?id=eq.${encodeURIComponent(found.room.id)}`,
     { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(patch) }
   );
-  return json(200, await snapshot({ ...found.room, ...patch, is_playing: patch.is_playing }, actor.hash));
+  return json(200, playerPayload({ ...found.room, ...patch }, actor.hash, true, found.people.length));
 }
 
 async function sendChat(actor, body) {
@@ -533,17 +628,20 @@ async function socialInbox(actor) {
   const friendHashes = accepted.map((row) =>
     row.requester_hash === actor.hash ? row.addressee_hash : row.requester_hash
   );
-  const rooms = {};
-  for (const hash of friendHashes) {
-    try {
-      const room = await findOpenRoomFor(hash, true);
-      if (room) rooms[hash] = room;
-    } catch (_) {}
+  let rooms = {};
+  try {
+    rooms = await findOpenRoomsByHashes(friendHashes, true);
+  } catch (_) {
+    rooms = {};
   }
   let myHostedRoom = null;
   let membership = null;
-  try { myHostedRoom = await findOpenRoomFor(actor.hash, true); } catch (_) {}
-  try { membership = await findOpenRoomFor(actor.hash, false); } catch (_) {}
+  try {
+    const hosted = await findOpenRoomsByHashes([actor.hash], true);
+    myHostedRoom = hosted[actor.hash] || null;
+    const mine = await findOpenRoomsByHashes([actor.hash], false);
+    membership = mine[actor.hash] || myHostedRoom;
+  } catch (_) {}
   const friends = friendHashes
     .map((hash) => profileMap.get(hash))
     .filter(Boolean)
@@ -570,12 +668,17 @@ async function socialInbox(actor) {
         incoming: false
       };
     });
+  const incomingInvites = invites.filter((row) => row.to_hash === actor.hash);
+  let inviteRooms = {};
+  try {
+    inviteRooms = await getRoomsByIds(incomingInvites.map((row) => row.room_id));
+  } catch (_) {
+    inviteRooms = {};
+  }
   const roomInvites = [];
-  for (const row of invites) {
-    if (row.to_hash !== actor.hash) continue;
+  for (const row of incomingInvites) {
     const from = profileMap.get(row.from_hash);
-    let room = null;
-    try { room = await getRoomById(row.room_id); } catch (_) { room = null; }
+    const room = inviteRooms[row.room_id];
     if (!room) continue;
     roomInvites.push({
       id: row.id,
@@ -782,9 +885,17 @@ exports.handler = async (event) => {
   const body = event.httpMethod === 'POST' ? readJson(event) : {};
   if (body === null) return json(400, { error: 'invalid_json' });
   try {
-    const actor = await requireDevice(event, body);
-    if (!actor) return json(401, { error: 'unauthorized' });
     const action = String(query.action || body.action || 'watch-state');
+    const light =
+      action === 'watch-sync' ||
+      action === 'watch-set-player' ||
+      action === 'set-player' ||
+      action === 'voice-poll' ||
+      action === 'watch-voice-poll' ||
+      action === 'voice-signal' ||
+      action === 'watch-voice-signal';
+    const actor = await requireDevice(event, body, { touch: !light });
+    if (!actor) return json(401, { error: 'unauthorized' });
     switch (action) {
       case 'watch-create':
       case 'create':
@@ -795,6 +906,8 @@ exports.handler = async (event) => {
       case 'watch-state':
       case 'state':
         return await stateRoom(actor, body, query);
+      case 'watch-sync':
+        return await syncRoom(actor, body, query);
       case 'watch-set-anime':
       case 'set-anime':
         return await setAnime(actor, body);
