@@ -20,7 +20,7 @@ const INSTALLER_ASSET = /^Re-Minko-Installer-\d+\.\d+\.\d+\.exe$/;
 const DEVICE_ID = /^[a-f0-9]{64}$/;
 const CODE_TTL_MS = 10 * 60 * 1000;
 const DISCORD_CHANNEL =
-  process.env.REMINKO_DISCORD_CHANNEL_ID || '1545611587430256693';
+  process.env.REMINKO_DISCORD_CHANNEL_ID || '1550083560948371486';
 const STAFF_ROLES = new Set([
   'tester_pr',
   'moderator',
