@@ -10,7 +10,8 @@ const PUBLIC_DATA_FILES = [
     'kodik-anime-catalog.json',
     'kodik-announced.json',
     'kodik-calendar.json',
-    'kodik-home-strips.json'
+    'kodik-home-strips.json',
+    'catalog-manifest.json'
 ];
 const ROOT_PUBLIC_FILES = [
     '_headers',

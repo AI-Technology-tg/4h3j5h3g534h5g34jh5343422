@@ -423,7 +423,7 @@ async function ensureKodikAnnouncedRowsLoaded() {
     const prefix = depth > 0 ? '../'.repeat(depth) : '';
     window.__reminkoKodikAnnouncedLoading = fetch(`${prefix}data/kodik-announced.json`, {
         credentials: 'omit',
-        cache: 'default',
+        cache: 'no-store',
     })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {

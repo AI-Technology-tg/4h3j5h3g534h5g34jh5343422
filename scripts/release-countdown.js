@@ -373,7 +373,7 @@
     async function reminkoLoadCalendarData(force) {
         if (_calendarItems && !force) return _calendarItems;
         if (_calendarLoading && !force) return _calendarLoading;
-        _calendarLoading = fetch(reminkoCalendarUrl(), { credentials: 'omit', cache: 'default' })
+        _calendarLoading = fetch(reminkoCalendarUrl(), { credentials: 'omit', cache: 'no-store' })
             .then((res) => (res.ok ? res.json() : { items: [] }))
             .then((data) => {
                 _calendarItems = (data && data.items) || data || [];

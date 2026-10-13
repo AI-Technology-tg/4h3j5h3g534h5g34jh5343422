@@ -16,6 +16,11 @@
 /*
   Cache-Control: public, max-age=2592000
 
+# Каталог меняется каждые 3 часа. Эти JSON нельзя держать месяц:
+# иначе карточка уже новая, а страница просмотра читает старую базу и не находит ID.
+/data/*.json
+  Cache-Control: public, max-age=0, must-revalidate
+
 /Fons/Sociale/*
   Cache-Control: public, max-age=31536000, immutable
 

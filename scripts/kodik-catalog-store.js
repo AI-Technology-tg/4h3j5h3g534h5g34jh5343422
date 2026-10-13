@@ -61,7 +61,7 @@
         if (_loaded && !force) return Promise.resolve(_items);
         if (_loading && !force) return _loading;
 
-        _loading = fetch(catalogUrl(), { credentials: 'omit', cache: 'default' })
+        _loading = fetch(catalogUrl(), { credentials: 'omit', cache: 'no-store' })
             .then((res) => {
                 if (!res.ok) throw new Error('Kodik catalog HTTP ' + res.status);
                 return res.json();

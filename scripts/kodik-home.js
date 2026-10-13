@@ -63,7 +63,7 @@
         try {
             const res = await fetch(catalogUrl('data/kodik-announced.json'), {
                 credentials: 'omit',
-                cache: 'default',
+                cache: 'no-store',
             });
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
@@ -78,7 +78,7 @@
         try {
             const res = await fetch(catalogUrl('data/kodik-home-strips.json'), {
                 credentials: 'omit',
-                cache: 'default',
+                cache: 'no-store',
             });
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
