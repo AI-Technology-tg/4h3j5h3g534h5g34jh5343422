@@ -546,34 +546,7 @@ if (!window.__reminkoMaintNavClickBound) {
     }
 
     async function sendVisitPayload(payload) {
-        let accessToken = '';
-        try {
-            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-                const {
-                    data: { session }
-                } = await supabaseClient.auth.getSession();
-                accessToken = session?.access_token || '';
-            }
-        } catch (_) {
-            /* anonymous event */
-        }
-
-        const headers = { 'Content-Type': 'application/json' };
-        if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-        let sent = false;
-        try {
-            const res = await fetch('/.netlify/functions/site-visit-ingest', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(payload),
-                keepalive: true,
-                credentials: 'omit'
-            });
-            sent = res.ok;
-        } catch (_) {
-            sent = false;
-        }
-        if (!sent && typeof supabaseClient !== 'undefined' && supabaseClient?.rpc) {
+        if (typeof supabaseClient !== 'undefined' && supabaseClient?.rpc) {
             try {
                 await supabaseClient.rpc('site_visit_record', {
                     p_visitor_id: payload.visitor_id,

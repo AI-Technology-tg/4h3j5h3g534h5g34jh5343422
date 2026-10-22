@@ -66,14 +66,6 @@
         lastSent = now;
         window.__reminkoSiteVisitPageviewSent = true;
 
-        let accessToken = '';
-        try {
-            if (window.supabaseClient) {
-                const { data } = await window.supabaseClient.auth.getSession();
-                accessToken = data?.session?.access_token || '';
-            }
-        } catch (_) {}
-
         const row = {
             visitor_id: visitorId(),
             path: currentPath() || '/',
@@ -83,16 +75,7 @@
         };
 
         try {
-            const headers = { 'Content-Type': 'application/json' };
-            if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-            const res = await fetch('/.netlify/functions/site-visit-ingest', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(row),
-                keepalive: true,
-                credentials: 'omit'
-            });
-            if (!res.ok && window.supabaseClient?.rpc) {
+            if (window.supabaseClient?.rpc) {
                 await window.supabaseClient.rpc('site_visit_record', {
                     p_visitor_id: row.visitor_id,
                     p_path: row.path || '/',
