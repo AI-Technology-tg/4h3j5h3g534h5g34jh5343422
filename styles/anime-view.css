@@ -958,13 +958,22 @@ a.anime-franchise-card--current .anime-franchise-card__go-btn {
     margin: -0.25rem 0 0.75rem;
 }
 
+.anime-similar-section {
+    min-width: 0;
+    max-width: 100%;
+}
+
 .anime-similar-scroll {
     display: flex;
     gap: 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     overflow-x: auto;
     padding-bottom: 0.5rem;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
+    cursor: grab;
 }
 
 .anime-similar-card {

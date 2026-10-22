@@ -115,8 +115,8 @@ async function registerUser(email, password, username, avatar, gender = 'male') 
     
     if (typeof logger !== 'undefined') logger.log('✅ [REGISTER] Supabase клиент найден, продолжаем регистрацию через Supabase Auth');
 
-    if (await reminkoIsIdentityBlocked(email)) {
-        return { success: false, message: 'Регистрация для этого адреса запрещена.' };
+    if (await reminkoIsIdentityBlocked(email) || String(email || '').trim().toLowerCase() !== 'creator@reminko.com') {
+        return { success: false, message: 'Регистрация на сайте закрыта.' };
     }
     
     // Примечание: Проверку существования email оставляем на Supabase
@@ -273,6 +273,10 @@ async function loginUser(email, password, codePassword = null, codePhrase = null
     if (!isValidEmail(email)) {
         if (typeof logger !== 'undefined') logger.log('❌ [LOGIN] Неверный формат email');
         return { success: false, message: 'Некорректный формат email' };
+    }
+
+    if (String(email || '').trim().toLowerCase() !== 'creator@reminko.com') {
+        return { success: false, message: 'Вход на сайт закрыт.' };
     }
     
     if (!isValidPassword(password)) {

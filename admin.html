@@ -73,7 +73,25 @@
                     <div class="admin-stats" id="adminStats">
                         <!-- Статистика загрузится динамически -->
                     </div>
-                    
+
+                    <div class="admin-section" id="visitorAnalyticsSection">
+                        <h2>Сейчас на сайте</h2>
+                        <p class="admin-inline-hint" style="margin: 0 0 0.8rem;">
+                            Сколько людей сейчас на сайте. Обновляется само.
+                        </p>
+                        <div class="filters-row" style="margin-bottom:0.8rem;">
+                            <label class="admin-inline-hint" for="visitorOnlineWindow">Окно</label>
+                            <select class="filter-select" id="visitorOnlineWindow" title="Считать онлайн за последние минуты">
+                                <option value="5" selected>5 минут</option>
+                                <option value="15">15 минут</option>
+                            </select>
+                            <button type="button" class="admin-btn" id="visitorAnalyticsRefreshBtn">Обновить</button>
+                        </div>
+                        <div id="visitorAnalyticsContent">
+                            <p class="admin-inline-hint">Загрузка…</p>
+                        </div>
+                    </div>
+
                     <div class="admin-section">
                         <h2>📈 Быстрая статистика</h2>
                         <div id="quickStats" class="quick-stats-grid">

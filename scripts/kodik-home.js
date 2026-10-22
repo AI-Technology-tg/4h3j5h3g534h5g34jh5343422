@@ -832,16 +832,21 @@
         return sortAnnouncedCards(out).slice(0, KODIK_ANNOUNCED_LIMIT);
     }
 
+    function rewritePosterHost(url) {
+        return String(url || '').replace(/https?:\/\/(?:www\.)?shikimori\.(io|me)/gi, 'https://shikimori.one');
+    }
+
     function applyPosterSrc(img, url, malId) {
-        if (!img || !url || !isValidHomePosterUrl(url)) return false;
+        const next = rewritePosterHost(url);
+        if (!img || !next || !isValidHomePosterUrl(next)) return false;
         img.loading = 'eager';
         img.decoding = 'async';
         img.referrerPolicy = 'no-referrer';
         img.classList.remove('is-poster-missing');
-        img.src = url;
+        img.src = next;
         const mal = parseInt(malId, 10);
         if (Number.isFinite(mal) && mal > 0 && typeof global.writeMalPosterCache === 'function') {
-            global.writeMalPosterCache(mal, url);
+            global.writeMalPosterCache(mal, next);
         }
         return true;
     }
@@ -1293,7 +1298,7 @@
         card.dataset.id = String(anime.id);
         if (anime.mal_id != null) card.dataset.malId = String(anime.mal_id);
 
-        const resolvedUrl = resolveKodikHomePosterUrl(anime);
+        const resolvedUrl = rewritePosterHost(resolveKodikHomePosterUrl(anime));
         // Не ставим src на все карточки сразу — иначе shikimori.io зависает пачкой
         const deferPoster = !!(opts && opts.deferPoster && resolvedUrl);
         const imgUrl = deferPoster ? '' : global.reminkoSafeImageUrl(resolvedUrl, '');

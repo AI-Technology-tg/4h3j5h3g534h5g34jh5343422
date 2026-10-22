@@ -47,28 +47,6 @@
     }
 })();
 
-(function injectLive2dWidgetEverywhere() {
-    if (typeof window === 'undefined' || window.__reminkoLive2dInjected) return;
-    // Сам виджет выбирает компактный mobile-конфиг и не грузится при
-    // saveData/reduced-motion/очень слабом устройстве.
-    window.__reminkoLive2dInjected = true;
-    try {
-        var cur = document.currentScript;
-        if (!cur || !cur.src) {
-            var list = document.querySelectorAll('script[src*="apply-navigation"]');
-            cur = list[list.length - 1];
-        }
-        if (!cur || !cur.src) return;
-        var base = cur.src.replace(/[^/]+$/, '');
-        var s = document.createElement('script');
-        s.src = base + 'live2d-widget-init.js?v=20260726mobile1';
-        s.async = true;
-        (document.head || document.documentElement).appendChild(s);
-    } catch (e) {
-        console.warn('[Live2D] inject:', e);
-    }
-})();
-
 (function injectSupportMinkoChatScript() {
     if (typeof window === 'undefined' || window.__reminkoSupportChatInjected) return;
     window.__reminkoSupportChatInjected = true;

@@ -85,13 +85,21 @@
         try {
             const headers = { 'Content-Type': 'application/json' };
             if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-            await fetch('/.netlify/functions/site-visit-ingest', {
+            const res = await fetch('/.netlify/functions/site-visit-ingest', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(row),
                 keepalive: true,
                 credentials: 'omit'
             });
+            if (!res.ok && window.supabaseClient?.rpc) {
+                await window.supabaseClient.rpc('site_visit_record', {
+                    p_visitor_id: row.visitor_id,
+                    p_path: row.path || '/',
+                    p_page_title: row.page_title || null,
+                    p_referrer: row.referrer || null
+                });
+            }
         } catch (_) {
             /* аналитика не должна мешать странице */
         }

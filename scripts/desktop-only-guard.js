@@ -237,34 +237,11 @@
 
     var STORAGE = 'rem_transform_theme';
 
-    function assetRoot() {
-        var p = window.location.pathname || '';
-        return /\/(catalog|manga|anime)\//i.test(p) ? '../' : '';
-    }
-
     try {
-        var theme = localStorage.getItem(STORAGE) === 'dark' ? 'dark' : 'white';
-        var root = assetRoot();
+        var theme = 'white';
+        try { localStorage.removeItem(STORAGE); } catch (_) { /* ignore */ }
         var docEl = document.documentElement;
         docEl.setAttribute('data-rem-theme', theme);
-
-        if (theme === 'dark') {
-            if (!document.getElementById('rem-theme-dark-css')) {
-                var css = document.createElement('link');
-                css.id = 'rem-theme-dark-css';
-                css.rel = 'stylesheet';
-                css.href = root + 'styles/theme-dark.css?v=20260728genre2';
-                document.head.appendChild(css);
-            }
-            if (!document.getElementById('rem-dark-bg-preload')) {
-                var preload = document.createElement('link');
-                preload.id = 'rem-dark-bg-preload';
-                preload.rel = 'preload';
-                preload.as = 'image';
-                preload.href = root + 'Fons/rem-dark-bg.png';
-                document.head.appendChild(preload);
-            }
-        }
 
         function applyBodyThemeClass() {
             if (!document.body) return;

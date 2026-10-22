@@ -72,9 +72,8 @@ class NavigationManager {
                         >
                     </span>
                     <div class="top-nav-actions">
-                        <a href="#" class="top-nav-link btn-top-login" id="topLoginBtn">Войти</a>
-                        <a href="#" class="top-nav-link btn-top-register" id="topRegisterBtn" data-maint-lock="register">Регистрация</a>
-                        <a href="#" class="top-nav-link btn-top-logout" id="topLogoutBtn" style="display: none;">Выйти</a>
+                        <a href="#" class="top-nav-link btn-top-login" id="topLoginBtn" hidden>Войти</a>
+                        <a href="#" class="top-nav-link btn-top-logout" id="topLogoutBtn" hidden>Выйти</a>
                     </div>
                 </div>
             </nav>
@@ -861,17 +860,14 @@ class NavigationManager {
             const topLoginBtn = document.getElementById('topLoginBtn');
             const topRegisterBtn = document.getElementById('topRegisterBtn');
             const topLogoutBtn = document.getElementById('topLogoutBtn');
+            const onCreatorPage = /admin\.html$/i.test(window.location.pathname || '');
             const resetAuthButtons = (mode) => {
                 if (topLoginBtn) {
                     topLoginBtn.textContent = 'Войти';
-                    topLoginBtn.style.display = mode === 'guest' ? 'flex' : 'none';
+                    topLoginBtn.hidden = !(mode === 'creator-guest' && onCreatorPage);
                 }
-                if (topRegisterBtn) {
-                    topRegisterBtn.style.display = mode === 'guest' ? 'flex' : 'none';
-                }
-                if (topLogoutBtn) {
-                    topLogoutBtn.style.display = mode === 'user' ? 'flex' : 'none';
-                }
+                if (topRegisterBtn) topRegisterBtn.hidden = true;
+                if (topLogoutBtn) topLogoutBtn.hidden = mode !== 'creator';
             };
             const creatorAdminLink = document.getElementById('sidebarCreatorAdminLink');
             if (user && !user.isAnonymous) {
@@ -890,10 +886,10 @@ class NavigationManager {
                     creatorAdminLink.style.display =
                         isSiteCreatorAcc || em === 'creator@reminko.com' ? '' : 'none';
                 }
-                resetAuthButtons('user');
+                resetAuthButtons(isSiteCreatorAcc || (user.email || '').toLowerCase().trim() === 'creator@reminko.com' ? 'creator' : 'guest');
             } else {
                 if (creatorAdminLink) creatorAdminLink.style.display = 'none';
-                resetAuthButtons('guest');
+                resetAuthButtons('creator-guest');
             }
         } catch (e) {
             /* ignore */

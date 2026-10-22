@@ -1306,12 +1306,15 @@ function hydrateJikanFranchiseAndSimilar(jikanData, virtualAnime, mergedCard) {
                     const st = safeBg
                         ? `style="background-image:url('${safeBg}')"`
                         : '';
-                    return `<a class="anime-similar-card" href="${href}" title="${escapeHtmlText(a.title)}">
+                    return `<a class="anime-similar-card" href="${href}" draggable="false" title="${escapeHtmlText(a.title)}">
                         <div class="anime-similar-card__poster" ${st}></div>
                         <div class="anime-similar-card__title">${escapeHtmlText(a.title)}</div>
                     </a>`;
                 })
                 .join('');
+            if (typeof reminkoEnhanceHorizontalDragScroll === 'function') {
+                reminkoEnhanceHorizontalDragScroll(similarGrid, { linkSelector: 'a.anime-similar-card' });
+            }
         }
     }
 }
@@ -1368,12 +1371,15 @@ function hydrateCatalogSimilarSection(anime) {
             const bg = getPosterForSimilarCard(a);
             const safeBg = bg ? reminkoSafeCssUrl(bg) : '';
             const st = safeBg ? `style="background-image:url('${safeBg}')"` : '';
-            return `<a class="anime-similar-card" href="${href}" title="${escapeHtmlText(a.title)}">
+            return `<a class="anime-similar-card" href="${href}" draggable="false" title="${escapeHtmlText(a.title)}">
                 <div class="anime-similar-card__poster" ${st}></div>
                 <div class="anime-similar-card__title">${escapeHtmlText(a.title)}</div>
             </a>`;
         })
         .join('');
+    if (typeof reminkoEnhanceHorizontalDragScroll === 'function') {
+        reminkoEnhanceHorizontalDragScroll(similarGrid, { linkSelector: 'a.anime-similar-card' });
+    }
 }
 
 async function renderJikanAnimeDetail(data, mergedCard = null) {
@@ -2229,7 +2235,8 @@ function showAnimeWatchUnavailable(iso) {
 function getActivePlayerTab() {
     const active = document.querySelector('#animeInlinePlayerSection .anime-source-tab--active');
     const tab = active?.getAttribute('data-tab');
-    if (tab === 'alloha' || tab === 'trailer' || tab === 'watch') return tab === 'watch' ? 'kodik' : tab;
+    if (tab === 'alloha' || tab === 'watch') return 'kodik';
+    if (tab === 'trailer') return tab;
     return tab || 'kodik';
 }
 
@@ -2240,6 +2247,7 @@ function applyActiveWatchProvider(anime, episode) {
 }
 
 window.switchAnimePlayerTab = function (name) {
+    if (name === 'alloha') name = 'kodik';
     const kodik = document.getElementById('animeTabPanelKodik');
     const alloha = document.getElementById('animeTabPanelAlloha');
     const trail = document.getElementById('animeTabPanelTrailer');
@@ -2418,8 +2426,7 @@ function generateInlineKodikSection(anime, opts = {}) {
     }
 
     // Kodik + Alloha + опционально «Трейлер»
-    const providerTabs = `<button type="button" class="anime-source-tab anime-source-tab--active" data-tab="kodik" role="tab" aria-selected="true" tabindex="0">Kodik</button>
-            <button type="button" class="anime-source-tab" data-tab="alloha" role="tab" aria-selected="false" tabindex="0">Alloha</button>`;
+    const providerTabs = `            <button type="button" class="anime-source-tab anime-source-tab--active" data-tab="kodik" role="tab" aria-selected="true" tabindex="0">Kodik</button>`;
     const tabBar = hasTrailer
         ? `<div class="anime-player-source-tabs" role="tablist" aria-label="Источник видео">
             ${providerTabs}
@@ -2463,21 +2470,6 @@ function generateInlineKodikSection(anime, opts = {}) {
                 <p class="anime-player-adblock-note">
                     Чтобы реже сталкиваться с рекламой во встроенном плеере, включите или установите блокировщик рекламы
                     (расширение для браузера или отдельную программу).
-                </p>
-            </div>
-            <div id="animeTabPanelAlloha" class="anime-tab-panel anime-tab-panel--alloha" data-panel="alloha" hidden>
-                <div id="allohaPlayerHint" class="anime-kodik-hint" hidden></div>
-                <div class="anime-kodik-frame-wrap" id="animeAllohaFrameWrap">
-                    <div id="animeAllohaPlaceholder" class="anime-kodik-placeholder" hidden>
-                        <p class="anime-kodik-placeholder__title">Плеер Alloha</p>
-                        <p class="anime-kodik-placeholder__text" id="animeAllohaPlaceholderText">Загрузка…</p>
-                    </div>
-                    <iframe id="animeAllohaIframe" class="anime-kodik-iframe" title="Плеер Alloha"
-                        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                        referrerpolicy="origin"></iframe>
-                </div>
-                <p class="anime-player-adblock-note">
-                    Плеер Alloha TV (Yani). Для работы на сайте нужен <code>ALLOHA_API_TOKEN</code> в Netlify.
                 </p>
             </div>
             ${trailerPanel}

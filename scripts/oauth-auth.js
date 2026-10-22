@@ -60,83 +60,20 @@ function reminkoConsumeOAuthRedirectPending() {
 
 // Авторизация через Google
 async function signInWithGoogle() {
-    if (!supabaseClient) {
-        if (typeof showError === 'function') showError('Supabase не инициализирован');
-        return;
-    }
-
-    try {
-        reminkoMarkOAuthRedirectPending();
-        const redirectTo = reminkoOAuthRedirectUrl();
-        const { error } = await supabaseClient.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo
-            }
-        });
-
-        if (error) {
-            console.error('Ошибка Google авторизации:', error);
-            if (typeof showError === 'function') {
-                showError(error.message || 'Не удалось войти через Google');
-            }
-        }
-    } catch (error) {
-        console.error('Ошибка Google авторизации:', error);
-        if (typeof showError === 'function') showError('Ошибка авторизации');
-    }
+    if (typeof showError === 'function') showError('Вход на сайт закрыт.');
+    return;
 }
 
 // Авторизация через Facebook
 async function signInWithFacebook() {
-    if (!supabaseClient) {
-        if (typeof showError === 'function') showError('Supabase не инициализирован');
-        return;
-    }
-
-    try {
-        reminkoMarkOAuthRedirectPending();
-        const { error } = await supabaseClient.auth.signInWithOAuth({
-            provider: 'facebook',
-            options: {
-                redirectTo: reminkoOAuthRedirectUrl()
-            }
-        });
-
-        if (error) {
-            console.error('Ошибка Facebook авторизации:', error);
-            if (typeof showError === 'function') showError('Не удалось войти через Facebook');
-        }
-    } catch (error) {
-        console.error('Ошибка Facebook авторизации:', error);
-        if (typeof showError === 'function') showError('Ошибка авторизации');
-    }
+    if (typeof showError === 'function') showError('Вход на сайт закрыт.');
+    return;
 }
 
 // Авторизация через Discord
 async function signInWithDiscord() {
-    if (!supabaseClient) {
-        if (typeof showError === 'function') showError('Supabase не инициализирован');
-        return;
-    }
-
-    try {
-        reminkoMarkOAuthRedirectPending();
-        const { error } = await supabaseClient.auth.signInWithOAuth({
-            provider: 'discord',
-            options: {
-                redirectTo: reminkoOAuthRedirectUrl()
-            }
-        });
-
-        if (error) {
-            console.error('Ошибка Discord авторизации:', error);
-            if (typeof showError === 'function') showError('Не удалось войти через Discord');
-        }
-    } catch (error) {
-        console.error('Ошибка Discord авторизации:', error);
-        if (typeof showError === 'function') showError('Ошибка авторизации');
-    }
+    if (typeof showError === 'function') showError('Вход на сайт закрыт.');
+    return;
 }
 
 /** После OAuth: профиль в БД и закрытие модалки входа */

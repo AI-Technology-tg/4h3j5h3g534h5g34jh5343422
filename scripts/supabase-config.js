@@ -560,16 +560,30 @@ if (!window.__reminkoMaintNavClickBound) {
 
         const headers = { 'Content-Type': 'application/json' };
         if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+        let sent = false;
         try {
-            await fetch('/.netlify/functions/site-visit-ingest', {
+            const res = await fetch('/.netlify/functions/site-visit-ingest', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(payload),
                 keepalive: true,
                 credentials: 'omit'
             });
+            sent = res.ok;
         } catch (_) {
-            /* аналитика не должна мешать странице */
+            sent = false;
+        }
+        if (!sent && typeof supabaseClient !== 'undefined' && supabaseClient?.rpc) {
+            try {
+                await supabaseClient.rpc('site_visit_record', {
+                    p_visitor_id: payload.visitor_id,
+                    p_path: payload.path || '/',
+                    p_page_title: payload.page_title || null,
+                    p_referrer: payload.referrer || null
+                });
+            } catch (_) {
+                /* аналитика не должна мешать странице */
+            }
         }
     }
 

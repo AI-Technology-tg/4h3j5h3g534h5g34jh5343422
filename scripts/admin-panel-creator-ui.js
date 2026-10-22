@@ -1152,6 +1152,9 @@ function bindDashboardControls() {
     period?.addEventListener('change', () => void loadVisitorAnalyticsPanel());
     document.getElementById('visitorOnlineWindow')?.addEventListener('change', () => void loadVisitorAnalyticsPanel());
     document.getElementById('visitorAnalyticsRefreshBtn')?.addEventListener('click', () => void loadVisitorAnalyticsPanel());
+    if (!__visitorRealtimeTimer && document.getElementById('visitorAnalyticsContent')) {
+        __visitorRealtimeTimer = setInterval(() => void loadVisitorAnalyticsPanel(), 15000);
+    }
     document.getElementById('visitorAnalyticsRealtimeToggle')?.addEventListener('change', refreshVisitorRealtimeState);
     document.getElementById('openMinkoAiLogsModalBtn')?.addEventListener('click', () => void openMinkoAiLogsModal());
     document.getElementById('creatorAuditRefreshBtn')?.addEventListener('click', () => void loadCreatorAuditLogsPanel());
@@ -1221,6 +1224,7 @@ async function loadDashboard() {
     }
 
     await loadCreatorAuditLogsPanel();
+    await loadVisitorAnalyticsPanel();
 }
 
 async function loadCreatorAuditLogsPanel() {
