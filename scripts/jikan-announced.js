@@ -546,7 +546,7 @@
     }
 
     // v4: не кэшируем постер из каталога без проверки по MAL (дубли сезонов)
-    const POSTER_MAL_CACHE_KEY = 'reminko_poster_mal_v4';
+    const POSTER_MAL_CACHE_KEY = 'reminko_poster_mal_v5';
     const POSTER_MAL_CACHE_TTL = 30 * 86400000;
     const _posterMalMem = new Map();
 

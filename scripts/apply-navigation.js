@@ -47,54 +47,6 @@
     }
 })();
 
-(function injectSupportMinkoChatScript() {
-    if (typeof window === 'undefined' || window.__reminkoSupportChatInjected) return;
-    window.__reminkoSupportChatInjected = true;
-    var base = '';
-    try {
-        var cur = document.currentScript;
-        if (!cur || !cur.src) {
-            var list = document.querySelectorAll('script[src*="apply-navigation"]');
-            cur = list[list.length - 1];
-        }
-        if (cur && cur.src) base = cur.src.replace(/[^/]+$/, '');
-    } catch (_) {
-        base = '';
-    }
-    if (!base) return;
-    function doInject() {
-        if (window.__reminkoSupportChatScriptLoaded) return;
-        window.__reminkoSupportChatScriptLoaded = true;
-        try {
-            var s = document.createElement('script');
-            s.src = base + 'support-minko-chat.js?v=20260726mobile1';
-            s.async = true;
-            (document.body || document.documentElement).appendChild(s);
-        } catch (e) {
-            console.warn('[Support Minko] inject:', e);
-        }
-    }
-    // Чат сохраняется, но его парсинг не конкурирует с первым взаимодействием.
-    function schedule() {
-        if (
-            typeof window.ReminkoBoot !== 'undefined' &&
-            typeof window.ReminkoBoot.lateIdle === 'function'
-        ) {
-            window.ReminkoBoot.lateIdle(doInject, 3500);
-            return;
-        }
-        setTimeout(function () {
-            if (typeof window.requestIdleCallback === 'function') {
-                window.requestIdleCallback(function () { doInject(); }, { timeout: 2500 });
-            } else {
-                doInject();
-            }
-        }, 3500);
-    }
-    if (document.readyState === 'complete') schedule();
-    else window.addEventListener('load', schedule, { once: true });
-})();
-
 (function() {
     'use strict';
     
