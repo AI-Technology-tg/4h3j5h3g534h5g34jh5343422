@@ -1,31 +1,31 @@
 {
-  "builtAt": "2026-11-21T02:31:29.072Z",
+  "builtAt": "2026-11-21T07:19:53.077Z",
   "source": "anime-automation",
   "files": {
     "kodik-anime-catalog.json": {
       "bytes": 18622422,
-      "mtime": "2026-11-21T02:31:28.397Z",
-      "builtAt": "2026-11-21T02:31:05.262Z"
+      "mtime": "2026-11-21T07:19:52.350Z",
+      "builtAt": "2026-11-21T07:19:27.563Z"
     },
     "kodik-calendar.json": {
-      "bytes": 29152,
-      "mtime": "2026-11-21T02:31:05.414Z",
-      "builtAt": "2026-11-21T02:31:05.415Z"
+      "bytes": 28571,
+      "mtime": "2026-11-21T07:19:27.714Z",
+      "builtAt": "2026-11-21T07:19:27.714Z"
     },
     "kodik-announced.json": {
       "bytes": 2861,
-      "mtime": "2026-11-21T02:31:05.418Z",
-      "builtAt": "2026-11-21T02:31:05.419Z"
+      "mtime": "2026-11-21T07:19:27.720Z",
+      "builtAt": "2026-11-21T07:19:27.720Z"
     },
     "kodik-home-strips.json": {
       "bytes": 66027,
-      "mtime": "2026-11-21T02:31:28.758Z",
-      "builtAt": "2026-11-21T02:31:28.749Z"
+      "mtime": "2026-11-21T07:19:52.699Z",
+      "builtAt": "2026-11-21T07:19:52.685Z"
     },
     "anime-automation-report.json": {
       "bytes": 395,
-      "mtime": "2026-11-21T02:31:28.490Z",
-      "builtAt": "2026-11-21T02:31:28.490Z"
+      "mtime": "2026-11-21T07:19:52.359Z",
+      "builtAt": "2026-11-21T07:19:52.357Z"
     }
   }
 }
