@@ -134,13 +134,74 @@ body {
     font-weight: 800;
 }
 
-.folio-kicker {
-    margin: 0;
-    font-size: 0.78rem;
+.pc-release {
+    margin-top: 1.4rem;
+    padding: 1.1rem 1.1rem 1.15rem;
+    border-radius: 18px;
+    border: 1px solid var(--folio-line);
+    background: rgba(18, 16, 26, 0.86);
+}
+
+.pc-release h2 {
+    margin: 0 0 0.9rem;
+    font-size: 1.15rem;
+    letter-spacing: -0.03em;
+}
+
+.pc-release-clock {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin-bottom: 1rem;
+}
+
+.pc-release-clock div {
+    padding: 0.75rem 0.4rem 0.7rem;
+    border-radius: 14px;
+    border: 1px solid var(--folio-line);
+    background: #0c0a12;
+    text-align: center;
+}
+
+.pc-release-clock b {
+    display: block;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    line-height: 1;
     font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: #c4b5fd;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.04em;
+}
+
+.pc-release-clock span {
+    display: block;
+    margin-top: 0.35rem;
+    color: #a89fb4;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.pc-release .folio-btn--solid {
+    margin-top: 0.15rem;
+}
+
+.folio-btn.is-disabled,
+.folio-btn.is-disabled:hover {
+    background: #2a2733;
+    color: #8d877e;
+    border-color: #2a2733;
+    cursor: default;
+}
+
+.pc-release-note,
+.pc-release-count {
+    margin: 0.75rem 0 0;
+    color: #b7aea3;
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+.pc-release-count {
+    margin-top: 0.35rem;
 }
 
 .folio-lead {
@@ -155,6 +216,7 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 0.7rem;
+    margin-top: 1rem;
 }
 
 .folio-btn {

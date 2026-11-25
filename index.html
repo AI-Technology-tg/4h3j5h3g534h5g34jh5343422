@@ -27,10 +27,10 @@
     </style>
     <script src="scripts/desktop-only-guard.js?v=20261022light1"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Re — Minko — платформа и каталог аниме</title>
+    <title>Re — Minko</title>
     <meta
         name="description"
-        content="Re — Minko: программа для Windows и каталог аниме на сайте. Анонсы, онгоинги и просмотр онлайн."
+        content="Каталог аниме на сайте Re — Minko. Программу для Windows можно скачать 12 декабря 2026."
     />
     <meta name="application-name" content="Re-Minko" />
     <meta name="author" content="Re-Minko" />
@@ -51,19 +51,19 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Re-Minko" />
     <meta property="og:locale" content="ru_RU" />
-    <meta property="og:title" content="Re — Minko — платформа и каталог аниме" />
+    <meta property="og:title" content="Re — Minko" />
     <meta
         property="og:description"
-        content="Программа для Windows и каталог аниме на сайте."
+        content="Каталог аниме на сайте. Программа для Windows — 12 декабря 2026."
     />
     <meta property="og:url" content="https://re-minko-anime.com/" />
     <meta property="og:image" content="https://re-minko-anime.com/Fons/fonG.jpg" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Re — Minko — платформа и каталог аниме" />
+    <meta name="twitter:title" content="Re — Minko" />
     <meta
         name="twitter:description"
-        content="Программа для Windows и каталог аниме на сайте."
+        content="Каталог аниме на сайте. Программа для Windows — 12 декабря 2026."
     />
     <meta name="twitter:image" content="https://re-minko-anime.com/Fons/fonG.jpg" />
 
@@ -76,7 +76,7 @@
             "name": "Re-Minko",
             "alternateName": ["Реминко", "Re Minko"],
             "url": "https://re-minko-anime.com/",
-            "description": "Программа для Windows и каталог аниме на сайте.",
+            "description": "Каталог аниме на сайте. Программа для Windows — 12 декабря 2026.",
             "inLanguage": "ru-RU",
             "publisher": {
                 "@type": "Organization",
@@ -105,7 +105,7 @@
     <link rel="stylesheet" href="styles/home.css?v=20261022poster1">
     <link rel="stylesheet" href="styles/loading.css?v=20260725u">
     <link rel="stylesheet" href="styles/register-flow.css?v=20260726mobile1">
-    <link rel="stylesheet" href="styles/portfolio.css?v=20261126folio1">
+    <link rel="stylesheet" href="styles/portfolio.css?v=20261126pc1">
 </head>
 <body>
     <!-- Экран загрузки -->
@@ -139,47 +139,30 @@
 
             <section class="folio" aria-labelledby="folioTitle">
                 <header class="folio-mast">
-                    <p class="folio-kicker">Платформа</p>
                     <h1 id="folioTitle">Re — Minko</h1>
-                    <p class="folio-lead">Программа для Windows и этот сайт. Каталог аниме общий: смотреть можно в программе и прямо в браузере.</p>
-                    <div class="folio-actions">
-                        <a class="folio-btn folio-btn--solid" href="catalog/anime.html">Открыть каталог</a>
-                        <a class="folio-btn" href="https://discord.gg/mFmu7fq35c" target="_blank" rel="noopener noreferrer">Discord</a>
-                    </div>
+                    <p class="folio-lead">На сайте каталог аниме. Программу для Windows можно скачать 12 декабря 2026.</p>
                 </header>
 
-                <dl class="folio-facts">
-                    <div>
-                        <dt>Программа</dt>
-                        <dd>Windows</dd>
+                <section class="pc-release" aria-labelledby="pcReleaseTitle">
+                    <h2 id="pcReleaseTitle">Выход программы для ПК</h2>
+                    <div class="pc-release-clock" id="pcReleaseTimer">
+                        <div><b data-pc="days">—</b><span data-pc-label="days">дней</span></div>
+                        <div><b data-pc="hours">—</b><span data-pc-label="hours">часов</span></div>
+                        <div><b data-pc="minutes">—</b><span data-pc-label="minutes">минут</span></div>
+                        <div><b data-pc="seconds">—</b><span data-pc-label="seconds">секунд</span></div>
                     </div>
-                    <div>
-                        <dt>В каталоге</dt>
-                        <dd><span id="statAnimeCount">—</span> тайтлов</dd>
-                    </div>
-                    <div>
-                        <dt>Где смотреть</dt>
-                        <dd>Сайт и программа</dd>
-                    </div>
-                </dl>
+                    <a class="folio-btn folio-btn--solid is-disabled" id="pcDownloadBtn" aria-disabled="true" tabindex="-1">Скачать</a>
+                    <p class="pc-release-note" id="pcDownloadNote">Кнопка включится 12 декабря 2026 в 00:00 (UTC+1).</p>
+                    <p class="pc-release-count">В каталоге сайта: <span id="statAnimeCount">—</span></p>
+                </section>
 
-                <div class="folio-grid">
-                    <article class="folio-card">
-                        <h2>Программа</h2>
-                        <p>Окно на Windows: каталог, плеер, мини-окно с той же серией и озвучкой, персонаж на нижней панели. Обновления ставятся из самой программы.</p>
-                    </article>
-                    <article class="folio-card">
-                        <h2>Сайт</h2>
-                        <p>Витрина платформы и каталог в браузере. Ниже — анонсы, то что сейчас выходит, и то, что смотрят чаще всего. У тайтла открывается плеер.</p>
-                    </article>
-                    <article class="folio-card">
-                        <h2>Сообщество</h2>
-                        <p>Новости и разговор — в Discord и Telegram. Ссылку на установку программы для Windows публикуем там же.</p>
-                    </article>
+                <div class="folio-actions">
+                    <a class="folio-btn" href="catalog/anime.html">Каталог</a>
+                    <a class="folio-btn" href="https://discord.gg/mFmu7fq35c" target="_blank" rel="noopener noreferrer">Discord</a>
                 </div>
 
-                <section class="folio-social" aria-label="Сообщества Re — Minko">
-                    <h2>Где мы есть</h2>
+                <section class="folio-social" aria-label="Соцсети Re — Minko">
+                    <h2>Соцсети</h2>
                     <div class="folio-social-row">
                         <button type="button" data-social="discord" aria-label="Discord">
                             <img src="Fons/Sociale/Discord.webp" alt="" width="36" height="36" decoding="async">
@@ -215,8 +198,8 @@
 
             <header class="folio-library">
                 <div>
-                    <h2>Аниме на сайте</h2>
-                    <p>Каталог остаётся. Ленты ниже — анонсы, онгоинги и популярное.</p>
+                    <h2>Аниме</h2>
+                    <p>Анонсы, то что сейчас выходит, и популярное.</p>
                 </div>
                 <a href="catalog/anime.html">Весь каталог</a>
             </header>
@@ -322,6 +305,7 @@
     <script src="scripts/loading.js?v=20260725v" defer></script>
     <script src="scripts/release-countdown.js?v=20261013cache1" defer></script>
     <script src="scripts/home.js?v=20261126folio1" defer></script>
+    <script src="scripts/pc-release.js?v=20261126pc1" defer></script>
     <script src="scripts/kodik-home.js?v=20261022poster2" defer></script>
     <script src="scripts/apply-navigation.js?v=20261022site2" defer></script>
     <div id="homeSocialPanel" class="home-social-panel" hidden>
