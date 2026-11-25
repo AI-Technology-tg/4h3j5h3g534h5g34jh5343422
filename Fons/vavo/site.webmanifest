@@ -1,10 +1,10 @@
 {
-  "name": "Re-Minko — смотреть аниме",
-  "short_name": "Re-Minko",
-  "description": "Каталог аниме и просмотр онлайн",
+  "name": "Re — Minko",
+  "short_name": "Re — Minko",
+  "description": "На сайте каталог аниме. В программе каталог манги: 10000. Программу для Windows можно скачать 12 декабря 2026.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#5b21b6",
+  "background_color": "#090711",
+  "theme_color": "#090711",
   "lang": "ru",
   "icons":[{"src":"android-chrome-192x192.png","sizes":"192x192","type":"image/png"},{"src":"android-chrome-512x512.png","sizes":"512x512","type":"image/png"},{"src":"apple-touch-icon.png","sizes":"180x180","type":"image/png"},{"src":"favicon-16x16.png","sizes":"16x16","type":"image/png"},{"src":"favicon-32x32.png","sizes":"32x32","type":"image/png"},{"src":"favicon.ico","sizes":"48x48","type":"image/x-icon"}]}
