@@ -30,7 +30,7 @@
     <title>Re — Minko</title>
     <meta
         name="description"
-        content="Каталог аниме на сайте Re — Minko. Программу для Windows можно скачать 12 декабря 2026."
+        content="Каталог аниме на сайте Re — Minko. В программе есть манга. Программу для Windows можно скачать 12 декабря 2026."
     />
     <meta name="application-name" content="Re-Minko" />
     <meta name="author" content="Re-Minko" />
@@ -54,7 +54,7 @@
     <meta property="og:title" content="Re — Minko" />
     <meta
         property="og:description"
-        content="Каталог аниме на сайте. Программа для Windows — 12 декабря 2026."
+        content="Каталог аниме на сайте. В программе есть манга. Программа для Windows — 12 декабря 2026."
     />
     <meta property="og:url" content="https://re-minko-anime.com/" />
     <meta property="og:image" content="https://re-minko-anime.com/Fons/fonG.jpg" />
@@ -63,11 +63,11 @@
     <meta name="twitter:title" content="Re — Minko" />
     <meta
         name="twitter:description"
-        content="Каталог аниме на сайте. Программа для Windows — 12 декабря 2026."
+        content="Каталог аниме на сайте. В программе есть манга. Программа для Windows — 12 декабря 2026."
     />
     <meta name="twitter:image" content="https://re-minko-anime.com/Fons/fonG.jpg" />
 
-    <meta name="theme-color" content="#5b21b6" />
+    <meta name="theme-color" content="#090711" />
 
     <script type="application/ld+json">
         {
@@ -76,7 +76,7 @@
             "name": "Re-Minko",
             "alternateName": ["Реминко", "Re Minko"],
             "url": "https://re-minko-anime.com/",
-            "description": "Каталог аниме на сайте. Программа для Windows — 12 декабря 2026.",
+            "description": "Каталог аниме на сайте. В программе есть манга. Программа для Windows — 12 декабря 2026.",
             "inLanguage": "ru-RU",
             "publisher": {
                 "@type": "Organization",
@@ -105,7 +105,7 @@
     <link rel="stylesheet" href="styles/home.css?v=20261022poster1">
     <link rel="stylesheet" href="styles/loading.css?v=20260725u">
     <link rel="stylesheet" href="styles/register-flow.css?v=20260726mobile1">
-    <link rel="stylesheet" href="styles/portfolio.css?v=20261126pc1">
+    <link rel="stylesheet" href="styles/portfolio.css?v=20261126app1">
 </head>
 <body>
     <!-- Экран загрузки -->
@@ -140,25 +140,39 @@
             <section class="folio" aria-labelledby="folioTitle">
                 <header class="folio-mast">
                     <h1 id="folioTitle">Re — Minko</h1>
-                    <p class="folio-lead">На сайте каталог аниме. Программу для Windows можно скачать 12 декабря 2026.</p>
+                    <p class="folio-lead">На сайте каталог аниме. В программе есть манга. Программу для Windows можно скачать 12 декабря 2026.</p>
                 </header>
 
-                <section class="pc-release" aria-labelledby="pcReleaseTitle">
-                    <h2 id="pcReleaseTitle">Выход программы для ПК</h2>
-                    <div class="pc-release-clock" id="pcReleaseTimer">
-                        <div><b data-pc="days">—</b><span data-pc-label="days">дней</span></div>
-                        <div><b data-pc="hours">—</b><span data-pc-label="hours">часов</span></div>
-                        <div><b data-pc="minutes">—</b><span data-pc-label="minutes">минут</span></div>
-                        <div><b data-pc="seconds">—</b><span data-pc-label="seconds">секунд</span></div>
+                <div class="folio-counts">
+                    <div>
+                        <span>Аниме на сайте</span>
+                        <b id="statAnimeCount">—</b>
                     </div>
-                    <a class="folio-btn folio-btn--solid is-disabled" id="pcDownloadBtn" aria-disabled="true" tabindex="-1">Скачать</a>
-                    <p class="pc-release-note" id="pcDownloadNote">Кнопка включится 12 декабря 2026 в 00:00 (UTC+1).</p>
-                    <p class="pc-release-count">В каталоге сайта: <span id="statAnimeCount">—</span></p>
+                    <div>
+                        <span>Манга в программе</span>
+                        <b id="statMangaCount">—</b>
+                    </div>
+                </div>
+
+                <section class="pc-release" aria-labelledby="pcReleaseTitle">
+                    <div class="pc-release-copy">
+                        <h2 id="pcReleaseTitle">Выход программы для ПК</h2>
+                        <div class="pc-release-clock" id="pcReleaseTimer">
+                            <div><b data-pc="days">—</b><span data-pc-label="days">дней</span></div>
+                            <div><b data-pc="hours">—</b><span data-pc-label="hours">часов</span></div>
+                            <div><b data-pc="minutes">—</b><span data-pc-label="minutes">минут</span></div>
+                            <div><b data-pc="seconds">—</b><span data-pc-label="seconds">секунд</span></div>
+                        </div>
+                        <p class="pc-release-note" id="pcDownloadNote">Кнопка включится 12 декабря 2026 в 00:00 (UTC+1).</p>
+                    </div>
+                    <a class="pc-download is-disabled" id="pcDownloadBtn" aria-disabled="true" tabindex="-1">
+                        <span class="pc-download-label">Скачать</span>
+                        <span class="pc-download-when" id="pcDownloadWhen">12 декабря 2026</span>
+                    </a>
                 </section>
 
                 <div class="folio-actions">
-                    <a class="folio-btn" href="catalog/anime.html">Каталог</a>
-                    <a class="folio-btn" href="https://discord.gg/mFmu7fq35c" target="_blank" rel="noopener noreferrer">Discord</a>
+                    <a class="folio-btn" href="catalog/anime.html">Каталог аниме</a>
                 </div>
 
                 <section class="folio-social" aria-label="Соцсети Re — Minko">
@@ -305,7 +319,7 @@
     <script src="scripts/loading.js?v=20260725v" defer></script>
     <script src="scripts/release-countdown.js?v=20261013cache1" defer></script>
     <script src="scripts/home.js?v=20261126folio1" defer></script>
-    <script src="scripts/pc-release.js?v=20261126pc1" defer></script>
+    <script src="scripts/pc-release.js?v=20261126app1" defer></script>
     <script src="scripts/kodik-home.js?v=20261022poster2" defer></script>
     <script src="scripts/apply-navigation.js?v=20261022site2" defer></script>
     <div id="homeSocialPanel" class="home-social-panel" hidden>

@@ -28,9 +28,26 @@
         btn.removeAttribute('aria-disabled');
         btn.classList.remove('is-disabled');
         btn.tabIndex = 0;
-        btn.textContent = 'Скачать';
+        var when = document.getElementById('pcDownloadWhen');
+        if (when) when.textContent = 'для Windows';
         if (note) note.textContent = 'Файл установщика для Windows.';
         if (timer) timer.hidden = true;
+    }
+
+    function loadMangaCount() {
+        var node = document.getElementById('statMangaCount');
+        if (!node) return;
+        fetch('data/manga-count.json', { cache: 'no-store' })
+            .then(function (response) {
+                if (!response.ok) throw new Error('manga count');
+                return response.json();
+            })
+            .then(function (data) {
+                var count = parseInt(data && data.count, 10);
+                if (!count) return;
+                node.textContent = count.toLocaleString('ru-RU');
+            })
+            .catch(function () {});
     }
 
     function tick() {
@@ -68,6 +85,7 @@
             if (btn.getAttribute('aria-disabled') === 'true') event.preventDefault();
         });
         tick();
+        loadMangaCount();
         window.setInterval(tick, 1000);
     }
 
