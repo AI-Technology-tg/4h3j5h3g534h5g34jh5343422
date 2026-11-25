@@ -395,6 +395,7 @@ function updateHeroStats() {
             animeCount = new Set(anime.map((a) => parseInt(a.id, 10)).filter(Number.isFinite)).size;
         }
 
+        if (!Number.isFinite(animeCount) || animeCount <= 0) return;
         animeCountEl.textContent = formatHeroStatCount(animeCount);
     }
 

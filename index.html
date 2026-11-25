@@ -27,10 +27,10 @@
     </style>
     <script src="scripts/desktop-only-guard.js?v=20261022light1"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Re-Minko — смотреть аниме онлайн</title>
+    <title>Re — Minko — платформа и каталог аниме</title>
     <meta
         name="description"
-        content="Каталог аниме с удобным поиском и просмотром онлайн."
+        content="Re — Minko: программа для Windows и каталог аниме на сайте. Анонсы, онгоинги и просмотр онлайн."
     />
     <meta name="application-name" content="Re-Minko" />
     <meta name="author" content="Re-Minko" />
@@ -51,19 +51,19 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Re-Minko" />
     <meta property="og:locale" content="ru_RU" />
-    <meta property="og:title" content="Re-Minko — смотреть аниме онлайн" />
+    <meta property="og:title" content="Re — Minko — платформа и каталог аниме" />
     <meta
         property="og:description"
-        content="Каталог аниме и просмотр онлайн."
+        content="Программа для Windows и каталог аниме на сайте."
     />
     <meta property="og:url" content="https://re-minko-anime.com/" />
     <meta property="og:image" content="https://re-minko-anime.com/Fons/fonG.jpg" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Re-Minko — смотреть аниме онлайн" />
+    <meta name="twitter:title" content="Re — Minko — платформа и каталог аниме" />
     <meta
         name="twitter:description"
-        content="Каталог аниме и просмотр онлайн."
+        content="Программа для Windows и каталог аниме на сайте."
     />
     <meta name="twitter:image" content="https://re-minko-anime.com/Fons/fonG.jpg" />
 
@@ -76,7 +76,7 @@
             "name": "Re-Minko",
             "alternateName": ["Реминко", "Re Minko"],
             "url": "https://re-minko-anime.com/",
-            "description": "Каталог аниме и просмотр онлайн.",
+            "description": "Программа для Windows и каталог аниме на сайте.",
             "inLanguage": "ru-RU",
             "publisher": {
                 "@type": "Organization",
@@ -105,6 +105,7 @@
     <link rel="stylesheet" href="styles/home.css?v=20261022poster1">
     <link rel="stylesheet" href="styles/loading.css?v=20260725u">
     <link rel="stylesheet" href="styles/register-flow.css?v=20260726mobile1">
+    <link rel="stylesheet" href="styles/portfolio.css?v=20261126folio1">
 </head>
 <body>
     <!-- Экран загрузки -->
@@ -136,122 +137,89 @@
         <!-- Главный контент -->
         <main class="main-content-wrapper home-page">
 
-            <!-- Hero-секция -->
-            <section class="home-hero">
-                <div class="home-hero-bg"></div>
-                <div class="home-hero-content">
-                    <div class="home-hero-text">
-                        <h1 class="home-hero-title">Re-Minko</h1>
-                        <p class="home-hero-lead">Смотри аниме так, как тебе нравится.</p>
-                        <p class="home-hero-subtitle">Достаточно большой каталог аниме.</p>
-                        <p class="home-hero-wink">Смотря аниме, помни: время здесь — это время из повседневной жизни. Пока смотришь серию, можешь упустить что-то важное и ценное для себя. Береги время — его всегда меньше, чем кажется.</p>
-                        <div class="home-hero-stats" id="heroStats">
-                            <div class="hero-stat">
-                                <span class="hero-stat-value" id="statAnimeCount">—</span>
-                                <span class="hero-stat-label">Аниме</span>
-                            </div>
-                        </div>
+            <section class="folio" aria-labelledby="folioTitle">
+                <header class="folio-mast">
+                    <p class="folio-kicker">Платформа</p>
+                    <h1 id="folioTitle">Re — Minko</h1>
+                    <p class="folio-lead">Программа для Windows и этот сайт. Каталог аниме общий: смотреть можно в программе и прямо в браузере.</p>
+                    <div class="folio-actions">
+                        <a class="folio-btn folio-btn--solid" href="catalog/anime.html">Открыть каталог</a>
+                        <a class="folio-btn" href="https://discord.gg/mFmu7fq35c" target="_blank" rel="noopener noreferrer">Discord</a>
                     </div>
-                    <aside class="home-hero-social" aria-label="Соцсети и приложения Re-Minko">
-                        <p class="home-hero-social-heading">Наши соцсети</p>
-                        <div class="home-hero-social-avatars">
-                            <button
-                                type="button"
-                                class="home-social-avatar"
-                                data-social="telegram"
-                                aria-label="Re-Minko в Telegram"
-                            >
-                                <img data-social-src="Fons/Sociale/Telegram.webp" src="Fons/Sociale/Telegram.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
-                            </button>
-                            <button
-                                type="button"
-                                class="home-social-avatar"
-                                data-social="tiktok"
-                                aria-label="Re-Minko в TikTok"
-                            >
-                                <img data-social-src="Fons/Sociale/TikTok.webp" src="Fons/Sociale/TikTok.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
-                            </button>
-                            <button
-                                type="button"
-                                class="home-social-avatar"
-                                data-social="instagram"
-                                aria-label="Re-Minko в Instagram"
-                            >
-                                <img data-social-src="Fons/Sociale/Instagram.webp" src="Fons/Sociale/Instagram.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
-                            </button>
-                            <button
-                                type="button"
-                                class="home-social-avatar"
-                                data-social="facebook"
-                                aria-label="Re-Minko в Facebook"
-                            >
-                                <img data-social-src="Fons/Sociale/Facebook.webp" src="Fons/Sociale/Facebook.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
-                            </button>
-                            <button
-                                type="button"
-                                class="home-social-avatar"
-                                data-social="twitter"
-                                aria-label="Re-Minko в Twitter"
-                            >
-                                <img data-social-src="Fons/Sociale/Twitter.webp" src="Fons/Sociale/Twitter.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
-                            </button>
-                            <button
-                                type="button"
-                                class="home-social-avatar"
-                                data-social="vk"
-                                aria-label="Re-Minko во ВКонтакте"
-                            >
-                                <img data-social-src="Fons/Sociale/VK.webp" src="Fons/Sociale/VK.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
-                            </button>
-                            <button
-                                type="button"
-                                class="home-social-avatar"
-                                data-social="discord"
-                                aria-label="Re-Minko в Discord"
-                            >
-                                <img data-social-src="Fons/Sociale/Discord.webp" src="Fons/Sociale/Discord.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
-                            </button>
-                            <button
-                                type="button"
-                                class="home-social-avatar home-social-avatar--app home-social-avatar--soon"
-                                id="homeAppAndroidBtn"
-                                data-social="android"
-                                aria-label="Приложения Re-Minko — Android, ПК и TV — в разработке"
-                                title="Приложения Re-Minko — скоро"
-                            >
-                                <img data-social-src="Fons/androids.webp" src="Fons/androids.webp" alt="" width="80" height="80" decoding="async" loading="lazy" />
-                                <span class="home-social-avatar-badge">скоро</span>
-                            </button>
-                        </div>
-                        <p class="home-hero-social-hint home-hero-social-hint--apps">
-                            Приложения Re-Minko — <strong>в разработке</strong>: Android, программа для&nbsp;ПК и&nbsp;приложение для&nbsp;телевизора (Smart&nbsp;TV).
-                        </p>
-                    </aside>
+                </header>
+
+                <dl class="folio-facts">
+                    <div>
+                        <dt>Программа</dt>
+                        <dd>Windows</dd>
+                    </div>
+                    <div>
+                        <dt>В каталоге</dt>
+                        <dd><span id="statAnimeCount">—</span> тайтлов</dd>
+                    </div>
+                    <div>
+                        <dt>Где смотреть</dt>
+                        <dd>Сайт и программа</dd>
+                    </div>
+                </dl>
+
+                <div class="folio-grid">
+                    <article class="folio-card">
+                        <h2>Программа</h2>
+                        <p>Окно на Windows: каталог, плеер, мини-окно с той же серией и озвучкой, персонаж на нижней панели. Обновления ставятся из самой программы.</p>
+                    </article>
+                    <article class="folio-card">
+                        <h2>Сайт</h2>
+                        <p>Витрина платформы и каталог в браузере. Ниже — анонсы, то что сейчас выходит, и то, что смотрят чаще всего. У тайтла открывается плеер.</p>
+                    </article>
+                    <article class="folio-card">
+                        <h2>Сообщество</h2>
+                        <p>Новости и разговор — в Discord и Telegram. Ссылку на установку программы для Windows публикуем там же.</p>
+                    </article>
                 </div>
+
+                <section class="folio-social" aria-label="Сообщества Re — Minko">
+                    <h2>Где мы есть</h2>
+                    <div class="folio-social-row">
+                        <button type="button" data-social="discord" aria-label="Discord">
+                            <img src="Fons/Sociale/Discord.webp" alt="" width="36" height="36" decoding="async">
+                            <span>Discord</span>
+                        </button>
+                        <button type="button" data-social="telegram" aria-label="Telegram">
+                            <img src="Fons/Sociale/Telegram.webp" alt="" width="36" height="36" decoding="async">
+                            <span>Telegram</span>
+                        </button>
+                        <button type="button" data-social="tiktok" aria-label="TikTok">
+                            <img src="Fons/Sociale/TikTok.webp" alt="" width="36" height="36" decoding="async">
+                            <span>TikTok</span>
+                        </button>
+                        <button type="button" data-social="instagram" aria-label="Instagram">
+                            <img src="Fons/Sociale/Instagram.webp" alt="" width="36" height="36" decoding="async">
+                            <span>Instagram</span>
+                        </button>
+                        <button type="button" data-social="twitter" aria-label="Twitter">
+                            <img src="Fons/Sociale/Twitter.webp" alt="" width="36" height="36" decoding="async">
+                            <span>Twitter</span>
+                        </button>
+                        <button type="button" data-social="facebook" aria-label="Facebook">
+                            <img src="Fons/Sociale/Facebook.webp" alt="" width="36" height="36" decoding="async">
+                            <span>Facebook</span>
+                        </button>
+                        <button type="button" data-social="vk" aria-label="ВКонтакте">
+                            <img src="Fons/Sociale/VK.webp" alt="" width="36" height="36" decoding="async">
+                            <span>ВКонтакте</span>
+                        </button>
+                    </div>
+                </section>
             </section>
 
-            <aside class="home-close-banner" id="homeCloseBanner">
-                <div class="home-close-banner-inner">
-                    <span class="home-close-pill">Сайт закрывается</span>
-                    <h2 class="home-close-title">Спасибо, что были с сайтом Re-Minko</h2>
-                    <p class="home-close-text">
-                        Мы благодарим вас за участие в бета-тестировании, за конкурсы, обратную связь и поддержку.
-                        Вы помогли вырастить этот проект.
-                    </p>
-                    <p class="home-close-text">
-                        Разработку сайта мы прекращаем: все силы уходят в программу для ПК, телевизоров и телефонов.
-                        Позже доберёмся и до VR-шлемов.
-                    </p>
-                    <p class="home-close-text">
-                        Здесь остаётся только каталог Kodik и страницы с плеерами. Любимые аниме по-прежнему можно смотреть,
-                        а новости — ловить в соцсетях. Нового функционала на сайте больше не будет.
-                    </p>
-                    <div class="home-close-actions">
-                        <a class="hero-btn hero-btn-primary" href="catalog/anime.html">Открыть каталог</a>
-                        <a class="hero-btn hero-btn-secondary" href="https://telegram.me/re_minko" target="_blank" rel="noopener noreferrer">Новости в Telegram</a>
-                    </div>
+            <header class="folio-library">
+                <div>
+                    <h2>Аниме на сайте</h2>
+                    <p>Каталог остаётся. Ленты ниже — анонсы, онгоинги и популярное.</p>
                 </div>
-            </aside>
+                <a href="catalog/anime.html">Весь каталог</a>
+            </header>
 
             <!-- Kodik: анонсы / выходит / популярное -->
             <section class="home-section home-section--kodik" id="kodikHomeAnnounced" hidden aria-hidden="true">
@@ -348,12 +316,12 @@
 <script src="scripts/anime-stats.js" defer></script>
     <script src="scripts/loading-phrases.js" defer></script>
 <script src="scripts/register.js?v=20260726stage2" defer></script>
-    <script src="scripts/navigation.js?v=20261022site1" defer></script>
+    <script src="scripts/navigation.js?v=20261126folio1" defer></script>
     <script src="scripts/password-reset.js" defer></script>
 <script src="scripts/main.js"></script>
     <script src="scripts/loading.js?v=20260725v" defer></script>
     <script src="scripts/release-countdown.js?v=20261013cache1" defer></script>
-    <script src="scripts/home.js?v=20260917discord1" defer></script>
+    <script src="scripts/home.js?v=20261126folio1" defer></script>
     <script src="scripts/kodik-home.js?v=20261022poster2" defer></script>
     <script src="scripts/apply-navigation.js?v=20261022site2" defer></script>
     <div id="homeSocialPanel" class="home-social-panel" hidden>
