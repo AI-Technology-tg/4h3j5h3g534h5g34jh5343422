@@ -105,7 +105,7 @@
     <link rel="stylesheet" href="styles/home.css?v=20261022poster1">
     <link rel="stylesheet" href="styles/loading.css?v=20260725u">
     <link rel="stylesheet" href="styles/register-flow.css?v=20260726mobile1">
-    <link rel="stylesheet" href="styles/portfolio.css?v=20261126app1">
+    <link rel="stylesheet" href="styles/portfolio.css?v=20261126app2">
 </head>
 <body>
     <!-- Экран загрузки -->
@@ -149,8 +149,8 @@
                         <b id="statAnimeCount">—</b>
                     </div>
                     <div>
-                        <span>Манга в программе</span>
-                        <b id="statMangaCount">—</b>
+                        <span>Каталог манги</span>
+                        <b id="statMangaCount">10000</b>
                     </div>
                 </div>
 
@@ -165,15 +165,11 @@
                         </div>
                         <p class="pc-release-note" id="pcDownloadNote">Кнопка включится 12 декабря 2026 в 00:00 (UTC+1).</p>
                     </div>
-                    <a class="pc-download is-disabled" id="pcDownloadBtn" aria-disabled="true" tabindex="-1">
+                    <a class="pc-download is-disabled" id="pcDownloadBtn" href="#" aria-disabled="true">
                         <span class="pc-download-label">Скачать</span>
                         <span class="pc-download-when" id="pcDownloadWhen">12 декабря 2026</span>
                     </a>
                 </section>
-
-                <div class="folio-actions">
-                    <a class="folio-btn" href="catalog/anime.html">Каталог аниме</a>
-                </div>
 
                 <section class="folio-social" aria-label="Соцсети Re — Minko">
                     <h2>Соцсети</h2>
@@ -209,14 +205,6 @@
                     </div>
                 </section>
             </section>
-
-            <header class="folio-library">
-                <div>
-                    <h2>Аниме</h2>
-                    <p>Анонсы, то что сейчас выходит, и популярное.</p>
-                </div>
-                <a href="catalog/anime.html">Весь каталог</a>
-            </header>
 
             <!-- Kodik: анонсы / выходит / популярное -->
             <section class="home-section home-section--kodik" id="kodikHomeAnnounced" hidden aria-hidden="true">
@@ -319,9 +307,17 @@
     <script src="scripts/loading.js?v=20260725v" defer></script>
     <script src="scripts/release-countdown.js?v=20261013cache1" defer></script>
     <script src="scripts/home.js?v=20261126folio1" defer></script>
-    <script src="scripts/pc-release.js?v=20261126app1" defer></script>
+    <script src="scripts/pc-release.js?v=20261126app2" defer></script>
     <script src="scripts/kodik-home.js?v=20261022poster2" defer></script>
     <script src="scripts/apply-navigation.js?v=20261022site2" defer></script>
+    <div id="pcWaitPanel" class="pc-wait" hidden>
+        <div class="pc-wait__backdrop" data-pc-wait-close></div>
+        <div class="pc-wait__card" role="dialog" aria-modal="true" aria-labelledby="pcWaitTitle">
+            <button type="button" class="pc-wait__close" data-pc-wait-close aria-label="Закрыть">×</button>
+            <h2 id="pcWaitTitle">Скачать</h2>
+            <p>Мы понимаем, и сами в нетерпении когда наступит 12 декабря, но сейчас скачать нельзя, потерпим еще чуток, правда</p>
+        </div>
+    </div>
     <div id="homeSocialPanel" class="home-social-panel" hidden>
         <div class="home-social-panel__backdrop"></div>
         <div class="home-social-panel__card" role="dialog" aria-modal="true" aria-labelledby="homeSocialPanelTitle">

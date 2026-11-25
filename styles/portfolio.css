@@ -247,11 +247,68 @@ body {
 
 .pc-download.is-disabled,
 .pc-download.is-disabled:hover {
-    background: #1c1730;
+    background: #3a3842;
+    color: #8d8794;
+    border: 1px solid #4e4b57;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.pc-wait {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483645;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+}
+
+.pc-wait[hidden] {
+    display: none;
+}
+
+.pc-wait__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(9, 7, 17, 0.72);
+}
+
+.pc-wait__card {
+    position: relative;
+    width: min(440px, 100%);
+    padding: 1.35rem 1.25rem 1.25rem;
+    border-radius: 18px;
+    background: #151224;
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
     color: #f4ecfa;
-    border: 1.5px solid rgba(227, 0, 255, 0.7);
-    box-shadow: inset 0 0 0 1px rgba(227, 0, 255, 0.15);
-    cursor: default;
+}
+
+.pc-wait__card h2 {
+    margin: 0 2rem 0.7rem 0;
+    font-size: 1.2rem;
+}
+
+.pc-wait__card p {
+    margin: 0;
+    color: #d8cbe6;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.pc-wait__close {
+    position: absolute;
+    top: 0.7rem;
+    right: 0.7rem;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #f4ecfa;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
 }
 
 .pc-release-note {

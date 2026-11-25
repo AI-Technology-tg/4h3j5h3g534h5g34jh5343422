@@ -45,7 +45,7 @@
             .then(function (data) {
                 var count = parseInt(data && data.count, 10);
                 if (!count) return;
-                node.textContent = count.toLocaleString('ru-RU');
+                node.textContent = String(count);
             })
             .catch(function () {});
     }
@@ -78,11 +78,44 @@
         setLabel('seconds', ru(seconds, 'секунда', 'секунды', 'секунд'));
     }
 
+    function waitPanel() {
+        return document.getElementById('pcWaitPanel');
+    }
+
+    function openWaitPanel() {
+        var panel = waitPanel();
+        if (!panel) return;
+        panel.hidden = false;
+        document.body.style.overflow = 'hidden';
+        var close = panel.querySelector('.pc-wait__close');
+        if (close) close.focus();
+    }
+
+    function closeWaitPanel() {
+        var panel = waitPanel();
+        if (!panel || panel.hidden) return;
+        panel.hidden = true;
+        document.body.style.overflow = '';
+    }
+
     function start() {
         var btn = document.getElementById('pcDownloadBtn');
         if (!btn) return;
         btn.addEventListener('click', function (event) {
-            if (btn.getAttribute('aria-disabled') === 'true') event.preventDefault();
+            if (btn.getAttribute('aria-disabled') !== 'true') return;
+            event.preventDefault();
+            openWaitPanel();
+        });
+        var panel = waitPanel();
+        if (panel) {
+            panel.addEventListener('click', function (event) {
+                if (event.target && event.target.closest && event.target.closest('[data-pc-wait-close]')) {
+                    closeWaitPanel();
+                }
+            });
+        }
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') closeWaitPanel();
         });
         tick();
         loadMangaCount();
